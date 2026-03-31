@@ -7,17 +7,26 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "docker:up": "docker compose -f docker-compose.yaml up -d",
+    "docker:stop": "docker compose -f docker-compose.yaml stop",
+    "docker:down": "docker compose -f docker-compose.yaml down",
+    "docker:clean": "docker compose -f docker-compose.yaml down -v",
+    "db:generate": "dotenv -- bun run --cwd apps/web db:generate",
+    "db:migrate": "dotenv -- bun run --cwd apps/web db:migrate",
+    "db:push": "dotenv -- bun run --cwd apps/web db:push",
+    "db:studio": "dotenv -- bun run --cwd apps/web db:studio"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",
     "@workspace/typescript-config": "workspace:*",
+    "dotenv-cli": "^11.0.0",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "turbo": "^2.8.17",
-    "typescript": "5.9.3"
+    "turbo": "^2.8.21",
+    "typescript": "6.0.2"
   },
-  "packageManager": "bun@1.3.5",
+  "packageManager": "bun@1.3.11",
   "engines": {
     "node": ">=20"
   },

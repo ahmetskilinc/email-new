@@ -1,6 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "radix-lyra",
+  "style": "base-nova",
   "rsc": true,
   "tsx": true,
   "tailwind": {
@@ -18,6 +18,6 @@
     "ui": "@workspace/ui/components"
   },
   "rtl": false,
-  "menuColor": "inverted",
-  "menuAccent": "bold"
+  "menuColor": "default-translucent",
+  "menuAccent": "subtle"
 }
