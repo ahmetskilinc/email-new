@@ -696,7 +696,10 @@ function SidebarMenuSubButton({
   })
 }
 
+export type { SidebarContextProps }
+
 export {
+  SidebarContext,
   Sidebar,
   SidebarContent,
   SidebarFooter,

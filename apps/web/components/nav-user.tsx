@@ -20,8 +20,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
-} from "@workspace/ui/components/sidebar"
+  useDualSidebar,
+} from "@workspace/ui/components/dual-sidebar"
 import {
   AccountSwitchDialog,
   type SwitchTarget,
@@ -71,7 +71,7 @@ export function NavUser() {
     "general" | "account" | "connections" | "notifications"
   >("general")
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
-  const { isMobile } = useSidebar()
+  const { isMobile } = useDualSidebar()
   const { theme, setTheme } = useTheme()
   const activeTheme = theme ?? "system"
   const { data: sesionData } = useSession()

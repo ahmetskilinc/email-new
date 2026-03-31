@@ -2,11 +2,11 @@
 
 import * as React from "react"
 import {
-  Sidebar,
+  DualSidebar,
   SidebarContent,
   SidebarHeader,
   SidebarSeparator,
-} from "@workspace/ui/components/sidebar"
+} from "@workspace/ui/components/dual-sidebar"
 import { Button } from "@workspace/ui/components/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Calendar03Icon } from "@hugeicons-pro/core-stroke-rounded"
@@ -81,7 +81,7 @@ export function AppSidebarRight() {
   }
 
   return (
-    <Sidebar variant="inset" collapsible="offcanvas" side="right">
+    <DualSidebar side="right" variant="inset" collapsible="offcanvas">
       <SidebarHeader className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -128,6 +128,6 @@ export function AppSidebarRight() {
         event={editingEvent}
         initialDate={createDate}
       />
-    </Sidebar>
+    </DualSidebar>
   )
 }

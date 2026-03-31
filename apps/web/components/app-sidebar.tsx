@@ -1,7 +1,7 @@
 "use client"
 
 import {
-  Sidebar,
+  DualSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
@@ -10,7 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@workspace/ui/components/sidebar"
+} from "@workspace/ui/components/dual-sidebar"
 import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
@@ -24,7 +24,7 @@ export function AppSidebar() {
   const topNavConfig = navigationConfigTopNav
 
   return (
-    <Sidebar variant="inset" collapsible="icon">
+    <DualSidebar side="left" variant="inset" collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={Mail02Icon} className="size-4" />
@@ -78,6 +78,6 @@ export function AppSidebar() {
       <SidebarFooter>
         <NavUser />
       </SidebarFooter>
-    </Sidebar>
+    </DualSidebar>
   )
 }
