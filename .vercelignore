@@ -4,5 +4,3 @@ README.md
 .prettierignore
 .gitignore
 .env.example
-packages/eslint-config
-packages/typescript-config
