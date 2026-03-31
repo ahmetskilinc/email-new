@@ -1,0 +1,8 @@
+docker-compose.yaml
+README.md
+.prettierrc
+.prettierignore
+.gitignore
+.env.example
+packages/eslint-config
+packages/typescript-config
