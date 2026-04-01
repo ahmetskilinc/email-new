@@ -13,7 +13,7 @@ import {
   SheetTitle,
 } from "@workspace/ui/components/sheet"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SidebarLeftIcon } from "@hugeicons/core-free-icons"
+import { SidebarLeftIcon } from "@hugeicons-pro/core-stroke-rounded"
 
 import {
   SidebarContext,
@@ -323,7 +323,9 @@ function DualSidebar({
             >
               <SheetHeader className="sr-only">
                 <SheetTitle>Sidebar</SheetTitle>
-                <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+                <SheetDescription>
+                  Displays the mobile sidebar.
+                </SheetDescription>
               </SheetHeader>
               <div className="flex h-full w-full flex-col">{children}</div>
             </SheetContent>

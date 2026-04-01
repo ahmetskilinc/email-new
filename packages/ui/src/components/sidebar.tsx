@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { SidebarLeftIcon } from "@hugeicons/core-free-icons"
+import { SidebarLeftIcon } from "@hugeicons-pro/core-stroke-rounded"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
