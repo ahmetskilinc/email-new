@@ -12,25 +12,13 @@ import {
   getThread as getThreadAction,
   processEmailContent,
 } from "@/server/actions/mail"
+import { extractThreadDate } from "@/lib/thread-utils"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useSession } from "@/lib/auth-client"
 import { useSettings } from "./use-settings"
 import { useEffect, useMemo } from "react"
 import { useTheme } from "next-themes"
 import { useQueryState } from "nuqs"
-
-function extractThreadDate(thread: { $raw?: unknown }): number {
-  const raw = thread.$raw as Record<string, unknown> | undefined
-  if (!raw) return 0
-  const preview = raw.preview as Record<string, unknown> | undefined
-  if (preview?.receivedOn)
-    return new Date(preview.receivedOn as string).getTime()
-  if (raw.receivedDateTime)
-    return new Date(raw.receivedDateTime as string).getTime()
-  if (raw.receivedOn) return new Date(raw.receivedOn as string).getTime()
-  if (raw.internalDate) return Number(raw.internalDate)
-  return 0
-}
 
 export const useThreads = () => {
   const { folder } = useParams<{ folder: string }>()
@@ -81,7 +69,9 @@ export const useThreads = () => {
       .flatMap((e) => e.threads)
       .filter(Boolean)
       .filter((e) => !isInQueue(`thread:${e.id}`))
-    return filtered.sort((a, b) => extractThreadDate(b) - extractThreadDate(a))
+    return filtered.sort(
+      (a, b) => extractThreadDate(b.$raw) - extractThreadDate(a.$raw)
+    )
   }, [activeQuery.data, isInQueue])
 
   const loadMore = async () => {

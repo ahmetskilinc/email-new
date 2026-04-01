@@ -396,15 +396,73 @@ export class GoogleMailManager implements MailManager {
 
         const threads = res.data.threads ?? []
 
-        return {
-          threads: threads
+        const enriched = await Promise.all(
+          threads
             .filter((thread) => typeof thread.id === "string")
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            .map((thread) => ({
-              id: thread.id!,
-              historyId: thread.historyId ?? null,
-              $raw: thread,
-            })),
+            .map(async (thread) => {
+              try {
+                const meta = await this.gmail.users.threads.get({
+                  userId: "me",
+                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                  id: thread.id!,
+                  format: "metadata",
+                  metadataHeaders: ["From", "Subject", "Date"],
+                  quotaUser: this.getQuotaUser(),
+                })
+
+                const messages = meta.data.messages ?? []
+                const latest =
+                  messages.findLast(
+                    (m) => !m.labelIds?.includes("DRAFT")
+                  ) ?? messages[messages.length - 1]
+                const headers = latest?.payload?.headers ?? []
+                const fromHeader = headers.find(
+                  (h) => h.name?.toLowerCase() === "from"
+                )?.value
+                const subjectHeader = headers.find(
+                  (h) => h.name?.toLowerCase() === "subject"
+                )?.value
+                const dateHeader = headers.find(
+                  (h) => h.name?.toLowerCase() === "date"
+                )?.value
+
+                const hasUnread = messages.some((m) =>
+                  m.labelIds?.includes("UNREAD")
+                )
+
+                let receivedOn = ""
+                if (dateHeader) {
+                  const d = new Date(dateHeader)
+                  if (!Number.isNaN(d.getTime())) receivedOn = d.toISOString()
+                }
+
+                return {
+                  id: thread.id!,
+                  historyId: thread.historyId ?? null,
+                  $raw: {
+                    ...thread,
+                    sender: fromHeader
+                      ? parseFrom(fromHeader)
+                      : { email: "" },
+                    subject: subjectHeader
+                      ? subjectHeader.replace(/"/g, "").trim()
+                      : "(no subject)",
+                    receivedOn,
+                    unread: hasUnread,
+                  },
+                }
+              } catch {
+                return {
+                  id: thread.id!,
+                  historyId: thread.historyId ?? null,
+                  $raw: thread,
+                }
+              }
+            })
+        )
+
+        return {
+          threads: enriched,
           nextPageToken: res.data.nextPageToken ?? null,
         }
       },

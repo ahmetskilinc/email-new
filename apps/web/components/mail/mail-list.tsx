@@ -1,5 +1,6 @@
 "use client"
 
+import { normalizeThreadPreview } from "@/lib/thread-utils"
 import { MailListRow } from "@/components/mail/mail-list-row"
 import { useThreads } from "@/hooks/use-threads"
 import { VList, type VListHandle } from "virtua"
@@ -43,35 +44,17 @@ export function MailList() {
 
   const renderItem = useCallback(
     (thread: (typeof threads)[number], index: number) => {
-      const raw = thread.$raw as
-        | {
-            preview?: {
-              sender?: { name?: string; email?: string }
-              subject?: string
-              receivedOn?: string
-              unread?: boolean
-            }
-          }
-        | undefined
-      const sender = (raw?.preview?.sender as {
-        name?: string
-        email?: string
-      }) ?? {
-        email: "unknown",
-      }
-      const subject = (raw?.preview?.subject as string) ?? "(no subject)"
-      const date = (raw?.preview?.receivedOn as string) ?? ""
-      const unread = (raw?.preview?.unread as boolean) ?? false
+      const { sender, subject, receivedOn, unread } = normalizeThreadPreview(
+        thread.$raw
+      )
       const isSelected = threadId === thread.id
-
-      console.log("thread", thread)
 
       return (
         <>
           <MailListRow
             title={sender.name || sender.email || "Unknown"}
             subtitle={subject}
-            date={date ? formatDate(date) : undefined}
+            date={receivedOn ? formatDate(receivedOn) : undefined}
             unread={unread}
             selected={isSelected}
             avatarEmail={sender.email}

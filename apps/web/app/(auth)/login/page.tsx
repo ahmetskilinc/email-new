@@ -4,7 +4,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { SubmitEventHandler, useState } from "react"
 import { signIn } from "@/lib/auth-client"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
     try {
@@ -38,7 +38,7 @@ export default function LoginPage() {
         provider: providerId,
         callbackURL: `${window.location.origin}/mail/inbox`,
       }),
-      { error: "Login redirect failed" },
+      { error: "Login redirect failed" }
     )
   }
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Welcome back</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="mt-2 text-sm text-muted-foreground">
             Log in to your account.
           </p>
         </div>
@@ -85,11 +85,11 @@ export default function LoginPage() {
         </form>
 
         <div className="flex items-center gap-3">
-          <div className="bg-border h-px flex-1" />
-          <span className="text-muted-foreground text-xs">
+          <div className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">
             Or continue with
           </span>
-          <div className="bg-border h-px flex-1" />
+          <div className="h-px flex-1 bg-border" />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -109,7 +109,7 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        <p className="text-muted-foreground text-center text-sm">
+        <p className="text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="text-foreground underline">
             Sign up

@@ -5,6 +5,7 @@ import {
   requireActiveDriver,
 } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
+import { extractThreadDate } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
@@ -68,17 +69,9 @@ export async function listAllInboxes(
       })),
     )
 
-  allThreads.sort((a, b) => {
-    const rawA = a.$raw as Record<string, unknown> | undefined
-    const rawB = b.$raw as Record<string, unknown> | undefined
-    const dateA = rawA?.receivedOn
-      ? new Date(rawA.receivedOn as string).getTime()
-      : 0
-    const dateB = rawB?.receivedOn
-      ? new Date(rawB.receivedOn as string).getTime()
-      : 0
-    return dateB - dateA
-  })
+  allThreads.sort(
+    (a, b) => extractThreadDate(b.$raw) - extractThreadDate(a.$raw)
+  )
 
   const nextCursors: Record<string, string> = {}
   for (const r of results) {

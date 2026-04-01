@@ -14,9 +14,9 @@ export default function OnboardingPage() {
   const { data: session, isPending } = useSession()
   const { data: connectionsData, refetch: refetchConnections } =
     useConnections()
-  const [appPasswordProvider, setAppPasswordProvider] = useState<
-    string | null
-  >(null)
+  const [appPasswordProvider, setAppPasswordProvider] = useState<string | null>(
+    null
+  )
 
   const hasConnections = (connectionsData?.connections?.length ?? 0) > 0
 
@@ -49,7 +49,7 @@ export default function OnboardingPage() {
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Connect your email</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="mt-2 text-sm text-muted-foreground">
             {hasConnections
               ? "Your account is connected. Add more or head to your inbox."
               : "Connect an email account to start using your inbox."}
@@ -74,16 +74,20 @@ export default function OnboardingPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-            {emailProviders.map((provider) => (
-              <Button
-                key={provider.providerId}
-                variant="secondary"
-                className="h-24 w-full flex-col items-center justify-center gap-2"
-                onClick={() => handleProviderClick(provider.providerId)}
-              >
-                <span className="text-sm">{provider.name}</span>
-              </Button>
-            ))}
+            {emailProviders.map((provider) => {
+              const Icon = provider.icon
+              return (
+                <Button
+                  key={provider.providerId}
+                  variant="outline"
+                  className="h-20 flex-col items-center justify-center gap-2"
+                  onClick={() => handleProviderClick(provider.providerId)}
+                >
+                  <Icon className="size-5" />
+                  <span className="text-xs font-medium">{provider.name}</span>
+                </Button>
+              )
+            })}
           </div>
         )}
 
