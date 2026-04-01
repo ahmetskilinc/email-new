@@ -1,5 +1,6 @@
 // @ts-nocheck
 import type { MailManager, ManagerConfig } from "./types"
+import { CustomImapMailManager } from "./custom"
 import { OutlookMailManager } from "./microsoft"
 import { GoogleMailManager } from "./google"
 import { ICloudMailManager } from "./icloud"
@@ -14,5 +15,6 @@ export const createDriver = (
   if (provider === "google") return new GoogleMailManager(config)
   if (provider === "microsoft") return new OutlookMailManager(config)
   if (provider === "yahoo") return new YahooMailManager(config)
+  if (provider === "custom") return new CustomImapMailManager(config)
   throw new Error(`Provider ${provider} is not supported`)
 }

@@ -32,14 +32,16 @@ export interface ParsedDraft {
   bcc?: string[];
 }
 
+import type { ImapProviderConfig } from '../transport/provider-config';
+
 export type ManagerConfig = {
   auth: {
     userId: string;
-    // accountId: string;
     accessToken: string;
     refreshToken: string;
     email: string;
   };
+  imapConfig?: ImapProviderConfig;
 };
 
 export interface MailManager {

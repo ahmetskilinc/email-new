@@ -5,6 +5,7 @@ import {
   getActiveConnection,
   getzeitmailDB,
 } from "../lib/server-utils"
+import { autoDiscoverFolders } from "../lib/transport/provider-config"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
 import { EProviders } from "../types"
@@ -14,7 +15,7 @@ export async function listConnections() {
   const db = await getzeitmailDB(session.user.id)
   const connections = await db.findManyConnections()
 
-  const appPasswordProviders = ["icloud", "yahoo"]
+  const appPasswordProviders = ["icloud", "yahoo", "custom"]
   const disconnectedIds = connections
     .filter(
       (c) =>
@@ -171,6 +172,67 @@ export async function createYahooConnection(
     refreshToken: null as string | null,
     scope: "yahoo",
     expiresAt: new Date("2099-12-31"),
+  })
+
+  return { success: true }
+}
+
+export async function createCustomConnection(
+  email: string,
+  password: string,
+  imapHost: string,
+  imapPort: number,
+  smtpHost: string,
+  smtpPort: number,
+) {
+  const session = await requireSession()
+
+  const discoveredFolders = await autoDiscoverFolders(
+    email,
+    password,
+    imapHost,
+    imapPort,
+  ).catch(() => {
+    throw new Error(
+      "Could not connect to IMAP server. Please check your credentials and server settings.",
+    )
+  })
+
+  const imapConfig = {
+    imapHost,
+    imapPort,
+    smtpHost,
+    smtpPort,
+    smtpSecure: smtpPort === 465,
+    smtpRequireTLS: smtpPort !== 465,
+    folders: discoveredFolders,
+  }
+
+  const driver = createDriver(EProviders.custom, {
+    auth: {
+      userId: session.user.id,
+      accessToken: password,
+      refreshToken: "",
+      email,
+    },
+    imapConfig,
+  })
+
+  const userInfo = await driver.getUserInfo().catch(() => {
+    throw new Error(
+      "Invalid credentials. Please check your email and password.",
+    )
+  })
+
+  const db = await getzeitmailDB(session.user.id)
+  await db.createConnection(EProviders.custom, userInfo.address, {
+    name: userInfo.name || email.split("@")[0],
+    picture: "",
+    accessToken: encrypt(password),
+    refreshToken: null as string | null,
+    scope: "custom",
+    expiresAt: new Date("2099-12-31"),
+    imapConfig,
   })
 
   return { success: true }

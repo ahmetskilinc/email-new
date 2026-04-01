@@ -100,8 +100,9 @@ export const connection = createTable(
     refreshToken: text("refresh_token"),
     scope: text("scope").notNull(),
     providerId: text("provider_id")
-      .$type<"google" | "microsoft" | "icloud" | "yahoo">()
+      .$type<"google" | "microsoft" | "icloud" | "yahoo" | "custom">()
       .notNull(),
+    imapConfig: jsonb("imap_config"),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),

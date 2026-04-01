@@ -9,10 +9,11 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
-import { authClient } from "@/lib/auth-client"
-import { emailProviders } from "@/lib/constants"
+import { CustomImapForm } from "@/components/connection/custom-imap-form"
 import { ICloudForm } from "@/components/connection/icloud-form"
 import { YahooForm } from "@/components/connection/yahoo-form"
+import { authClient } from "@/lib/auth-client"
+import { emailProviders } from "@/lib/constants"
 import { toast } from "sonner"
 
 interface AddConnectionDialogProps {
@@ -33,7 +34,7 @@ export function AddConnectionDialog({ open, onOpenChange, onSuccess }: AddConnec
   }, [open])
 
   const handleProviderClick = async (providerId: string) => {
-    if (providerId === "icloud" || providerId === "yahoo") {
+    if (providerId === "icloud" || providerId === "yahoo" || providerId === "custom") {
       setAppPasswordProvider(providerId)
       return
     }
@@ -67,6 +68,11 @@ export function AddConnectionDialog({ open, onOpenChange, onSuccess }: AddConnec
         ) : appPasswordProvider === "yahoo" ? (
           <YahooForm
             defaultEmail=""
+            onSuccess={handleAppPasswordSuccess}
+            onBack={() => setAppPasswordProvider(null)}
+          />
+        ) : appPasswordProvider === "custom" ? (
+          <CustomImapForm
             onSuccess={handleAppPasswordSuccess}
             onBack={() => setAppPasswordProvider(null)}
           />

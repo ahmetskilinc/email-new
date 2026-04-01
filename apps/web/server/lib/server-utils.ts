@@ -55,6 +55,7 @@ export const getzeitmailDB = async (userId: string) => {
         refreshToken?: string | null
         scope: string
         expiresAt: Date
+        imapConfig?: unknown
       },
     ) => {
       const now = new Date()
@@ -71,6 +72,7 @@ export const getzeitmailDB = async (userId: string) => {
           accessToken: info.accessToken,
           refreshToken: info.refreshToken || null,
           scope: info.scope,
+          imapConfig: info.imapConfig ?? null,
           expiresAt: info.expiresAt,
           createdAt: now,
           updatedAt: now,
@@ -82,6 +84,7 @@ export const getzeitmailDB = async (userId: string) => {
             accessToken: info.accessToken,
             refreshToken: info.refreshToken || null,
             scope: info.scope,
+            imapConfig: info.imapConfig ?? null,
             expiresAt: info.expiresAt,
             name: info.name || null,
             picture: info.picture || null,
@@ -158,7 +161,7 @@ export const getActiveConnection = async (userId: string) => {
   return firstConnection
 }
 
-const APP_PASSWORD_PROVIDERS = ["icloud", "yahoo"]
+const APP_PASSWORD_PROVIDERS = ["icloud", "yahoo", "custom"]
 
 export function resolveAccessToken(conn: {
   providerId: string
@@ -196,5 +199,8 @@ export const connectionToDriver = (
       refreshToken: activeConnection.refreshToken ?? "",
       email: activeConnection.email,
     },
+    ...(activeConnection.imapConfig && {
+      imapConfig: activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
+    }),
   })
 }

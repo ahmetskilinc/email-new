@@ -156,6 +156,24 @@ export const YahooColor = ({ className }: { className?: string }) => (
   </svg>
 );
 
+export const MailServerColor = ({ className }: { className?: string }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect x="2" y="4" width="20" height="16" rx="2" fill="#6366f1" stroke="none" />
+    <polyline points="2,4 12,13 22,4" fill="none" stroke="#fff" strokeWidth="1.5" />
+    <line x1="2" y1="20" x2="9" y2="12" stroke="#fff" strokeWidth="1.5" opacity="0.5" />
+    <line x1="22" y1="20" x2="15" y2="12" stroke="#fff" strokeWidth="1.5" opacity="0.5" />
+  </svg>
+);
+
 export const Google = ({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

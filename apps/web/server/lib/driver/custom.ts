@@ -24,12 +24,18 @@ import {
   validateCredentials,
 } from '../transport/imap';
 import { createDraft, deleteDraft, getDraft, listDrafts, sendDraft, sendEmail } from '../transport/smtp';
-import { ICLOUD_CONFIG } from '../transport/provider-config';
+import type { ImapProviderConfig } from '../transport/provider-config';
+import { DEFAULT_CUSTOM_FOLDERS } from '../transport/provider-config';
 
-const ICLOUD_SCOPE = 'icloud';
+export class CustomImapMailManager implements MailManager {
+  private imapConfig: ImapProviderConfig;
 
-export class ICloudMailManager implements MailManager {
-  constructor(public config: ManagerConfig) {}
+  constructor(public config: ManagerConfig) {
+    if (!config.imapConfig) {
+      throw new Error('Custom IMAP provider requires imapConfig');
+    }
+    this.imapConfig = config.imapConfig;
+  }
 
   private get creds() {
     return {
@@ -39,13 +45,13 @@ export class ICloudMailManager implements MailManager {
   }
 
   public getScope(): string {
-    return ICLOUD_SCOPE;
+    return 'custom';
   }
 
   public async getUserInfo(tokens?: ManagerConfig['auth']) {
     const email = tokens?.email ?? this.config.auth.email;
     const password = tokens?.accessToken ?? this.config.auth.accessToken;
-    const data = await validateCredentials(email, password);
+    const data = await validateCredentials(email, password, this.imapConfig);
     return { address: data.email, name: data.name, photo: '' };
   }
 
@@ -61,27 +67,27 @@ export class ICloudMailManager implements MailManager {
       query: params.query,
       maxResults: params.maxResults ?? 50,
       pageToken: (params.pageToken as string) ?? null,
-    });
+    }, this.imapConfig);
   }
 
   public async get(threadId: string): Promise<IGetThreadResponse> {
-    return getThread(this.creds.email, this.creds.password, threadId) as Promise<IGetThreadResponse>;
+    return getThread(this.creds.email, this.creds.password, threadId, this.imapConfig) as Promise<IGetThreadResponse>;
   }
 
   public async create(data: IOutgoingMessage) {
-    return sendEmail(this.creds.email, this.creds.password, data);
+    return sendEmail(this.creds.email, this.creds.password, data, this.imapConfig);
   }
 
   public async sendDraft(draftId: string, data: IOutgoingMessage) {
-    await sendDraft(this.creds.email, this.creds.password, draftId, data);
+    await sendDraft(this.creds.email, this.creds.password, draftId, data, this.imapConfig);
   }
 
   public async createDraft(data: CreateDraftData) {
-    return createDraft(this.creds.email, this.creds.password, data);
+    return createDraft(this.creds.email, this.creds.password, data, this.imapConfig);
   }
 
   public async getDraft(draftId: string): Promise<ParsedDraft> {
-    return getDraft(this.creds.email, this.creds.password, draftId) as Promise<ParsedDraft>;
+    return getDraft(this.creds.email, this.creds.password, draftId, this.imapConfig) as Promise<ParsedDraft>;
   }
 
   public async listDrafts(params: {
@@ -89,19 +95,19 @@ export class ICloudMailManager implements MailManager {
     maxResults?: number;
     pageToken?: string;
   }) {
-    return listDrafts(this.creds.email, this.creds.password, params);
+    return listDrafts(this.creds.email, this.creds.password, params, this.imapConfig);
   }
 
   public async delete(threadId: string) {
-    await deleteMessages(this.creds.email, this.creds.password, threadId);
+    await deleteMessages(this.creds.email, this.creds.password, threadId, this.imapConfig);
   }
 
   public async deleteDraft(draftId: string) {
-    await deleteDraft(this.creds.email, this.creds.password, draftId);
+    await deleteDraft(this.creds.email, this.creds.password, draftId, this.imapConfig);
   }
 
   public async count() {
-    return countUnread(this.creds.email, this.creds.password);
+    return countUnread(this.creds.email, this.creds.password, this.imapConfig);
   }
 
   public async getTokens(_code: string) {
@@ -109,18 +115,18 @@ export class ICloudMailManager implements MailManager {
   }
 
   public async listHistory<T>(historyId: string) {
-    return listHistory(this.creds.email, this.creds.password, historyId) as Promise<{
+    return listHistory(this.creds.email, this.creds.password, historyId, this.imapConfig) as Promise<{
       history: T[];
       historyId: string;
     }>;
   }
 
   public async markAsRead(threadIds: string[]) {
-    await markMessages(this.creds.email, this.creds.password, threadIds, true);
+    await markMessages(this.creds.email, this.creds.password, threadIds, true, this.imapConfig);
   }
 
   public async markAsUnread(threadIds: string[]) {
-    await markMessages(this.creds.email, this.creds.password, threadIds, false);
+    await markMessages(this.creds.email, this.creds.password, threadIds, false, this.imapConfig);
   }
 
   public normalizeIds(ids: string[]) {
@@ -137,19 +143,20 @@ export class ICloudMailManager implements MailManager {
       threadIds,
       options.addLabels,
       options.removeLabels,
+      this.imapConfig,
     );
   }
 
   public async getAttachment(messageId: string, attachmentId: string) {
-    return getAttachment(this.creds.email, this.creds.password, messageId, attachmentId);
+    return getAttachment(this.creds.email, this.creds.password, messageId, attachmentId, this.imapConfig);
   }
 
   public async getMessageAttachments(messageId: string) {
-    return getMessageAttachments(this.creds.email, this.creds.password, messageId);
+    return getMessageAttachments(this.creds.email, this.creds.password, messageId, this.imapConfig);
   }
 
   public async getUserLabels(): Promise<Label[]> {
-    return listFolders(this.creds.email, this.creds.password) as Promise<Label[]>;
+    return listFolders(this.creds.email, this.creds.password, this.imapConfig) as Promise<Label[]>;
   }
 
   public async getLabel(id: string): Promise<Label> {
@@ -165,8 +172,8 @@ export class ICloudMailManager implements MailManager {
   }) {
     const { ImapFlow } = await import('imapflow');
     const client = new ImapFlow({
-      host: ICLOUD_CONFIG.imapHost,
-      port: ICLOUD_CONFIG.imapPort,
+      host: this.imapConfig.imapHost,
+      port: this.imapConfig.imapPort,
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
@@ -182,8 +189,8 @@ export class ICloudMailManager implements MailManager {
   ) {
     const { ImapFlow } = await import('imapflow');
     const client = new ImapFlow({
-      host: ICLOUD_CONFIG.imapHost,
-      port: ICLOUD_CONFIG.imapPort,
+      host: this.imapConfig.imapHost,
+      port: this.imapConfig.imapPort,
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
@@ -196,8 +203,8 @@ export class ICloudMailManager implements MailManager {
   public async deleteLabel(id: string) {
     const { ImapFlow } = await import('imapflow');
     const client = new ImapFlow({
-      host: ICLOUD_CONFIG.imapHost,
-      port: ICLOUD_CONFIG.imapPort,
+      host: this.imapConfig.imapHost,
+      port: this.imapConfig.imapPort,
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
@@ -212,15 +219,14 @@ export class ICloudMailManager implements MailManager {
   }
 
   public async revokeToken(_token: string) {
-    // iCloud app-specific passwords cannot be revoked programmatically
     return true;
   }
 
   public async deleteAllSpam(): Promise<DeleteAllSpamResponse> {
-    return deleteAllSpam(this.creds.email, this.creds.password);
+    return deleteAllSpam(this.creds.email, this.creds.password, this.imapConfig);
   }
 
   public async getRawEmail(messageId: string): Promise<string> {
-    return getRawEmail(this.creds.email, this.creds.password, messageId);
+    return getRawEmail(this.creds.email, this.creds.password, messageId, this.imapConfig);
   }
 }

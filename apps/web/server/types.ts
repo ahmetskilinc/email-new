@@ -5,6 +5,7 @@ export enum EProviders {
   "microsoft" = "microsoft",
   "icloud" = "icloud",
   "yahoo" = "yahoo",
+  "custom" = "custom",
 }
 
 export type Label = {

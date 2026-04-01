@@ -3,6 +3,7 @@ import {
   ICloudColor,
   OutlookColor,
   YahooColor,
+  MailServerColor,
 } from "@workspace/ui/components/icons"
 
 export const BASE_URL = process.env.NEXT_PUBLIC_APP_URL
@@ -29,5 +30,10 @@ export const emailProviders = [
     name: "Yahoo Mail",
     providerId: "yahoo",
     icon: YahooColor,
+  },
+  {
+    name: "Custom IMAP",
+    providerId: "custom",
+    icon: MailServerColor,
   },
 ] as const

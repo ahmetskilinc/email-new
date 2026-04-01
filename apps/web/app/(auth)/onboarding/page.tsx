@@ -1,5 +1,6 @@
 "use client"
 
+import { CustomImapForm } from "@/components/connection/custom-imap-form"
 import { authClient, useSession } from "@/lib/auth-client"
 import { ICloudForm } from "@/components/connection/icloud-form"
 import { YahooForm } from "@/components/connection/yahoo-form"
@@ -27,7 +28,7 @@ export default function OnboardingPage() {
   }, [session, isPending, router])
 
   const handleProviderClick = async (providerId: string) => {
-    if (providerId === "icloud" || providerId === "yahoo") {
+    if (providerId === "icloud" || providerId === "yahoo" || providerId === "custom") {
       setAppPasswordProvider(providerId)
       return
     }
@@ -68,6 +69,13 @@ export default function OnboardingPage() {
           <div className="rounded-lg border p-6">
             <YahooForm
               defaultEmail=""
+              onSuccess={handleAppPasswordSuccess}
+              onBack={() => setAppPasswordProvider(null)}
+            />
+          </div>
+        ) : appPasswordProvider === "custom" ? (
+          <div className="rounded-lg border p-6">
+            <CustomImapForm
               onSuccess={handleAppPasswordSuccess}
               onBack={() => setAppPasswordProvider(null)}
             />
