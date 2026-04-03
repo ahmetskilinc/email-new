@@ -156,11 +156,7 @@ const createAuthConfig = () => {
       },
     },
     onAPIError: {
-      onError: (error: any) => {
-        console.error("[Better Auth] API Error:", error)
-      },
       errorURL: "/login",
-      throw: true,
     },
   } satisfies BetterAuthOptions
 }
