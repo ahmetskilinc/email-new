@@ -103,6 +103,7 @@ const createAuthConfig = () => {
         defaultConnectionId: {
           type: "string",
           required: false,
+          input: false,
         },
         customPrompt: {
           type: "string",
@@ -111,10 +112,12 @@ const createAuthConfig = () => {
         phoneNumber: {
           type: "string",
           required: false,
+          input: false,
         },
         phoneNumberVerified: {
           type: "boolean",
           required: false,
+          input: false,
         },
       },
     },
