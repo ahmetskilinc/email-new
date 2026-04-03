@@ -8,6 +8,7 @@ import { QueryProvider } from "@/providers/query-provider"
 import { cn } from "@workspace/ui/lib/utils"
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 import { Toaster } from "@workspace/ui/components/sonner"
+import { Metadata } from "next"
 
 const fontSans = Geist({
   subsets: ["latin"],
@@ -44,4 +45,9 @@ export default function RootLayout({
       </body>
     </html>
   )
+}
+
+export const metadata: Metadata = {
+  title: "Tulli",
+  description: "Tulli - Email client for the modern web",
 }
