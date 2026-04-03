@@ -1,5 +1,6 @@
 import { type Account, betterAuth, type BetterAuthOptions } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { nextCookies } from "better-auth/next-js"
 import * as schema from "../db/schema"
 import { getSocialProviders } from "./auth-providers"
 import { defaultUserSettings } from "./schemas"
@@ -155,6 +156,7 @@ const createAuthConfig = () => {
         },
       },
     },
+    plugins: [nextCookies()],
     onAPIError: {
       errorURL: "/login",
     },
