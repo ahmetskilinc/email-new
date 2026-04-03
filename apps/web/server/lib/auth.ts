@@ -64,11 +64,6 @@ const createAuthConfig = () => {
   return {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "pg" }),
-    advanced: {
-      cookiePrefix:
-        env.NODE_ENV === "development" ? "better-auth-dev" : "better-auth",
-      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
-    },
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
       ...(env.BETTER_AUTH_TRUSTED_ORIGINS
