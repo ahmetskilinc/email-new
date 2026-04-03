@@ -63,7 +63,6 @@ const connectionHandlerHook = async (account: Account) => {
 
 const createAuthConfig = () => {
   const { db } = createDb(env.DATABASE_URL)
-  const isSecure = env.BETTER_AUTH_URL.startsWith("https://")
   return {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
@@ -81,12 +80,12 @@ const createAuthConfig = () => {
       ...(process.env.VERCEL ? ["https://*.vercel.app"] : []),
     ],
     advanced: {
-      useSecureCookies: isSecure,
+      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
     },
     session: {
       cookieCache: {
         enabled: true,
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: 60 * 5,
       },
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24 * 3,
@@ -157,9 +156,6 @@ const createAuthConfig = () => {
       },
     },
     plugins: [nextCookies()],
-    onAPIError: {
-      errorURL: "/login",
-    },
   } satisfies BetterAuthOptions
 }
 
