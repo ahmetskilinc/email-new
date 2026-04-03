@@ -16,14 +16,21 @@ export default function MailLayout({
     useConnections()
 
   useEffect(() => {
+    console.log("[mail layout] sessionPending:", sessionPending, "connectionsPending:", connectionsPending)
+    console.log("[mail layout] session:", session)
+    console.log("[mail layout] connectionsData:", connectionsData)
+    console.log("[mail layout] document.cookie:", document.cookie)
+
     if (sessionPending || connectionsPending) return
 
     if (!session?.user) {
+      console.log("[mail layout] no session user, redirecting to /login")
       router.push("/login")
       return
     }
 
     if (!connectionsData?.connections?.length) {
+      console.log("[mail layout] no connections, redirecting to /onboarding")
       router.push("/onboarding")
     }
   }, [session, sessionPending, connectionsData, connectionsPending, router])

@@ -21,10 +21,15 @@ export default function LoginPage() {
         email,
         password,
         fetchOptions: {
-          onSuccess: () => {
+          onSuccess: (ctx) => {
+            console.log("[auth] signIn success, status:", ctx.response.status)
+            console.log("[auth] set-cookie headers:", ctx.response.headers.get("set-cookie"))
+            console.log("[auth] document.cookie:", document.cookie)
+            console.log("[auth] response data:", ctx.data)
             window.location.href = "/mail/inbox"
           },
           onError: (ctx) => {
+            console.error("[auth] signIn error:", ctx.error)
             toast.error(ctx.error.message ?? "Invalid email or password")
           },
         },
