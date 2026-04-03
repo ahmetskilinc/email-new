@@ -71,6 +71,7 @@ const createAuthConfig = () => {
     }),
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
+      env.BETTER_AUTH_URL,
       ...(env.BETTER_AUTH_TRUSTED_ORIGINS
         ? env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
             .map((o) => o.trim())
