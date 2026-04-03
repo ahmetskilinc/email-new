@@ -62,6 +62,7 @@ const connectionHandlerHook = async (account: Account) => {
 
 const createAuthConfig = () => {
   const { db } = createDb(env.DATABASE_URL)
+  const isSecure = env.BETTER_AUTH_URL.startsWith("https://")
   return {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, {
@@ -76,6 +77,9 @@ const createAuthConfig = () => {
             .filter(Boolean)
         : []),
     ],
+    advanced: {
+      useSecureCookies: isSecure,
+    },
     session: {
       cookieCache: {
         enabled: true,
