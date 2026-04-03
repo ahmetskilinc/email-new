@@ -3,14 +3,12 @@
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
-import { useRouter } from "next/navigation"
-import { SubmitEventHandler, useState } from "react"
+import { useState } from "react"
 import { signIn } from "@/lib/auth-client"
 import { toast } from "sonner"
 import Link from "next/link"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -19,12 +17,18 @@ export default function LoginPage() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      const result = await signIn.email({ email, password })
-      if (result.error) {
-        toast.error(result.error.message ?? "Invalid email or password")
-        return
-      }
-      router.push("/mail/inbox")
+      await signIn.email({
+        email,
+        password,
+        fetchOptions: {
+          onSuccess: () => {
+            window.location.href = "/mail/inbox"
+          },
+          onError: (ctx) => {
+            toast.error(ctx.error.message ?? "Invalid email or password")
+          },
+        },
+      })
     } catch {
       toast.error("Something went wrong. Please try again.")
     } finally {
