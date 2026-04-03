@@ -7,6 +7,10 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import { useSession } from "@/lib/auth-client"
 
+export function activeConnectionQueryKey(userId: string | undefined | null) {
+  return ["activeConnection", userId ?? "anon"] as const
+}
+
 export const useConnections = () => {
   const { data: session } = useSession()
   const userId = session?.user?.id
@@ -22,7 +26,7 @@ export const useActiveConnection = () => {
   const userId = session?.user?.id
 
   return useQuery({
-    queryKey: ["activeConnection", userId ?? "anon"],
+    queryKey: activeConnectionQueryKey(userId),
     queryFn: () => getDefaultConnection(),
     staleTime: 1000 * 30,
     refetchOnMount: true,

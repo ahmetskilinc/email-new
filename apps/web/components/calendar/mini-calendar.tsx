@@ -23,6 +23,8 @@ interface MiniCalendarProps {
   onDateSelect?: (date: Date) => void
   onDateDoubleClick?: (date: Date) => void
   eventDates?: Set<string>
+  displayMonth?: Date
+  onDisplayMonthChange?: (month: Date) => void
 }
 
 export function MiniCalendar({
@@ -31,14 +33,28 @@ export function MiniCalendar({
   onDateSelect,
   onDateDoubleClick,
   eventDates,
+  displayMonth: displayMonthProp,
+  onDisplayMonthChange,
 }: MiniCalendarProps) {
-  const [viewMonth, setViewMonth] = React.useState(
+  const [internalMonth, setInternalMonth] = React.useState(
     () => selectedDate ?? new Date(),
   )
 
+  const controlled =
+    displayMonthProp !== undefined && onDisplayMonthChange !== undefined
+  const viewMonth = controlled ? displayMonthProp! : internalMonth
+
+  const setViewMonth = React.useCallback(
+    (next: Date) => {
+      if (controlled) onDisplayMonthChange!(next)
+      else setInternalMonth(next)
+    },
+    [controlled, onDisplayMonthChange],
+  )
+
   React.useEffect(() => {
-    if (selectedDate) setViewMonth(selectedDate)
-  }, [selectedDate])
+    if (!controlled && selectedDate) setInternalMonth(selectedDate)
+  }, [selectedDate, controlled])
 
   const weeks = React.useMemo(() => {
     const monthStart = startOfMonth(viewMonth)
@@ -68,7 +84,7 @@ export function MiniCalendar({
           variant="ghost"
           size="icon-xs"
           className="absolute left-0"
-          onClick={() => setViewMonth((prev) => subMonths(prev, 1))}
+          onClick={() => setViewMonth(subMonths(viewMonth, 1))}
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
         </Button>
@@ -79,7 +95,7 @@ export function MiniCalendar({
           variant="ghost"
           size="icon-xs"
           className="absolute right-0"
-          onClick={() => setViewMonth((prev) => addMonths(prev, 1))}
+          onClick={() => setViewMonth(addMonths(viewMonth, 1))}
         >
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
         </Button>

@@ -107,14 +107,34 @@ export async function listThreads(
   })
 }
 
-export async function markAsRead(ids: string[]) {
-  const { driver } = await requireActiveDriver()
-  return driver.markAsRead(ids)
+export async function markAsRead(ids: string[], connectionId?: string) {
+  const { session, connection, driver } = await requireActiveDriver()
+  let activeDriver = driver
+
+  if (connectionId && connectionId !== connection.id) {
+    const db = await getzeitmailDB(session.user.id)
+    const specificConn = await db.findUserConnection(connectionId)
+    if (specificConn) {
+      activeDriver = connectionToDriver(specificConn)
+    }
+  }
+
+  return activeDriver.markAsRead(ids)
 }
 
-export async function markAsUnread(ids: string[]) {
-  const { driver } = await requireActiveDriver()
-  return driver.markAsUnread(ids)
+export async function markAsUnread(ids: string[], connectionId?: string) {
+  const { session, connection, driver } = await requireActiveDriver()
+  let activeDriver = driver
+
+  if (connectionId && connectionId !== connection.id) {
+    const db = await getzeitmailDB(session.user.id)
+    const specificConn = await db.findUserConnection(connectionId)
+    if (specificConn) {
+      activeDriver = connectionToDriver(specificConn)
+    }
+  }
+
+  return activeDriver.markAsUnread(ids)
 }
 
 export async function modifyLabels(

@@ -12,16 +12,22 @@ import {
   SidebarMenuItem,
 } from "@workspace/ui/components/dual-sidebar"
 import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
+import { useOpenCompose } from "@/store/compose"
+import { Button } from "@workspace/ui/components/button"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Mail02Icon } from "@hugeicons-pro/core-stroke-rounded"
+import {
+  Mail02Icon,
+  PencilEdit02Icon,
+} from "@hugeicons-pro/core-stroke-rounded"
 
 export function AppSidebar() {
   const pathname = usePathname()
   const config = navigationConfig
   const topNavConfig = navigationConfigTopNav
+  const openCompose = useOpenCompose()
 
   return (
     <DualSidebar side="left" variant="inset" collapsible="icon">
@@ -34,6 +40,19 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <Button
+              className="mt-2 w-full gap-2 group-data-[state=collapsed]:size-8 group-data-[state=collapsed]:p-0"
+              onClick={() => openCompose()}
+            >
+              <HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />
+              <span className="group-data-[state=collapsed]:hidden">
+                Compose
+              </span>
+            </Button>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

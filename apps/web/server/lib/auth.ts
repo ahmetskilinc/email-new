@@ -17,7 +17,7 @@ const connectionHandlerHook = async (account: Account) => {
       const db = await getzeitmailDB(account.userId)
       const connections = await db.findManyConnections()
       const existing = connections.find(
-        (c) => c.providerId === account.providerId,
+        (c) => c.providerId === account.providerId
       )
       refreshToken = existing?.refreshToken ?? null
     }
@@ -47,7 +47,7 @@ const connectionHandlerHook = async (account: Account) => {
         refreshToken,
         scope: driver.getScope(),
         expiresAt: new Date(Date.now() + 3600 * 1000),
-      },
+      }
     )
 
     const userData = await db.findUser()
@@ -65,11 +65,9 @@ const createAuthConfig = () => {
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "pg" }),
     advanced: {
-      ipAddress: {
-        disableIpTracking: true,
-      },
       cookiePrefix:
         env.NODE_ENV === "development" ? "better-auth-dev" : "better-auth",
+      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
     },
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
@@ -87,7 +85,9 @@ const createAuthConfig = () => {
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24 * 3,
     },
-    socialProviders: getSocialProviders(env as unknown as Record<string, string>),
+    socialProviders: getSocialProviders(
+      env as unknown as Record<string, string>
+    ),
     account: {
       accountLinking: {
         enabled: true,
@@ -106,34 +106,34 @@ const createAuthConfig = () => {
       errorURL: "/login",
       throw: true,
     },
-    databaseHooks: {
-      user: {
-        create: {
-          after: async (user) => {
-            try {
-              const db = await getzeitmailDB(user.id)
-              const existingSettings = await db.findUserSettings()
-              if (!existingSettings) {
-                await db.insertUserSettings({ ...defaultUserSettings })
-              }
-            } catch (error) {
-              console.error(
-                "[user.create hook] Failed to insert default settings:",
-                error,
-              )
-            }
-          },
-        },
-      },
-      account: {
-        create: {
-          after: connectionHandlerHook,
-        },
-        update: {
-          after: connectionHandlerHook,
-        },
-      },
-    },
+    // databaseHooks: {
+    //   user: {
+    //     create: {
+    //       after: async (user) => {
+    //         try {
+    //           const db = await getzeitmailDB(user.id)
+    //           const existingSettings = await db.findUserSettings()
+    //           if (!existingSettings) {
+    //             await db.insertUserSettings({ ...defaultUserSettings })
+    //           }
+    //         } catch (error) {
+    //           console.error(
+    //             "[user.create hook] Failed to insert default settings:",
+    //             error
+    //           )
+    //         }
+    //       },
+    //     },
+    //   },
+    //   account: {
+    //     create: {
+    //       after: connectionHandlerHook,
+    //     },
+    //     update: {
+    //       after: connectionHandlerHook,
+    //     },
+    //   },
+    // },
   } satisfies BetterAuthOptions
 }
 

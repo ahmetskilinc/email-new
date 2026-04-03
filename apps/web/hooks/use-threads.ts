@@ -1,6 +1,10 @@
 "use client"
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { isThreadInBackgroundQueueAtom } from "@/store/backgroundQueue"
 import { threadConnectionAtom } from "@/store/threadConnection"
 import { useActiveConnection } from "@/hooks/use-connections"
@@ -10,13 +14,14 @@ import {
   listThreads,
   listAllInboxes,
   getThread as getThreadAction,
+  markAsRead,
   processEmailContent,
 } from "@/server/actions/mail"
 import { extractThreadDate } from "@/lib/thread-utils"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useSession } from "@/lib/auth-client"
 import { useSettings } from "./use-settings"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useTheme } from "next-themes"
 import { useQueryState } from "nuqs"
 
@@ -182,6 +187,24 @@ export const useThread = (
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   })
+
+  const queryClient = useQueryClient()
+  const markedReadRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (
+      !id ||
+      !threadQuery.data?.hasUnread ||
+      markedReadRef.current === id
+    )
+      return
+
+    markedReadRef.current = id
+    markAsRead([id], connectionId).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["threads"] })
+      queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
+    }).catch(() => {})
+  }, [id, threadQuery.data?.hasUnread, connectionId, queryClient])
 
   return { ...threadQuery, data: finalData, isGroupThread, latestDraft }
 }

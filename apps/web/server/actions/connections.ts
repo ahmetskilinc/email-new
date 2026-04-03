@@ -1,10 +1,7 @@
 "use server"
 
 import { requireSession } from "../lib/session"
-import {
-  getActiveConnection,
-  getzeitmailDB,
-} from "../lib/server-utils"
+import { getActiveConnection, getzeitmailDB } from "../lib/server-utils"
 import { autoDiscoverFolders } from "../lib/transport/provider-config"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
@@ -20,7 +17,7 @@ export async function listConnections() {
     .filter(
       (c) =>
         !c.accessToken ||
-        (!appPasswordProviders.includes(c.providerId) && !c.refreshToken),
+        (!appPasswordProviders.includes(c.providerId) && !c.refreshToken)
     )
     .map((c) => c.id)
 
@@ -51,7 +48,7 @@ export async function deleteConnection(connectionId: string) {
   await db.deleteConnection(connectionId)
 
   const activeConnection = await getActiveConnection(session.user.id).catch(
-    () => null,
+    () => null
   )
   if (connectionId === activeConnection?.id) {
     await db.updateUser({ defaultConnectionId: null })
@@ -62,7 +59,7 @@ export async function getDefaultConnection() {
   try {
     const session = await requireSession()
     const connection = await getActiveConnection(session.user.id).catch(
-      () => null,
+      () => null
     )
     if (!connection) return null
     return {
@@ -78,40 +75,39 @@ export async function getDefaultConnection() {
   }
 }
 
-export async function createIcloudConnection(
-  email: string,
-  password: string,
-) {
+export async function createIcloudConnection(email: string, password: string) {
   const session = await requireSession()
 
+  const normalizedEmail = email.trim()
+  const normalizedPassword = password.trim()
   const validDomains = ["icloud.com", "me.com", "mac.com"]
-  const domain = email.split("@")[1]
+  const domain = normalizedEmail.split("@")[1]?.toLowerCase()
   if (!domain || !validDomains.includes(domain)) {
     throw new Error(
-      "Only iCloud email addresses are supported (icloud.com, me.com, mac.com)",
+      "Only iCloud email addresses are supported (icloud.com, me.com, mac.com)"
     )
   }
 
   const driver = createDriver(EProviders.icloud, {
     auth: {
       userId: session.user.id,
-      accessToken: password,
+      accessToken: normalizedPassword,
       refreshToken: "",
-      email,
+      email: normalizedEmail,
     },
   })
 
   const userInfo = await driver.getUserInfo().catch(() => {
     throw new Error(
-      "Invalid iCloud credentials. Please check your email and app-specific password.",
+      "Invalid iCloud credentials. Please check your email and app-specific password."
     )
   })
 
   const db = await getzeitmailDB(session.user.id)
   await db.createConnection(EProviders.icloud, userInfo.address, {
-    name: userInfo.name || email.split("@")[0],
+    name: userInfo.name || normalizedEmail.split("@")[0],
     picture: "",
-    accessToken: encrypt(password),
+    accessToken: encrypt(normalizedPassword),
     refreshToken: null as string | null,
     scope: "icloud",
     expiresAt: new Date("2099-12-31"),
@@ -120,10 +116,7 @@ export async function createIcloudConnection(
   return { success: true }
 }
 
-export async function createYahooConnection(
-  email: string,
-  password: string,
-) {
+export async function createYahooConnection(email: string, password: string) {
   const session = await requireSession()
 
   const validDomains = [
@@ -140,12 +133,11 @@ export async function createYahooConnection(
     !domain ||
     !validDomains.some(
       (d) =>
-        domain.toLowerCase() === d ||
-        domain.toLowerCase().startsWith("yahoo."),
+        domain.toLowerCase() === d || domain.toLowerCase().startsWith("yahoo.")
     )
   ) {
     throw new Error(
-      "Only Yahoo email addresses are supported (yahoo.com, ymail.com, rocketmail.com, etc.)",
+      "Only Yahoo email addresses are supported (yahoo.com, ymail.com, rocketmail.com, etc.)"
     )
   }
 
@@ -160,7 +152,7 @@ export async function createYahooConnection(
 
   const userInfo = await driver.getUserInfo().catch(() => {
     throw new Error(
-      "Invalid Yahoo credentials. Please check your email and app password.",
+      "Invalid Yahoo credentials. Please check your email and app password."
     )
   })
 
@@ -183,7 +175,7 @@ export async function createCustomConnection(
   imapHost: string,
   imapPort: number,
   smtpHost: string,
-  smtpPort: number,
+  smtpPort: number
 ) {
   const session = await requireSession()
 
@@ -191,10 +183,10 @@ export async function createCustomConnection(
     email,
     password,
     imapHost,
-    imapPort,
+    imapPort
   ).catch(() => {
     throw new Error(
-      "Could not connect to IMAP server. Please check your credentials and server settings.",
+      "Could not connect to IMAP server. Please check your credentials and server settings."
     )
   })
 
@@ -220,7 +212,7 @@ export async function createCustomConnection(
 
   const userInfo = await driver.getUserInfo().catch(() => {
     throw new Error(
-      "Invalid credentials. Please check your email and password.",
+      "Invalid credentials. Please check your email and password."
     )
   })
 

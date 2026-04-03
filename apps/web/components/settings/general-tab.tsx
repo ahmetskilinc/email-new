@@ -19,8 +19,10 @@ import {
   Moon01Icon,
   MonitorStopIcon,
 } from "@hugeicons-pro/core-stroke-rounded"
+import { useQueryClient } from "@tanstack/react-query"
 import { useSettings } from "@/hooks/use-settings"
 import { saveSettings } from "@/server/actions/settings"
+import { useSession } from "@/lib/auth-client"
 import { toast } from "sonner"
 import type { UserSettings } from "@/server/lib/schemas"
 
@@ -32,6 +34,8 @@ const themes = [
 
 export function GeneralTab() {
   const { theme, setTheme } = useTheme()
+  const queryClient = useQueryClient()
+  const { data: session } = useSession()
   const { data: settingsData } = useSettings()
   const settings = settingsData?.settings
 
@@ -41,6 +45,9 @@ export function GeneralTab() {
   ) => {
     try {
       await saveSettings({ [key]: value })
+      await queryClient.invalidateQueries({
+        queryKey: ["settings", session?.user?.id],
+      })
     } catch {
       toast.error("Failed to save setting")
     }
@@ -81,7 +88,7 @@ export function GeneralTab() {
         </div>
       </SettingsSection>
 
-      {/* <Separator />
+      <Separator />
 
       <SettingsSection>
         <SettingsRow>
@@ -165,7 +172,7 @@ export function GeneralTab() {
             }
           />
         </SettingsRow>
-      </SettingsSection> */}
+      </SettingsSection>
     </div>
   )
 }

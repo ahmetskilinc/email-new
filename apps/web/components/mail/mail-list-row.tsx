@@ -48,6 +48,9 @@ export function MailListRow({
       className={cn("border-b select-none md:mt-1 md:border-none")}
       onClick={onClick}
     >
+      {unread && (
+        <span className="absolute top-1/2 left-2 z-10 size-2 -translate-y-1/2 rounded-full bg-[#006FFE]" />
+      )}
       <div
         className={cn(
           "group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm hover:bg-accent hover:opacity-100",
@@ -68,15 +71,12 @@ export function MailListRow({
                 <span
                   className={cn(
                     "flex items-baseline gap-1 text-sm group-hover:opacity-100",
-                    unread && !selected ? "font-bold" : "font-medium"
+                    unread ? "font-bold" : "font-medium"
                   )}
                 >
                   <span className="line-clamp-1 max-w-47.5 truncate overflow-hidden">
                     {title}
                   </span>
-                  {unread && !selected && (
-                    <span className="ml-0.5 size-2 rounded-full bg-[#006FFE]" />
-                  )}
                 </span>
               </div>
               {date && (

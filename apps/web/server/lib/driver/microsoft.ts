@@ -257,12 +257,12 @@ export class OutlookMailManager implements MailManager {
 
     let request = this.graphClient.api(`/me/mailFolders/${folderId}/messages`).top(maxResults);
 
-    // if (q) {
-    //   request = request.search(`"${q}"`);
-    // }
+    if (q) {
+      request = request.search(`"${q}"`);
+    }
 
     request = request.select(
-      'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId',
+      'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId,conversationId,bodyPreview,internetMessageHeaders',
     );
 
     if (maxResults > 0) {
@@ -367,7 +367,7 @@ export class OutlookMailManager implements MailManager {
         const message: Message = await this.graphClient
           .api(`/me/messages/${id}`)
           .select(
-            'id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,attachments',
+            'id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,attachments,conversationId,bodyPreview,internetMessageHeaders',
           )
           .get();
 
@@ -595,12 +595,12 @@ export class OutlookMailManager implements MailManager {
       async () => {
         let request = this.graphClient.api('/me/mailfolders/drafts/messages');
 
-        // if (q) {
-        //   request = request.search(`"${q}"`);
-        // }
+        if (q) {
+          request = request.search(`"${q}"`);
+        }
 
         request = request.select(
-          'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId',
+          'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,conversationId,bodyPreview,internetMessageHeaders',
         );
         // request = request.orderby('receivedDateTime desc');
         request = request.top(maxResults);
@@ -1011,9 +1011,9 @@ export class OutlookMailManager implements MailManager {
   }
   private parseOutlookMessage({
     id,
-    conversationId, // Use conversationId as threadId equivalent
+    conversationId,
     subject,
-    bodyPreview, // Snippet equivalent
+    bodyPreview,
     isRead,
     from,
     toRecipients,
@@ -1021,8 +1021,8 @@ export class OutlookMailManager implements MailManager {
     bccRecipients,
     receivedDateTime,
     internetMessageId,
-    categories, // Outlook categories map to tags
-    // headers, // Array of Header objects (name, value), doesn't exist in Outlook
+    categories,
+    internetMessageHeaders,
   }: Message): Omit<
     ParsedMessage,
     'body' | 'processedHtml' | 'blobUrl' | 'totalReplies' | 'attachments'
@@ -1064,34 +1064,22 @@ export class OutlookMailManager implements MailManager {
         },
       })) || [];
 
-    const references: string | undefined = undefined;
-    const inReplyTo: string | undefined = undefined;
-    const listUnsubscribe: string | undefined = undefined;
-    const listUnsubscribePost: string | undefined = undefined;
-    const replyTo: string | undefined = undefined;
+    let references: string | undefined = undefined;
+    let inReplyTo: string | undefined = undefined;
+    let listUnsubscribe: string | undefined = undefined;
+    let listUnsubscribePost: string | undefined = undefined;
+    let replyTo: string | undefined = undefined;
 
-    // TODO: use headers if available
-    // if (headers) {
-    //   const referencesHeader = headers.find((h) => h.name?.toLowerCase() === 'references');
-    //   if (referencesHeader) references = referencesHeader.value || undefined;
+    if (internetMessageHeaders?.length) {
+      const byName = (n: string) =>
+        internetMessageHeaders.find((h) => h.name?.toLowerCase() === n)?.value || undefined;
 
-    //   const inReplyToHeader = headers.find((h) => h.name?.toLowerCase() === 'in-reply-to');
-    //   if (inReplyToHeader) inReplyTo = inReplyToHeader.value || undefined;
-
-    //   const listUnsubscribeHeader = headers.find(
-    //     (h) => h.name?.toLowerCase() === 'list-unsubscribe',
-    //   );
-    //   if (listUnsubscribeHeader) listUnsubscribe = listUnsubscribeHeader.value || undefined;
-
-    //   const listUnsubscribePostHeader = headers.find(
-    //     (h) => h.name?.toLowerCase() === 'list-unsubscribe-post',
-    //   );
-    //   if (listUnsubscribePostHeader)
-    //     listUnsubscribePost = listUnsubscribePostHeader.value || undefined;
-
-    //   const replyToHeader = headers.find((h) => h.name?.toLowerCase() === 'reply-to');
-    //   if (replyToHeader) replyTo = replyToHeader.value || undefined;
-    // }
+      references = byName('references');
+      inReplyTo = byName('in-reply-to');
+      listUnsubscribe = byName('list-unsubscribe');
+      listUnsubscribePost = byName('list-unsubscribe-post');
+      replyTo = byName('reply-to');
+    }
 
     // TLS status is difficult to determine reliably from typical Graph message properties.
     // You'd need to examine "Received" headers if available and parse them, similar to the Gmail logic.
@@ -1165,18 +1153,9 @@ export class OutlookMailManager implements MailManager {
     };
 
     if (headers) {
-      // Graph API doesn't have a direct 'headers' property for sending
-      // Custom headers are usually not added this way.
-      // Some headers like Reply-To can be set as properties, but not general headers.
-      console.warn(
-        'Custom headers from IOutgoingMessage are not directly applied when sending via Microsoft Graph API.',
-      );
-      // If you need to set specific headers like In-Reply-To or References for threading replies:
-      // outlookMessage.internetMessageHeaders = Object.entries(headers).map(([name, value]) => ({ name, value: value?.toString() }));
-      // Note: internetMessageHeaders might be read-only or limited for sending.
-      // Setting properties like InReplyTo, References on the message object itself is the standard way if supported.
-      // outlookMessage.inReplyTo = headers.inReplyTo as string | undefined; // Example if supported
-      // outlookMessage.references = headers.references as string | undefined; // Example if supported
+      outlookMessage.internetMessageHeaders = Object.entries(headers)
+        .filter(([, v]) => !!v)
+        .map(([name, value]) => ({ name, value: value.toString() }));
     }
 
     // Handle inline images and attachments

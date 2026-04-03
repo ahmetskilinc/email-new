@@ -26,6 +26,10 @@ function makeClient(
   })
 }
 
+function asUidList(result: number[] | false): number[] {
+  return result === false ? [] : result
+}
+
 function getThreadRoot(
   references: string | undefined,
   messageId: string | undefined
@@ -35,6 +39,28 @@ function getThreadRoot(
     if (refs.length > 0 && refs[0]) return refs[0].replace(/[<>]/g, "").trim()
   }
   return (messageId ?? "").replace(/[<>]/g, "").trim()
+}
+
+function threadRootFromImapFetchMsg(msg: {
+  headers?: Buffer
+  envelope?: { messageId?: string }
+}): string {
+  const headerMessageId = msg.headers
+    ? (() => {
+        const parsed = Buffer.from(msg.headers).toString()
+        const match = parsed.match(/^message-id:\s*(.+)$/im)
+        return match?.[1]?.trim()
+      })()
+    : undefined
+  const headerReferences = msg.headers
+    ? (() => {
+        const parsed = Buffer.from(msg.headers).toString()
+        const match = parsed.match(/^references:\s*([\s\S]*?)(?=^\S|\z)/im)
+        return match?.[1]?.replace(/\s+/g, " ").trim()
+      })()
+    : undefined
+  const messageId = headerMessageId ?? msg.envelope?.messageId
+  return getThreadRoot(headerReferences, messageId)
 }
 
 function encodeThreadId(rootMsgId: string): string {
@@ -168,20 +194,44 @@ export async function listThreads(
       return { threads: [], nextPageToken: null }
     }
 
+    let searchUids: number[] | null = null
+    if (params.query && params.query.trim()) {
+      const q = params.query.trim()
+      searchUids = asUidList(
+        await client.search(
+          { or: [{ subject: q }, { from: q }, { to: q }, { body: q }] },
+          { uid: true },
+        ),
+      )
+      if (searchUids.length === 0) {
+        return { threads: [], nextPageToken: null }
+      }
+    }
+
     const fetchCount = params.maxResults * 3
     const totalMessages = mailbox.exists
 
-    // Use sequence numbers (1..exists, always contiguous) rather than UIDs (which have gaps).
-    // pageToken = the sequence number below which to fetch next page (exclusive upper bound).
-    let seqEnd: number
-    if (params.pageToken) {
-      seqEnd = parseInt(params.pageToken, 10) - 1
-      if (seqEnd < 1) return { threads: [], nextPageToken: null }
+    let fetchRange: string
+    let seqStart: number
+
+    if (searchUids) {
+      const sorted = [...searchUids].sort((a, b) => b - a)
+      const pageStart = params.pageToken ? parseInt(params.pageToken, 10) : 0
+      const sliced = sorted.slice(pageStart, pageStart + fetchCount)
+      if (sliced.length === 0) return { threads: [], nextPageToken: null }
+      fetchRange = sliced.join(',')
+      seqStart = pageStart + sliced.length
     } else {
-      seqEnd = totalMessages
+      let seqEnd: number
+      if (params.pageToken) {
+        seqEnd = parseInt(params.pageToken, 10) - 1
+        if (seqEnd < 1) return { threads: [], nextPageToken: null }
+      } else {
+        seqEnd = totalMessages
+      }
+      seqStart = Math.max(1, seqEnd - fetchCount + 1)
+      fetchRange = `${seqStart}:${seqEnd}`
     }
-    const seqStart = Math.max(1, seqEnd - fetchCount + 1)
-    const fetchRange = `${seqStart}:${seqEnd}`
 
     const messages: {
       uid: number
@@ -193,13 +243,13 @@ export async function listThreads(
       subject?: string
       from?: { name?: string; address?: string }
     }[] = []
-    // No { uid: true } in third arg = sequence-number range; uid: true in query = return the UID value
+    const fetchOptions = searchUids ? { uid: true } : undefined
     for await (const msg of client.fetch(fetchRange, {
       uid: true,
       flags: true,
       envelope: true,
       headers: ["message-id", "references", "in-reply-to"],
-    })) {
+    }, fetchOptions)) {
       const headerMessageId = msg.headers
         ? (() => {
             const parsed = Buffer.from(msg.headers).toString()
@@ -262,11 +312,14 @@ export async function listThreads(
         },
       }
     })
-    // nextPageToken = seqStart means "fetch messages with seq < seqStart next time"
-    const nextPageToken =
-      seqStart > 1 && threads.length >= params.maxResults
-        ? String(seqStart)
-        : null
+    let nextPageToken: string | null = null
+    if (searchUids) {
+      if (seqStart < searchUids.length && threads.length >= params.maxResults) {
+        nextPageToken = String(seqStart)
+      }
+    } else if (seqStart > 1 && threads.length >= params.maxResults) {
+      nextPageToken = String(seqStart)
+    }
     return { threads, nextPageToken }
   } catch (err) {
     throw err
@@ -329,27 +382,7 @@ export async function getThread(
         envelope: true,
         headers: ["message-id", "references", "in-reply-to"],
       })) {
-        const headerMessageId = msg.headers
-          ? (() => {
-              const parsed = Buffer.from(msg.headers).toString()
-              const match = parsed.match(/^message-id:\s*(.+)$/im)
-              return match?.[1]?.trim()
-            })()
-          : undefined
-        const headerReferences = msg.headers
-          ? (() => {
-              const parsed = Buffer.from(msg.headers).toString()
-              const match = parsed.match(
-                /^references:\s*([\s\S]*?)(?=^\S|\z)/im
-              )
-              return match?.[1]?.replace(/\s+/g, " ").trim()
-            })()
-          : undefined
-
-        const messageId = headerMessageId ?? msg.envelope?.messageId
-        const msgRoot = getThreadRoot(headerReferences, messageId)
-
-        if (msgRoot === rootMsgId) {
+        if (threadRootFromImapFetchMsg(msg) === rootMsgId) {
           matchingUids.push(msg.uid)
         }
       }
@@ -424,13 +457,17 @@ export async function deleteMessages(
   try {
     await client.connect()
     await client.mailboxOpen(config.folders.inbox)
-    const searchUids = await client.search(
-      { header: ["Message-ID", `<${rootMsgId}>`] },
-      { uid: true }
+    const searchUids = asUidList(
+      await client.search(
+        { header: { "Message-ID": `<${rootMsgId}>` } },
+        { uid: true },
+      ),
     )
-    const refsUids = await client.search(
-      { header: ["References", rootMsgId] },
-      { uid: true }
+    const refsUids = asUidList(
+      await client.search(
+        { header: { References: rootMsgId } },
+        { uid: true },
+      ),
     )
     const uids = [...new Set([...searchUids, ...refsUids])]
     if (uids.length > 0)
@@ -447,6 +484,13 @@ export async function markMessages(
   read: boolean,
   config: ImapProviderConfig
 ): Promise<void> {
+  const targets = [
+    ...new Set(
+      threadIds.map((tid) => decodeThreadId(tid)).filter((r) => !!r),
+    ),
+  ] as string[]
+  if (targets.length === 0) return
+
   const client = makeClient(email, password, config)
   try {
     await client.connect()
@@ -454,24 +498,33 @@ export async function markMessages(
       config.folders.inbox,
       config.folders.sent,
       config.folders.drafts,
+      config.folders.spam,
+      config.folders.archive,
     ]) {
       try {
-        await client.mailboxOpen(folder)
-        for (const threadId of threadIds) {
-          const rootMsgId = decodeThreadId(threadId)
-          const searchUids = await client.search(
-            { header: ["Message-ID", `<${rootMsgId}>`] },
-            { uid: true }
-          )
-          const refsUids = await client.search(
-            { header: ["References", rootMsgId] },
-            { uid: true }
-          )
-          const uids = [...new Set([...searchUids, ...refsUids])]
-          if (uids.length === 0) continue
+        const mailbox = await client.mailboxOpen(folder)
+        if (!mailbox.exists || mailbox.exists === 0) continue
+
+        const uidsByRoot = new Map<string, number[]>()
+        for (const r of targets) uidsByRoot.set(r, [])
+
+        for await (const msg of client.fetch("1:*", {
+          uid: true,
+          envelope: true,
+          headers: ["message-id", "references", "in-reply-to"],
+        })) {
+          const msgRoot = threadRootFromImapFetchMsg(msg)
+          const bucket = uidsByRoot.get(msgRoot)
+          if (bucket) bucket.push(msg.uid)
+        }
+
+        for (const rootMsgId of targets) {
+          const uids = uidsByRoot.get(rootMsgId)
+          if (!uids?.length) continue
           if (read)
             await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true })
-          else await client.messageFlagsRemove(uids, ["\\Seen"], { uid: true })
+          else
+            await client.messageFlagsRemove(uids, ["\\Seen"], { uid: true })
         }
       } catch {}
     }
@@ -518,15 +571,19 @@ export async function modifyLabels(
       for (const folder of sourceFolders) {
         try {
           await client.mailboxOpen(folder)
-          const searchUids = await client.search(
-            { header: ["Message-ID", `<${rootMsgId}>`] },
-            { uid: true }
+          const byMsgId = asUidList(
+            await client.search(
+              { header: { "Message-ID": `<${rootMsgId}>` } },
+              { uid: true },
+            ),
           )
-          const refsUids = await client.search(
-            { header: ["References", rootMsgId] },
-            { uid: true }
+          const byRefs = asUidList(
+            await client.search(
+              { header: { References: rootMsgId } },
+              { uid: true },
+            ),
           )
-          const uids = [...new Set([...searchUids, ...refsUids])]
+          const uids = [...new Set([...byMsgId, ...byRefs])]
           if (uids.length === 0) continue
           if (addFlags.length)
             await client.messageFlagsAdd(uids, addFlags, { uid: true })
@@ -728,9 +785,8 @@ export async function listHistory(
       readOnly: true,
     })
     const uidValidity = mailbox.uidValidity
-    const newUids = await client.search(
-      { uid: `${lastUid + 1}:*` },
-      { uid: true }
+    const newUids = asUidList(
+      await client.search({ uid: `${lastUid + 1}:*` }, { uid: true }),
     )
     const history = newUids.map((uid) => ({ uid, type: "new" }))
     const latestUid = newUids.length > 0 ? Math.max(...newUids) : lastUid
@@ -749,7 +805,7 @@ export async function deleteAllSpam(
   try {
     await client.connect()
     await client.mailboxOpen(config.folders.spam)
-    const allUids = await client.search({ all: true }, { uid: true })
+    const allUids = asUidList(await client.search({ all: true }, { uid: true }))
     if (allUids.length === 0)
       return {
         success: true,

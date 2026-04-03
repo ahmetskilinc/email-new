@@ -15,21 +15,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@workspace/ui/components/field"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useEmailAliases } from "@/hooks/use-email-aliases"
 import useComposeEditor from "@/hooks/use-compose-editor"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Badge } from "@workspace/ui/components/badge"
 import { serializeFiles } from "@/lib/schemas"
 import { createDraft } from "@/server/actions/drafts"
 import { formatFileSize } from "@/lib/utils"
+import { AnimatePresence, motion } from "motion/react"
 import { EditorContent } from "@tiptap/react"
+import { useForm } from "react-hook-form"
 import { useQueryState } from "nuqs"
 import { toast } from "sonner"
 import { cn } from "@workspace/ui/lib/utils"
+import { z } from "zod"
+import { X } from "@hugeicons-pro/core-stroke-rounded"
+import { HugeiconsIcon } from "@hugeicons/react"
+
+const composeSchema = z.object({
+  to: z.string().min(1, "Recipient is required"),
+  cc: z.string(),
+  bcc: z.string(),
+  subject: z.string().min(1, "Subject is required"),
+  fromEmail: z.string(),
+})
+
+type ComposeFormValues = z.infer<typeof composeSchema>
 
 interface EmailComposerProps {
   initialTo?: string[]
@@ -52,6 +72,13 @@ interface EmailComposerProps {
   autofocus?: boolean
 }
 
+function parseRecipients(value: string) {
+  return value
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
 export function EmailComposer({
   initialTo = [],
   initialCc = [],
@@ -68,26 +95,32 @@ export function EmailComposer({
   const { data: settings } = useSettings()
   const [showCc, setShowCc] = useState(initialCc.length > 0)
   const [showBcc, setShowBcc] = useState(initialBcc.length > 0)
-  const [isLoading, setIsLoading] = useState(false)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false)
+  const [attachments, setAttachments] = useState<File[]>(initialAttachments)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [threadId] = useQueryState("threadId")
   const [draftId, setDraftId] = useQueryState("draftId")
-  const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false)
 
-  const [toValue, setToValue] = useState(initialTo.join(", "))
-  const [ccValue, setCcValue] = useState(initialCc.join(", "))
-  const [bccValue, setBccValue] = useState(initialBcc.join(", "))
-  const [subject, setSubject] = useState(initialSubject)
-  const [fromEmail, setFromEmail] = useState("")
-  const [attachments, setAttachments] = useState<File[]>(initialAttachments)
+  const form = useForm<ComposeFormValues>({
+    resolver: zodResolver(composeSchema),
+    defaultValues: {
+      to: initialTo.join(", "),
+      cc: initialCc.join(", "),
+      bcc: initialBcc.join(", "),
+      subject: initialSubject,
+      fromEmail: "",
+    },
+  })
+
+  const { register, handleSubmit, watch, setValue, formState } = form
+  const { errors, isSubmitting, isDirty } = formState
 
   const editor = useComposeEditor({
     initialValue: initialMessage,
-    isReadOnly: isLoading,
-    onLengthChange: () => setHasUnsavedChanges(true),
+    isReadOnly: isSubmitting,
+    onLengthChange: () => {},
     onModEnter: () => {
-      void handleSend()
+      void handleSubmit(onSubmit)()
       return true
     },
     onAttachmentsChange: async (files) => {
@@ -102,180 +135,159 @@ export function EmailComposer({
       settings?.settings?.defaultEmailAlias ??
       aliases?.find((a: any) => a.primary)?.email ??
       aliases?.[0]?.email
-    if (preferred && fromEmail !== preferred) {
-      setFromEmail(preferred)
+    if (preferred) {
+      setValue("fromEmail", preferred)
     }
-  }, [settings?.settings?.defaultEmailAlias, aliases])
+  }, [settings?.settings?.defaultEmailAlias, aliases, setValue])
 
-  const parseRecipients = (value: string) =>
-    value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean)
-
-  const handleSend = async () => {
-    const to = parseRecipients(toValue)
-    if (to.length === 0) {
-      toast.error("Recipient is required")
-      return
-    }
-    if (!subject) {
-      toast.error("Subject is required")
-      return
-    }
-
-    setIsLoading(true)
+  const onSubmit = async (data: ComposeFormValues) => {
     try {
       await onSendEmail({
-        to,
-        cc: showCc ? parseRecipients(ccValue) : undefined,
-        bcc: showBcc ? parseRecipients(bccValue) : undefined,
-        subject,
+        to: parseRecipients(data.to),
+        cc: showCc ? parseRecipients(data.cc ?? "") : undefined,
+        bcc: showBcc ? parseRecipients(data.bcc ?? "") : undefined,
+        subject: data.subject,
         message: editor?.getHTML() ?? "",
         attachments,
-        fromEmail: fromEmail || undefined,
+        fromEmail: data.fromEmail || undefined,
       })
-      setHasUnsavedChanges(false)
+      form.reset()
       editor?.commands.clearContent(true)
       toast.success("Email sent")
     } catch {
       toast.error("Failed to send email")
-    } finally {
-      setIsLoading(false)
     }
   }
 
-  const saveDraft = async () => {
-    if (!hasUnsavedChanges || !editor) return
-    const to = parseRecipients(toValue)
-    if (!to.length || !subject) return
-
-    try {
-      const draftData = {
-        to: toValue,
-        cc: ccValue || undefined,
-        bcc: bccValue || undefined,
-        subject,
-        message: editor.getHTML(),
-        attachments: await serializeFiles(attachments),
-        id: draftId,
-        threadId: threadId || null,
-        fromEmail: fromEmail || null,
-      }
-      const response = await createDraft(draftData)
-      if (response?.id && response.id !== draftId) {
-        setDraftId(response.id)
-      }
-      setHasUnsavedChanges(false)
-    } catch {
-      toast.error("Failed to save draft")
-    }
-  }
+  const watchedValues = watch()
 
   useEffect(() => {
-    if (!hasUnsavedChanges) return
-    const timer = setTimeout(saveDraft, 3000)
+    if (!isDirty || !editor) return
+    const timer = setTimeout(async () => {
+      const to = parseRecipients(watchedValues.to)
+      if (!to.length || !watchedValues.subject) return
+
+      try {
+        const draftData = {
+          to: watchedValues.to,
+          cc: watchedValues.cc || undefined,
+          bcc: watchedValues.bcc || undefined,
+          subject: watchedValues.subject,
+          message: editor.getHTML(),
+          attachments: await serializeFiles(attachments),
+          id: draftId,
+          threadId: threadId || null,
+          fromEmail: watchedValues.fromEmail || null,
+        }
+        const response = await createDraft(draftData)
+        if (response?.id && response.id !== draftId) {
+          setDraftId(response.id)
+        }
+      } catch {
+        toast.error("Failed to save draft")
+      }
+    }, 3000)
     return () => clearTimeout(timer)
-  }, [hasUnsavedChanges])
+  }, [
+    isDirty,
+    watchedValues,
+    editor,
+    attachments,
+    draftId,
+    threadId,
+    setDraftId,
+  ])
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
-    setHasUnsavedChanges(true)
   }
 
   return (
-    <div className={cn("flex flex-col rounded-lg border", className)}>
-      <div className="flex flex-col gap-2 border-b p-3">
-        <div className="flex items-center gap-2">
-          <Label className="w-10 shrink-0 text-sm text-muted-foreground">
+    <form onSubmit={handleSubmit(onSubmit)} className={cn(className)}>
+      <FieldGroup className="gap-2 border-b p-3">
+        <Field
+          orientation="horizontal"
+          data-invalid={!!errors.to || undefined}
+          className="pr-8"
+        >
+          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
             To:
-          </Label>
+          </FieldLabel>
           <Input
-            value={toValue}
-            onChange={(e) => {
-              setToValue(e.target.value)
-              setHasUnsavedChanges(true)
-            }}
+            {...register("to")}
             placeholder="recipient@example.com"
-            disabled={isLoading}
-            className="border-0 p-0 shadow-none focus-visible:ring-0"
+            disabled={isSubmitting}
+            aria-invalid={!!errors.to}
           />
-          <div className="flex gap-1">
+          <div className="flex shrink-0 gap-4">
             <button
+              type="button"
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setShowCc(!showCc)}
             >
               Cc
             </button>
             <button
+              type="button"
               className="text-xs text-muted-foreground hover:text-foreground"
               onClick={() => setShowBcc(!showBcc)}
             >
               Bcc
             </button>
           </div>
-        </div>
+          {errors.to && <FieldError>{errors.to.message}</FieldError>}
+        </Field>
 
         {showCc && (
-          <div className="flex items-center gap-2">
-            <Label className="w-10 shrink-0 text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Cc:
-            </Label>
+            </FieldLabel>
             <Input
-              value={ccValue}
-              onChange={(e) => {
-                setCcValue(e.target.value)
-                setHasUnsavedChanges(true)
-              }}
+              {...register("cc")}
               placeholder="cc@example.com"
-              disabled={isLoading}
-              className="border-0 p-0 shadow-none focus-visible:ring-0"
+              disabled={isSubmitting}
             />
-          </div>
+          </Field>
         )}
 
         {showBcc && (
-          <div className="flex items-center gap-2">
-            <Label className="w-10 shrink-0 text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Bcc:
-            </Label>
+            </FieldLabel>
             <Input
-              value={bccValue}
-              onChange={(e) => {
-                setBccValue(e.target.value)
-                setHasUnsavedChanges(true)
-              }}
+              {...register("bcc")}
               placeholder="bcc@example.com"
-              disabled={isLoading}
-              className="border-0 p-0 shadow-none focus-visible:ring-0"
+              disabled={isSubmitting}
             />
-          </div>
+          </Field>
         )}
 
-        <div className="flex items-center gap-2">
-          <Label className="w-10 shrink-0 text-sm text-muted-foreground">
+        <Field
+          orientation="horizontal"
+          data-invalid={!!errors.subject || undefined}
+        >
+          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
             Sub:
-          </Label>
+          </FieldLabel>
           <Input
-            value={subject}
-            onChange={(e) => {
-              setSubject(e.target.value)
-              setHasUnsavedChanges(true)
-            }}
+            {...register("subject")}
             placeholder="Subject"
-            disabled={isLoading}
-            className="border-0 p-0 shadow-none focus-visible:ring-0"
+            disabled={isSubmitting}
+            aria-invalid={!!errors.subject}
           />
-        </div>
+          {errors.subject && <FieldError>{errors.subject.message}</FieldError>}
+        </Field>
 
         {aliases && aliases.length > 1 && (
-          <div className="flex items-center gap-2">
-            <Label className="w-10 shrink-0 text-sm text-muted-foreground">
+          <Field orientation="horizontal">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               From:
-            </Label>
+            </FieldLabel>
             <Select
-              value={fromEmail}
-              onValueChange={(value) => setFromEmail(value ?? "")}
+              value={watch("fromEmail")}
+              onValueChange={(value) => setValue("fromEmail", value ?? "")}
             >
               <SelectTrigger className="border-0 shadow-none focus:ring-0">
                 <SelectValue placeholder="Select email" />
@@ -290,12 +302,12 @@ export function EmailComposer({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </Field>
         )}
-      </div>
+      </FieldGroup>
 
       <div
-        className="min-h-[200px] flex-1 cursor-text p-3"
+        className="min-h-[340px] flex-1 cursor-text p-3"
         onClick={() => editor?.commands.focus()}
       >
         {editor && (
@@ -306,34 +318,47 @@ export function EmailComposer({
         )}
       </div>
 
-      {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-1 border-t p-3">
-          {attachments.map((file, i) => (
-            <Badge
-              key={`${file.name}-${i}`}
-              variant="secondary"
-              className="gap-1"
-            >
-              {file.name} ({formatFileSize(file.size)})
-              <button
-                className="ml-1 text-xs hover:text-destructive"
-                onClick={() => removeAttachment(i)}
-              >
-                ×
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
+      <AnimatePresence>
+        {attachments.length > 0 && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            className="overflow-hidden border-t"
+          >
+            <div className="flex flex-wrap gap-2 p-3">
+              <AnimatePresence mode="popLayout">
+                {attachments.map((file, i) => (
+                  <motion.div
+                    key={`${file.name}-${file.size}-${i}`}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <AttachmentPreview
+                      file={file}
+                      onRemove={() => removeAttachment(i)}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex items-center gap-2 border-t p-3">
-        <Button onClick={handleSend} disabled={isLoading}>
-          {isLoading ? "Sending..." : "Send"}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Sending..." : "Send"}
         </Button>
         <Button
+          type="button"
           variant="secondary"
           onClick={() => fileInputRef.current?.click()}
-          disabled={isLoading}
+          disabled={isSubmitting}
         >
           Attach
         </Button>
@@ -348,7 +373,6 @@ export function EmailComposer({
                 ...prev,
                 ...Array.from(e.target.files!),
               ])
-              setHasUnsavedChanges(true)
             }
           }}
         />
@@ -367,12 +391,14 @@ export function EmailComposer({
           </DialogHeader>
           <DialogFooter>
             <Button
+              type="button"
               variant="secondary"
               onClick={() => setShowLeaveConfirmation(false)}
             >
               Stay
             </Button>
             <Button
+              type="button"
               variant="destructive"
               onClick={() => {
                 setShowLeaveConfirmation(false)
@@ -384,6 +410,57 @@ export function EmailComposer({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </form>
+  )
+}
+
+function AttachmentPreview({
+  file,
+  onRemove,
+}: {
+  file: File
+  onRemove: () => void
+}) {
+  const isImage = file.type.startsWith("image/")
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isImage) return
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file, isImage])
+
+  return (
+    <div className="group relative flex w-32 flex-col overflow-hidden rounded-lg border bg-muted/30">
+      {previewUrl ? (
+        <div className="flex h-36 items-center justify-center overflow-hidden bg-muted">
+          <img
+            src={previewUrl}
+            alt={file.name}
+            className="size-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="flex h-20 items-center justify-center bg-muted">
+          <span className="text-xs font-medium text-muted-foreground uppercase">
+            {file.name.split(".").pop()}
+          </span>
+        </div>
+      )}
+      <div className="flex flex-col gap-0.5 p-2">
+        <span className="truncate text-xs font-medium">{file.name}</span>
+        <span className="text-xs text-muted-foreground">
+          {formatFileSize(file.size)}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-background/80 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+      >
+        <HugeiconsIcon icon={X} data-icon="inline-start" className="size-3" />
+      </button>
     </div>
   )
 }

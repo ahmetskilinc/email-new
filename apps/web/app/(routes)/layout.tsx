@@ -1,14 +1,23 @@
+"use client"
+
 import { ConnectionSyncer } from "@/components/connection/connection-syncer"
+import { ComposeDialog } from "@/components/create/compose-dialog"
 import { SiteHeader } from "@/components/site-header"
 import { AppSidebar } from "@/components/app-sidebar"
-import { DualSidebarInset, DualSidebarProvider } from "@workspace/ui/components/dual-sidebar"
+import {
+  DualSidebarInset,
+  DualSidebarProvider,
+} from "@workspace/ui/components/dual-sidebar"
 import { AppSidebarRight } from "@/components/app-sidebar-right"
+import { usePathname } from "next/navigation"
 
 export default function RoutesLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const calendarRoute = usePathname().startsWith("/calendar")
+
   return (
     <DualSidebarProvider>
       <AppSidebar />
@@ -19,7 +28,8 @@ export default function RoutesLayout({
           {children}
         </div>
       </DualSidebarInset>
-      <AppSidebarRight />
+      {!calendarRoute && <AppSidebarRight />}
+      <ComposeDialog />
     </DualSidebarProvider>
   )
 }

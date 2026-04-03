@@ -4,8 +4,8 @@ import {
   MailSend01Icon,
   ArchiveIcon,
   Delete02Icon,
-  Settings04Icon,
   Mail02Icon,
+  Calendar03Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import { HugeiconsIcon } from "@hugeicons/react"
 import React from "react"
@@ -58,5 +58,11 @@ export const navigationConfigTopNav: NavItem[] = [
     title: "All Inboxes",
     href: "/mail/all-inboxes",
     icon: <HugeiconsIcon icon={Mail02Icon} className="h-4 w-4" />,
+  },
+  {
+    id: "calendar",
+    title: "Calendar",
+    href: "/calendar",
+    icon: <HugeiconsIcon icon={Calendar03Icon} className="h-4 w-4" />,
   },
 ]

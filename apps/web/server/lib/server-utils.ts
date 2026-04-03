@@ -199,8 +199,10 @@ export const connectionToDriver = (
       refreshToken: activeConnection.refreshToken ?? "",
       email: activeConnection.email,
     },
-    ...(activeConnection.imapConfig && {
-      imapConfig: activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
-    }),
+    ...(activeConnection.imapConfig != null
+      ? {
+          imapConfig: activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
+        }
+      : {}),
   })
 }

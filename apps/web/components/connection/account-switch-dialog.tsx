@@ -15,7 +15,9 @@ import {
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { setDefaultConnection } from "@/server/actions/connections"
+import { activeConnectionQueryKey } from "@/hooks/use-connections"
 import { activeConnectionIdAtom } from "@/store/connection"
+import { useSession } from "@/lib/auth-client"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryState } from "nuqs"
 import { useSetAtom } from "jotai"
@@ -49,6 +51,7 @@ export function AccountSwitchDialog({
   const switchingRef = useRef(false)
 
   const queryClient = useQueryClient()
+  const { data: session } = useSession()
   const [, setThreadId] = useQueryState("threadId")
   const setConnectionId = useSetAtom(activeConnectionIdAtom)
 
@@ -75,7 +78,7 @@ export function AccountSwitchDialog({
   }, [])
 
   useEffect(() => {
-    if (!target || switchingRef.current) return
+    if (!target || switchingRef.current || !session?.user?.id) return
     switchingRef.current = true
 
     startTimeRef.current = Date.now()
@@ -93,12 +96,15 @@ export function AccountSwitchDialog({
 
       addLog("Switching active connection...", "pending")
       setConnectionId(target.id)
-      queryClient.setQueryData(["activeConnection"], {
+      queryClient.setQueryData(activeConnectionQueryKey(session.user.id), {
         id: target.id,
         email: target.email,
         name: target.name,
         picture: target.picture,
         providerId: target.providerId,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: activeConnectionQueryKey(session.user.id),
       })
       queryClient.invalidateQueries({ queryKey: ["threads"] })
       queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
@@ -119,7 +125,7 @@ export function AccountSwitchDialog({
         setError(msg)
         switchingRef.current = false
       })
-  }, [target])
+  }, [target, session?.user?.id])
 
   const isOpen = target !== null
   const isDone =
