@@ -77,6 +77,7 @@ const createAuthConfig = () => {
             .map((o) => o.trim())
             .filter(Boolean)
         : []),
+      ...(process.env.VERCEL ? ["https://*.vercel.app"] : []),
     ],
     advanced: {
       useSecureCookies: isSecure,
