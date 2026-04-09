@@ -1,18 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getSessionCookie } from "better-auth/cookies"
 
 const protectedPaths = ["/mail", "/settings", "/onboarding"]
 const authPaths = ["/login", "/signup"]
 
-function getSessionCookieName(req: NextRequest) {
-  const isDev =
-    req.nextUrl.hostname === "localhost" || req.nextUrl.hostname === "127.0.0.1"
-  return isDev ? "better-auth-dev.session_token" : "better-auth.session_token"
-}
-
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const sessionCookie = req.cookies.get(getSessionCookieName(req))
-  const hasSession = !!sessionCookie?.value
+  const sessionCookie = getSessionCookie(req)
+  const hasSession = !!sessionCookie
 
   const isProtected = protectedPaths.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
