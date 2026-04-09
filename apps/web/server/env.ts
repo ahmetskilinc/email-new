@@ -20,11 +20,17 @@ export type AppEnv = {
 const requireEnv = (key: keyof AppEnv, fallback = ""): string =>
   process.env[key] ?? fallback
 
+function resolveAppURL(): string {
+  if (process.env.BETTER_AUTH_URL) return process.env.BETTER_AUTH_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://localhost:3000"
+}
+
 export const env: AppEnv = {
   NODE_ENV: (process.env.NODE_ENV as AppEnv["NODE_ENV"]) || "development",
   DATABASE_URL: requireEnv("DATABASE_URL"),
   BETTER_AUTH_SECRET: requireEnv("BETTER_AUTH_SECRET"),
-  BETTER_AUTH_URL: requireEnv("BETTER_AUTH_URL"),
+  BETTER_AUTH_URL: resolveAppURL(),
   BETTER_AUTH_TRUSTED_ORIGINS: requireEnv("BETTER_AUTH_TRUSTED_ORIGINS"),
   GOOGLE_CLIENT_ID: requireEnv("GOOGLE_CLIENT_ID"),
   GOOGLE_CLIENT_SECRET: requireEnv("GOOGLE_CLIENT_SECRET"),

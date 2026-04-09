@@ -1,5 +1,7 @@
 import { type Account, betterAuth, type BetterAuthOptions } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
+import { nextCookies } from "better-auth/next-js"
+import * as schema from "../db/schema"
 import { getSocialProviders } from "./auth-providers"
 import { defaultUserSettings } from "./schemas"
 import { getzeitmailDB } from "./server-utils"
@@ -63,19 +65,27 @@ const createAuthConfig = () => {
   const { db } = createDb(env.DATABASE_URL)
   return {
     secret: env.BETTER_AUTH_SECRET,
-    database: drizzleAdapter(db, { provider: "pg" }),
+    database: drizzleAdapter(db, {
+      provider: "pg",
+      schema,
+    }),
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [
+      env.BETTER_AUTH_URL,
       ...(env.BETTER_AUTH_TRUSTED_ORIGINS
         ? env.BETTER_AUTH_TRUSTED_ORIGINS.split(",")
             .map((o) => o.trim())
             .filter(Boolean)
         : []),
+      ...(process.env.VERCEL ? ["https://*.vercel.app"] : []),
     ],
+    advanced: {
+      useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
+    },
     session: {
       cookieCache: {
         enabled: true,
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge: 60 * 5,
       },
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24 * 3,
@@ -90,45 +100,62 @@ const createAuthConfig = () => {
         trustedProviders: ["google", "microsoft"],
       },
     },
+    user: {
+      additionalFields: {
+        defaultConnectionId: {
+          type: "string",
+          required: false,
+          input: false,
+        },
+        customPrompt: {
+          type: "string",
+          required: false,
+        },
+        phoneNumber: {
+          type: "string",
+          required: false,
+          input: false,
+        },
+        phoneNumberVerified: {
+          type: "boolean",
+          required: false,
+          input: false,
+        },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: false,
     },
-    onAPIError: {
-      onError: (error: any) => {
-        console.error("[Better Auth] API Error:", error)
+    databaseHooks: {
+      user: {
+        create: {
+          after: async (user) => {
+            try {
+              const db = await getzeitmailDB(user.id)
+              const existingSettings = await db.findUserSettings()
+              if (!existingSettings) {
+                await db.insertUserSettings({ ...defaultUserSettings })
+              }
+            } catch (error) {
+              console.error(
+                "[user.create hook] Failed to insert default settings:",
+                error
+              )
+            }
+          },
+        },
       },
-      errorURL: "/login",
-      throw: true,
+      account: {
+        create: {
+          after: connectionHandlerHook,
+        },
+        update: {
+          after: connectionHandlerHook,
+        },
+      },
     },
-    // databaseHooks: {
-    //   user: {
-    //     create: {
-    //       after: async (user) => {
-    //         try {
-    //           const db = await getzeitmailDB(user.id)
-    //           const existingSettings = await db.findUserSettings()
-    //           if (!existingSettings) {
-    //             await db.insertUserSettings({ ...defaultUserSettings })
-    //           }
-    //         } catch (error) {
-    //           console.error(
-    //             "[user.create hook] Failed to insert default settings:",
-    //             error
-    //           )
-    //         }
-    //       },
-    //     },
-    //   },
-    //   account: {
-    //     create: {
-    //       after: connectionHandlerHook,
-    //     },
-    //     update: {
-    //       after: connectionHandlerHook,
-    //     },
-    //   },
-    // },
+    plugins: [nextCookies()],
   } satisfies BetterAuthOptions
 }
 

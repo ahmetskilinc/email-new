@@ -4,13 +4,11 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { signUp } from "@/lib/auth-client"
-import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import Link from "next/link"
 
 export default function SignupPage() {
-  const router = useRouter()
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -26,12 +24,19 @@ export default function SignupPage() {
 
     setIsLoading(true)
     try {
-      const result = await signUp.email({ name, email, password })
-      if (result.error) {
-        toast.error(result.error.message ?? "Failed to create account")
-        return
-      }
-      router.push("/mail/inbox")
+      await signUp.email({
+        name,
+        email,
+        password,
+        fetchOptions: {
+          onSuccess: () => {
+            window.location.href = "/mail/inbox"
+          },
+          onError: (ctx) => {
+            toast.error(ctx.error.message ?? "Failed to create account")
+          },
+        },
+      })
     } catch {
       toast.error("Something went wrong. Please try again.")
     } finally {
