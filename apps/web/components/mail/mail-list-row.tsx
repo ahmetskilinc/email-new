@@ -3,8 +3,7 @@
 import { BimiAvatar } from "@/components/bimi-avatar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Star01Icon } from "@hugeicons-pro/core-stroke-rounded"
-import { StarIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
+import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
