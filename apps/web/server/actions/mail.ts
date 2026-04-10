@@ -5,7 +5,7 @@ import {
   requireActiveDriver,
 } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
-import { extractThreadDate } from "@/lib/thread-utils"
+import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
@@ -338,4 +338,52 @@ export async function processEmailContent(
 export async function getRawEmail(id: string) {
   const { driver } = await requireActiveDriver()
   return driver.getRawEmail(id)
+}
+
+export type PollNewMessage = {
+  id: string
+  from: string
+  subject: string
+  isUnread: boolean
+}
+
+export async function pollNewMessages(cursor: string | null): Promise<{
+  cursor: string | null
+  newMessages: PollNewMessage[]
+}> {
+  const { driver } = await requireActiveDriver()
+
+  const result = await driver.list({
+    folder: "inbox",
+    maxResults: 20,
+  })
+
+  const threads = result.threads ?? []
+  if (threads.length === 0) {
+    return { cursor, newMessages: [] }
+  }
+
+  // Prime the pump on first call — don't notify for anything that already existed.
+  if (!cursor) {
+    return { cursor: threads[0]?.id ?? null, newMessages: [] }
+  }
+
+  const cursorIndex = threads.findIndex((t) => t.id === cursor)
+  const fresh = cursorIndex === -1 ? threads : threads.slice(0, cursorIndex)
+
+  const newMessages: PollNewMessage[] = fresh.map((t) => {
+    const preview = normalizeThreadPreview(t.$raw)
+    const fromName = preview.sender.name?.trim()
+    return {
+      id: t.id,
+      from: fromName && fromName.length > 0 ? fromName : preview.sender.email,
+      subject: preview.subject,
+      isUnread: preview.unread,
+    }
+  })
+
+  return {
+    cursor: threads[0]?.id ?? cursor,
+    newMessages,
+  }
 }
