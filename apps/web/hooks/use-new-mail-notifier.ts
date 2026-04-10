@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { pollNewMessages } from "@/server/actions/mail"
 import { useActiveConnection } from "@/hooks/use-connections"
 import { useSettings } from "@/hooks/use-settings"
+import { useNotificationActions } from "@/store/notifications"
 
 const POLL_INTERVAL_MS = 30_000
 
@@ -15,6 +16,7 @@ export function useNewMailNotifier() {
   const queryClient = useQueryClient()
   const cursorRef = useRef<string | null>(null)
   const connectionIdRef = useRef<string | null>(null)
+  const { add: addNotifications } = useNotificationActions()
 
   const notifications = settingsData?.settings.notifications
   const enabled =
@@ -44,9 +46,25 @@ export function useNewMailNotifier() {
 
       if (!notifications || res.newMessages.length === 0) return res
 
-      for (const msg of res.newMessages) {
-        if (notifications.level === "important" && !msg.isUnread) continue
+      const filtered = res.newMessages.filter((msg) => {
+        if (notifications.level === "important" && !msg.isUnread) return false
+        return true
+      })
 
+      if (filtered.length === 0) return res
+
+      // Push into the notification store for the popover
+      addNotifications(
+        filtered.map((msg) => ({
+          id: msg.id,
+          from: msg.from,
+          subject: msg.subject,
+          threadId: msg.id,
+        })),
+      )
+
+      // Fire toasts and desktop notifications
+      for (const msg of filtered) {
         if (notifications.inApp) {
           toast(msg.from, { description: msg.subject })
         }

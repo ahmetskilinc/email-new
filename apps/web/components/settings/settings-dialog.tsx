@@ -50,7 +50,13 @@ const tabs: {
     title: "Email Accounts",
     description: "Manage your connected email accounts.",
   },
-  // { id: "notifications", label: "Notifications", icon: Notification03Icon, title: "Notifications", description: "Choose what notifications you want to receive." },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: Notification03Icon,
+    title: "Notifications",
+    description: "Choose what notifications you want to receive.",
+  },
 ]
 
 interface SettingsDialogProps {
