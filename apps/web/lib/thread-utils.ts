@@ -92,6 +92,11 @@ function extractUnread(r: Record<string, unknown>): boolean {
 }
 
 function extractStarred(r: Record<string, unknown>): boolean {
+  // Direct starred field (Gmail list, IMAP preview)
+  const preview = r.preview as Record<string, unknown> | undefined
+  if (typeof preview?.starred === "boolean") return preview.starred
+  if (typeof r.starred === "boolean") return r.starred
+
   // Gmail: messages[].labelIds includes "STARRED"
   if (Array.isArray(r.messages)) {
     return (r.messages as Record<string, unknown>[]).some((m) =>
@@ -99,7 +104,7 @@ function extractStarred(r: Record<string, unknown>): boolean {
     )
   }
 
-  // IMAP: labels array contains { id: "STARRED" }
+  // IMAP thread detail: labels array contains { id: "STARRED" }
   if (Array.isArray(r.labels)) {
     return (r.labels as Record<string, unknown>[]).some(
       (l) => l.id === "STARRED",
