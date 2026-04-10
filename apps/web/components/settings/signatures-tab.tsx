@@ -114,7 +114,7 @@ export function SignaturesTab() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Label>Account</Label>
+        <Label>Connection</Label>
         <Select
           value={activeConnectionId ?? ""}
           onValueChange={(v) => {
@@ -123,7 +123,10 @@ export function SignaturesTab() {
           }}
         >
           <SelectTrigger className="w-full max-w-xs">
-            <SelectValue placeholder="Select account" />
+            <SelectValue>
+              {connections.find((c) => c.id === activeConnectionId)?.email ??
+                "Select connection"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {connections.map((c) => (
