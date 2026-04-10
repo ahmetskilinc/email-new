@@ -74,10 +74,11 @@ export function MailListRow({
             !unread && "opacity-60"
           )}
         >
-          <div className="relative shrink-0">
+          <div className="relative flex size-8 shrink-0 items-center justify-center">
+            {/* Checkbox — visible on hover, or always when any selection active */}
             <div
               className={cn(
-                "absolute -left-1 -top-1 z-10 transition-opacity",
+                "absolute inset-0 z-10 flex items-center justify-center transition-opacity",
                 checked || anyChecked
                   ? "opacity-100"
                   : "opacity-0 group-hover:opacity-100",
@@ -89,7 +90,17 @@ export function MailListRow({
                 onCheckedChange={() => onCheckChange?.(!checked)}
               />
             </div>
-            <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+            {/* Avatar — hidden on hover, or always hidden when any selection active */}
+            <div
+              className={cn(
+                "transition-opacity",
+                checked || anyChecked
+                  ? "opacity-0"
+                  : "group-hover:opacity-0",
+              )}
+            >
+              <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+            </div>
           </div>
 
           <div className="w-full">
