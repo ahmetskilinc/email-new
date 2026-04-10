@@ -35,7 +35,7 @@ import type { ParsedMessage } from "@/server/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
 import { toast } from "sonner"
 
-export function MailDisplay() {
+export function MailDisplay({ className }: { className?: string }) {
   const [threadId] = useQueryState("threadId")
   const { data, isLoading } = useThread(threadId)
   const { handleReply, handleReplyAll, handleForward } =
@@ -122,7 +122,7 @@ export function MailDisplay() {
       .trim()
 
   return (
-    <div className="flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col">
+    <div className={cn("flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col", className)}>
       {/* Pinned header — thread subject */}
       <div className="flex shrink-0 items-start justify-between gap-4 border-b p-4">
         <div className="flex items-center gap-2">

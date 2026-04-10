@@ -18,13 +18,21 @@ import {
   Sun01Icon,
   Moon01Icon,
   MonitorStopIcon,
+  LayoutLeftIcon,
+  LayoutRightIcon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSettings } from "@/hooks/use-settings"
 import { saveSettings } from "@/server/actions/settings"
 import { useSession } from "@/lib/auth-client"
 import { toast } from "sonner"
+import { setMailLayoutCookie } from "@/hooks/use-mail-layout"
 import type { UserSettings } from "@/server/lib/schemas"
+
+const layouts = [
+  { value: "split" as const, label: "Split", icon: LayoutLeftIcon },
+  { value: "centered" as const, label: "Centered", icon: LayoutRightIcon },
+]
 
 const themes = [
   { value: "light", label: "Light", icon: Sun01Icon },
@@ -83,6 +91,38 @@ export function GeneralTab() {
             >
               <HugeiconsIcon icon={t.icon} className="size-5" />
               <span className="text-xs font-medium">{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </SettingsSection>
+
+      <Separator />
+
+      <SettingsSection>
+        <SettingsRow>
+          <SettingsLabel
+            title="Mail layout"
+            description="Choose how your inbox and emails are displayed."
+          />
+        </SettingsRow>
+        <div className="flex gap-3">
+          {layouts.map((l) => (
+            <button
+              key={l.value}
+              type="button"
+              onClick={() => {
+                setMailLayoutCookie(l.value)
+                updateSetting("mailListLayout", l.value)
+              }}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                (settings?.mailListLayout ?? "split") === l.value
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted/30"
+              )}
+            >
+              <HugeiconsIcon icon={l.icon} className="size-5" />
+              <span className="text-xs font-medium">{l.label}</span>
             </button>
           ))}
         </div>

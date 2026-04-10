@@ -9,6 +9,7 @@ import { FavouriteIcon as StarOutlineIcon } from "@hugeicons-pro/core-stroke-rou
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
+  layout?: "split" | "centered"
   title: string
   subtitle: string
   date?: string
@@ -26,6 +27,7 @@ export interface MailListRowProps {
 }
 
 export function MailListRow({
+  layout = "split",
   title,
   subtitle,
   date,
@@ -41,6 +43,7 @@ export function MailListRow({
   onCheckChange,
   onStarToggle,
 }: MailListRowProps) {
+  const isCentered = layout === "centered"
   if (loading) {
     return (
       <div className="border-b select-none md:my-1 md:border-none">
@@ -107,21 +110,32 @@ export function MailListRow({
             </div>
           </div>
 
-          <div className="w-full">
+          <div className="w-full min-w-0">
             <div className="flex w-full flex-row items-center justify-between">
-              <div className="flex flex-row items-center gap-1">
+              <div className={cn(
+                "flex flex-row items-center gap-1",
+                isCentered && "shrink-0"
+              )}>
                 <span
                   className={cn(
                     "flex items-baseline gap-1 text-sm group-hover:opacity-100",
                     unread ? "font-bold" : "font-medium"
                   )}
                 >
-                  <span className="line-clamp-1 max-w-47.5 truncate overflow-hidden">
+                  <span className={cn(
+                    "line-clamp-1 truncate overflow-hidden",
+                    isCentered ? "w-48" : "max-w-47.5"
+                  )}>
                     {title}
                   </span>
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              {isCentered && (
+                <p className="mx-3 flex-1 truncate text-sm text-[#8C8C8C]">
+                  {subtitle}
+                </p>
+              )}
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
                   aria-label={starred ? "Unstar" : "Star"}
@@ -153,9 +167,11 @@ export function MailListRow({
                 )}
               </div>
             </div>
-            <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]">
-              {subtitle}
-            </p>
+            {!isCentered && (
+              <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]">
+                {subtitle}
+              </p>
+            )}
           </div>
         </div>
       </div>

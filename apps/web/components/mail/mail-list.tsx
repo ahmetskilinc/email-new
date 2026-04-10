@@ -21,7 +21,7 @@ function MailListSpinner() {
   )
 }
 
-export function MailList() {
+export function MailList({ layout = "split" }: { layout?: "split" | "centered" }) {
   const [query, threads, loadMore] = useThreads()
   const [threadId, setThreadId] = useQueryState("threadId")
   const vListRef = useRef<VListHandle>(null)
@@ -62,6 +62,7 @@ export function MailList() {
       return (
         <>
           <MailListRow
+            layout={layout}
             title={sender.name || sender.email || "Unknown"}
             subtitle={subject}
             date={receivedOn ? formatDate(receivedOn) : undefined}

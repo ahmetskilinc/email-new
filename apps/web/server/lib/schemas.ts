@@ -134,6 +134,7 @@ export const userSettingsSchema = z.object({
   imageCompression: z.enum(["low", "medium", "original"]).default("medium"),
   autoRead: z.boolean().default(true),
   animations: z.boolean().default(false),
+  mailListLayout: z.enum(["split", "centered"]).default("split"),
   notifications: notificationSettingsSchema.default(defaultNotificationSettings),
 })
 
@@ -216,5 +217,6 @@ export const defaultUserSettings: UserSettings = {
   undoSendEnabled: false,
   imageCompression: "medium",
   animations: false,
+  mailListLayout: "split",
   notifications: defaultNotificationSettings,
 }

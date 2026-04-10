@@ -1,11 +1,21 @@
 "use client"
 
 import { useLabels } from "@/hooks/use-labels"
+import { useMailLayout } from "@/hooks/use-mail-layout"
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useMemo } from "react"
+import { useQueryState } from "nuqs"
 import { MailDisplay } from "@/components/mail/mail-display"
 import { MailList } from "@/components/mail/mail-list"
 import { BulkActionsToolbar } from "@/components/mail/bulk-actions-toolbar"
+import {
+  Sheet,
+  SheetContent,
+  SheetClose,
+} from "@workspace/ui/components/sheet"
+import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
 
 export const dynamic = "force-dynamic"
 
@@ -32,6 +42,8 @@ export default function FolderPage() {
   const folder = params.folder as string
   const router = useRouter()
 
+  const layout = useMailLayout()
+  const [threadId, setThreadId] = useQueryState("threadId")
   const isStandardFolder = ALLOWED_FOLDERS.has(folder)
   const { userLabels, isLoading: isLoadingLabels } = useLabels()
 
@@ -57,6 +69,44 @@ export default function FolderPage() {
           The folder you&apos;re looking for doesn&apos;t exist. Redirecting to
           inbox...
         </p>
+      </div>
+    )
+  }
+
+  if (layout === "centered") {
+    return (
+      <div className="flex h-full w-full justify-center">
+        <div className="flex w-full max-w-5xl flex-col">
+          <BulkActionsToolbar />
+          <div className="min-h-0 flex-1">
+            <MailList layout="centered" />
+          </div>
+        </div>
+        <Sheet
+          open={!!threadId}
+          onOpenChange={(open) => {
+            if (!open) setThreadId(null)
+          }}
+        >
+          <SheetContent
+            side="right"
+            className="w-full! p-0 sm:max-w-3xl lg:min-w-4xl"
+            showCloseButton={false}
+          >
+            <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
+              <SheetClose
+                render={
+                  <Button variant="ghost" size="icon-sm" />
+                }
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+                <span className="sr-only">Back</span>
+              </SheetClose>
+              <span className="truncate text-sm font-medium">Back to inbox</span>
+            </div>
+            <MailDisplay className="max-h-full" />
+          </SheetContent>
+        </Sheet>
       </div>
     )
   }
