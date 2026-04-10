@@ -8,7 +8,6 @@ import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Search01Icon, Cancel01Icon } from "@hugeicons-pro/core-stroke-rounded"
-import { NotificationsPopover } from "@/components/notifications-popover"
 
 export function SiteHeader() {
   const params = useParams<{ folder?: string }>()
@@ -80,7 +79,6 @@ export function SiteHeader() {
           </button>
         )}
       </div>
-      <NotificationsPopover />
     </header>
   )
 }
