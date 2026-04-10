@@ -36,6 +36,7 @@ export function useKeyboardShortcuts() {
     const invalidate = () => {
       queryClient.invalidateQueries({ queryKey: ["threads"] })
       queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
+      queryClient.invalidateQueries({ queryKey: ["thread"] })
     }
 
     const handler = (e: KeyboardEvent) => {
