@@ -85,33 +85,42 @@ export function useKeyboardShortcuts() {
       // Archive
       if (key === "e" && threadId) {
         e.preventDefault()
-        void bulkArchive([threadId]).then(() => {
-          const idx = threads.findIndex((t) => t.id === threadId)
-          const next = threads[idx + 1] ?? threads[idx - 1]
-          void setThreadId(next?.id ?? null)
-          invalidate()
-          toast.success("Archived")
-        })
+        void bulkArchive([threadId])
+          .then(() => {
+            const idx = threads.findIndex((t) => t.id === threadId)
+            const next = threads[idx + 1] ?? threads[idx - 1]
+            void setThreadId(next?.id ?? null)
+            invalidate()
+            toast.success("Archived")
+          })
+          .catch(() => toast.error("Failed to archive"))
         return
       }
 
       // Delete
       if (key === "#" && threadId) {
         e.preventDefault()
-        void bulkDelete([threadId]).then(() => {
-          const idx = threads.findIndex((t) => t.id === threadId)
-          const next = threads[idx + 1] ?? threads[idx - 1]
-          void setThreadId(next?.id ?? null)
-          invalidate()
-          toast.success("Deleted")
-        })
+        void bulkDelete([threadId])
+          .then(() => {
+            const idx = threads.findIndex((t) => t.id === threadId)
+            const next = threads[idx + 1] ?? threads[idx - 1]
+            void setThreadId(next?.id ?? null)
+            invalidate()
+            toast.success("Deleted")
+          })
+          .catch(() => toast.error("Failed to delete"))
         return
       }
 
       // Star
       if (key === "s" && threadId) {
         e.preventDefault()
-        void toggleStar([threadId]).then(() => invalidate())
+        void toggleStar([threadId])
+          .then(() => {
+            invalidate()
+            toast.success("Star toggled")
+          })
+          .catch(() => toast.error("Failed to toggle star"))
         return
       }
 
@@ -119,9 +128,19 @@ export function useKeyboardShortcuts() {
       if (key === "u" && threadId) {
         e.preventDefault()
         if (e.shiftKey) {
-          void markAsUnread([threadId]).then(() => invalidate())
+          void markAsUnread([threadId])
+            .then(() => {
+              invalidate()
+              toast.success("Marked as unread")
+            })
+            .catch(() => toast.error("Failed to mark as unread"))
         } else {
-          void markAsRead([threadId]).then(() => invalidate())
+          void markAsRead([threadId])
+            .then(() => {
+              invalidate()
+              toast.success("Marked as read")
+            })
+            .catch(() => toast.error("Failed to mark as read"))
         }
         return
       }
