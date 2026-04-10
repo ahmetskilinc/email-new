@@ -65,7 +65,7 @@ const themeOptions = [
 
 export function NavUser() {
   const [switchTarget, setSwitchTarget] = useState<SwitchTarget | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(typeof window !== "undefined")
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState<
     "general" | "account" | "connections" | "notifications"

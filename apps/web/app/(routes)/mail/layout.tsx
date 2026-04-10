@@ -1,6 +1,8 @@
 "use client"
 
 import { useConnections } from "@/hooks/use-connections"
+import { useNewMailNotifier } from "@/hooks/use-new-mail-notifier"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useSession } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -14,6 +16,9 @@ export default function MailLayout({
   const { data: session, isPending: sessionPending } = useSession()
   const { data: connectionsData, isPending: connectionsPending } =
     useConnections()
+
+  useNewMailNotifier()
+  useKeyboardShortcuts()
 
   useEffect(() => {
     if (sessionPending || connectionsPending) return

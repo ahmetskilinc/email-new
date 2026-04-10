@@ -429,6 +429,9 @@ export class GoogleMailManager implements MailManager {
                 const hasUnread = messages.some((m) =>
                   m.labelIds?.includes("UNREAD")
                 )
+                const hasStarred = messages.some((m) =>
+                  m.labelIds?.includes("STARRED")
+                )
 
                 let receivedOn = ""
                 if (dateHeader) {
@@ -449,6 +452,7 @@ export class GoogleMailManager implements MailManager {
                       : "(no subject)",
                     receivedOn,
                     unread: hasUnread,
+                    starred: hasStarred,
                   },
                 }
               } catch {

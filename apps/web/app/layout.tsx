@@ -31,12 +31,20 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontSans.variable, fontMono.variable)}
     >
-      <body>
+      <body className="h-screen overflow-hidden">
         <TooltipProvider>
           <NuqsAdapter>
             <ThemeProvider>
               <QueryProvider>
-                <Suspense>{children}</Suspense>
+                <Suspense
+                  fallback={
+                    <div className="flex h-screen items-center justify-center">
+                      <div className="size-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                    </div>
+                  }
+                >
+                  {children}
+                </Suspense>
                 <Toaster />
               </QueryProvider>
             </ThemeProvider>

@@ -5,8 +5,9 @@ import {
   requireActiveDriver,
 } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
-import { extractThreadDate } from "@/lib/thread-utils"
+import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
+import { getListUnsubscribeAction } from "../lib/email-utils"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
 import type { DeleteAllSpamResponse } from "../types"
@@ -256,9 +257,23 @@ export async function sendMail(input: {
   draftId?: string
   isForward?: boolean
   originalMessage?: string
+  signatureId?: string
 }) {
-  const { driver } = await requireActiveDriver()
-  const { draftId, attachments = [], ...mail } = input
+  const { session, connection, driver } = await requireActiveDriver()
+  const { draftId, attachments = [], signatureId, ...mail } = input
+
+  const db = await getzeitmailDB(session.user.id)
+  let signatureBody: string | null = null
+  if (signatureId) {
+    const sig = await db.findSignature(signatureId)
+    if (sig) signatureBody = sig.body
+  } else {
+    const defaultSig = await db.findDefaultSignature(connection.id)
+    if (defaultSig) signatureBody = defaultSig.body
+  }
+  if (signatureBody) {
+    mail.message = `${mail.message}<div><br>--<br>${signatureBody}</div>`
+  }
 
   const processedAttachments = attachments.map((att: any) =>
     typeof att?.arrayBuffer === "function"
@@ -276,6 +291,16 @@ export async function sendMail(input: {
   } else {
     await driver.create(outgoing)
   }
+
+  // Track recipients for autocomplete
+  const allRecipients = [
+    ...(input.to ?? []),
+    ...(input.cc ?? []),
+    ...(input.bcc ?? []),
+  ]
+  await Promise.allSettled(
+    allRecipients.map((r) => db.upsertRecipient(r.email, r.name)),
+  )
 
   return { success: true }
 }
@@ -338,4 +363,105 @@ export async function processEmailContent(
 export async function getRawEmail(id: string) {
   const { driver } = await requireActiveDriver()
   return driver.getRawEmail(id)
+}
+
+export type PollNewMessage = {
+  id: string
+  from: string
+  subject: string
+  isUnread: boolean
+}
+
+export async function pollNewMessages(cursor: string | null): Promise<{
+  cursor: string | null
+  newMessages: PollNewMessage[]
+}> {
+  const { driver } = await requireActiveDriver()
+
+  const result = await driver.list({
+    folder: "inbox",
+    maxResults: 20,
+  })
+
+  const threads = result.threads ?? []
+  if (threads.length === 0) {
+    return { cursor, newMessages: [] }
+  }
+
+  // Prime the pump on first call — don't notify for anything that already existed.
+  if (!cursor) {
+    return { cursor: threads[0]?.id ?? null, newMessages: [] }
+  }
+
+  const cursorIndex = threads.findIndex((t) => t.id === cursor)
+  const fresh = cursorIndex === -1 ? threads : threads.slice(0, cursorIndex)
+
+  const newMessages: PollNewMessage[] = fresh.map((t) => {
+    const preview = normalizeThreadPreview(t.$raw)
+    const fromName = preview.sender.name?.trim()
+    return {
+      id: t.id,
+      from: fromName && fromName.length > 0 ? fromName : preview.sender.email,
+      subject: preview.subject,
+      isUnread: preview.unread,
+    }
+  })
+
+  return {
+    cursor: threads[0]?.id ?? cursor,
+    newMessages,
+  }
+}
+
+export async function unsubscribeFromList(input: {
+  listUnsubscribe: string
+  listUnsubscribePost?: string
+}) {
+  await requireSession()
+  const action = getListUnsubscribeAction(input)
+  if (!action) throw new Error("No unsubscribe action available")
+
+  if (action.type === "get" || action.type === "post") {
+    const url = new URL(action.url)
+    if (!url.protocol.startsWith("http")) {
+      throw new Error("Invalid unsubscribe URL")
+    }
+    // Block requests to private/internal networks
+    const hostname = url.hostname.toLowerCase()
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("172.") ||
+      hostname === "metadata.google.internal" ||
+      hostname === "[::1]" ||
+      hostname.endsWith(".local")
+    ) {
+      throw new Error("Invalid unsubscribe URL")
+    }
+
+    const res = await fetch(action.url, {
+      method: action.type === "post" ? "POST" : "GET",
+      headers:
+        action.type === "post"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : undefined,
+      body: action.type === "post" ? action.body : undefined,
+      redirect: "follow",
+    })
+
+    if (!res.ok) {
+      throw new Error(`Unsubscribe request failed (${res.status})`)
+    }
+
+    return { type: "success" as const }
+  }
+
+  return {
+    type: "email" as const,
+    email: action.emailAddress,
+    subject: action.subject,
+  }
 }

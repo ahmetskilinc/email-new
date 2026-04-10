@@ -2,6 +2,10 @@
 
 import { BimiAvatar } from "@/components/bimi-avatar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Checkbox } from "@workspace/ui/components/checkbox"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
+import { FavouriteIcon as StarOutlineIcon } from "@hugeicons-pro/core-stroke-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
@@ -9,11 +13,16 @@ export interface MailListRowProps {
   subtitle: string
   date?: string
   unread?: boolean
+  starred?: boolean
   selected?: boolean
+  checked?: boolean
+  anyChecked?: boolean
   avatarEmail?: string
   avatarName?: string
   loading?: boolean
   onClick?: () => void
+  onCheckChange?: (checked: boolean) => void
+  onStarToggle?: () => void
 }
 
 export function MailListRow({
@@ -21,11 +30,16 @@ export function MailListRow({
   subtitle,
   date,
   unread,
+  starred,
   selected,
+  checked,
+  anyChecked,
   avatarEmail,
   avatarName,
   loading,
   onClick,
+  onCheckChange,
+  onStarToggle,
 }: MailListRowProps) {
   if (loading) {
     return (
@@ -63,7 +77,35 @@ export function MailListRow({
             !unread && "opacity-60"
           )}
         >
-          <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+          <div className="relative flex size-8 shrink-0 items-center justify-center">
+            {/* Checkbox — visible on hover, or always when any selection active */}
+            <div
+              className={cn(
+                "absolute inset-0 z-10 flex items-center justify-center transition-opacity",
+                checked || anyChecked
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100",
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={checked}
+                onCheckedChange={() => onCheckChange?.(!checked)}
+                aria-label={`Select ${title}`}
+              />
+            </div>
+            {/* Avatar — hidden on hover, or always hidden when any selection active */}
+            <div
+              className={cn(
+                "transition-opacity",
+                checked || anyChecked
+                  ? "opacity-0"
+                  : "group-hover:opacity-0",
+              )}
+            >
+              <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+            </div>
+          </div>
 
           <div className="w-full">
             <div className="flex w-full flex-row items-center justify-between">
@@ -79,16 +121,37 @@ export function MailListRow({
                   </span>
                 </span>
               </div>
-              {date && (
-                <p
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label={starred ? "Unstar" : "Star"}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onStarToggle?.()
+                  }}
                   className={cn(
-                    "text-xs font-normal text-nowrap text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]",
-                    selected && "opacity-100"
+                    "shrink-0 transition-colors",
+                    starred
+                      ? "text-amber-400 hover:text-amber-500"
+                      : "text-transparent hover:text-muted-foreground group-hover:text-muted-foreground/40",
                   )}
                 >
-                  {date}
-                </p>
-              )}
+                  <HugeiconsIcon
+                    icon={starred ? StarSolidIcon : StarOutlineIcon}
+                    className="size-3.5"
+                  />
+                </button>
+                {date && (
+                  <p
+                    className={cn(
+                      "text-xs font-normal text-nowrap text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]",
+                      selected && "opacity-100"
+                    )}
+                  >
+                    {date}
+                  </p>
+                )}
+              </div>
             </div>
             <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]">
               {subtitle}

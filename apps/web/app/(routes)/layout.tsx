@@ -2,6 +2,7 @@
 
 import { ConnectionSyncer } from "@/components/connection/connection-syncer"
 import { ComposeDialog } from "@/components/create/compose-dialog"
+import { CommandPalette } from "@/components/command-palette"
 import { SiteHeader } from "@/components/site-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -24,12 +25,13 @@ export default function RoutesLayout({
       <DualSidebarInset className="border border-border">
         <SiteHeader />
         <ConnectionSyncer />
-        <div className="relative flex h-[calc(100dvh-3rem)] w-full flex-1 overflow-hidden">
+        <div className="relative flex h-[calc(100dvh-(3rem+32px))] w-full flex-1 overflow-hidden">
           {children}
         </div>
       </DualSidebarInset>
       {!calendarRoute && <AppSidebarRight />}
       <ComposeDialog />
+      <CommandPalette />
     </DualSidebarProvider>
   )
 }

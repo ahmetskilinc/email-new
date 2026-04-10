@@ -1,6 +1,13 @@
 "use client"
 
 import { normalizeThreadPreview } from "@/lib/thread-utils"
+import {
+  useSelectedThreadIds,
+  useSelectionActions,
+} from "@/store/selection"
+import { toggleStar } from "@/server/actions/mail"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { MailListRow } from "@/components/mail/mail-list-row"
 import { useThreads } from "@/hooks/use-threads"
 import { VList, type VListHandle } from "virtua"
@@ -18,6 +25,10 @@ export function MailList() {
   const [query, threads, loadMore] = useThreads()
   const [threadId, setThreadId] = useQueryState("threadId")
   const vListRef = useRef<VListHandle>(null)
+  const selectedIds = useSelectedThreadIds()
+  const { toggle: toggleSelection } = useSelectionActions()
+  const anyChecked = selectedIds.size > 0
+  const queryClient = useQueryClient()
 
   const handleScroll = useCallback(
     (scrollOffset: number) => {
@@ -44,9 +55,8 @@ export function MailList() {
 
   const renderItem = useCallback(
     (thread: (typeof threads)[number], index: number) => {
-      const { sender, subject, receivedOn, unread } = normalizeThreadPreview(
-        thread.$raw
-      )
+      const { sender, subject, receivedOn, unread, starred } =
+        normalizeThreadPreview(thread.$raw)
       const isSelected = threadId === thread.id
 
       return (
@@ -56,11 +66,28 @@ export function MailList() {
             subtitle={subject}
             date={receivedOn ? formatDate(receivedOn) : undefined}
             unread={unread}
+            starred={starred}
             selected={isSelected}
+            checked={selectedIds.has(thread.id)}
+            anyChecked={anyChecked}
             avatarEmail={sender.email}
             avatarName={sender.name}
             onClick={() => {
               setThreadId(thread.id)
+            }}
+            onCheckChange={() => toggleSelection(thread.id)}
+            onStarToggle={() => {
+              toast.promise(
+                toggleStar([thread.id]).then(() => {
+                  queryClient.invalidateQueries({ queryKey: ["threads"] })
+                  queryClient.invalidateQueries({ queryKey: ["thread"] })
+                }),
+                {
+                  loading: "Updating...",
+                  success: starred ? "Unstarred" : "Starred",
+                  error: "Failed to toggle star",
+                },
+              )
             }}
           />
           {index === threads.length - 1 && query.isFetchingNextPage && (
@@ -71,7 +98,7 @@ export function MailList() {
         </>
       )
     },
-    [threads.length, query.isFetchingNextPage, setThreadId, threadId]
+    [threads.length, query.isFetchingNextPage, setThreadId, threadId, selectedIds, anyChecked, toggleSelection, queryClient]
   )
 
   if (query.isLoading) {

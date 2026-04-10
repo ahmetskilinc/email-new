@@ -26,6 +26,7 @@ export function ComposeContent() {
     message: string
     attachments: File[]
     fromEmail?: string
+    signatureId?: string
   }) => {
     const serializedAttachments = await serializeFiles(data.attachments)
 
@@ -37,6 +38,7 @@ export function ComposeContent() {
       message: data.message,
       attachments: serializedAttachments,
       fromEmail: data.fromEmail,
+      signatureId: data.signatureId,
       draftId: draftId ?? undefined,
     })
 

@@ -18,6 +18,7 @@ export const useConnections = () => {
   return useQuery({
     queryKey: ["connections", userId ?? "anon"],
     queryFn: () => listConnections(),
+    enabled: !!userId,
   })
 }
 
@@ -28,6 +29,7 @@ export const useActiveConnection = () => {
   return useQuery({
     queryKey: activeConnectionQueryKey(userId),
     queryFn: () => getDefaultConnection(),
+    enabled: !!userId,
     staleTime: 1000 * 30,
     refetchOnMount: true,
   })

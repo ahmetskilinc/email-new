@@ -3,6 +3,7 @@ export interface ThreadPreview {
   subject: string
   receivedOn: string
   unread: boolean
+  starred: boolean
 }
 
 export function normalizeThreadPreview(raw: unknown): ThreadPreview {
@@ -13,6 +14,7 @@ export function normalizeThreadPreview(raw: unknown): ThreadPreview {
       subject: "(no subject)",
       receivedOn: "",
       unread: false,
+      starred: false,
     }
   }
 
@@ -21,6 +23,7 @@ export function normalizeThreadPreview(raw: unknown): ThreadPreview {
     subject: extractSubject(r),
     receivedOn: extractReceivedOn(r),
     unread: extractUnread(r),
+    starred: extractStarred(r),
   }
 }
 
@@ -85,5 +88,41 @@ function extractUnread(r: Record<string, unknown>): boolean {
   if (typeof preview?.unread === "boolean") return preview.unread
   if (typeof r.unread === "boolean") return r.unread
   if (typeof r.isRead === "boolean") return !r.isRead
+  return false
+}
+
+function extractStarred(r: Record<string, unknown>): boolean {
+  // Direct starred field (Gmail list, IMAP preview)
+  const preview = r.preview as Record<string, unknown> | undefined
+  if (typeof preview?.starred === "boolean") return preview.starred
+  if (typeof r.starred === "boolean") return r.starred
+
+  // Gmail: messages[].labelIds includes "STARRED"
+  if (Array.isArray(r.messages)) {
+    return (r.messages as Record<string, unknown>[]).some((m) =>
+      Array.isArray(m.labelIds) && (m.labelIds as string[]).includes("STARRED"),
+    )
+  }
+
+  // IMAP thread detail: labels array contains { id: "STARRED" }
+  if (Array.isArray(r.labels)) {
+    return (r.labels as Record<string, unknown>[]).some(
+      (l) => l.id === "STARRED",
+    )
+  }
+
+  // Microsoft: flag.flagStatus === "flagged"
+  if (r.flag && typeof r.flag === "object") {
+    const f = r.flag as Record<string, unknown>
+    if (f.flagStatus === "flagged") return true
+  }
+
+  // Tags from parsed messages
+  if (Array.isArray(r.tags)) {
+    return (r.tags as Record<string, unknown>[]).some(
+      (t) => typeof t.name === "string" && t.name.toLowerCase().startsWith("starred"),
+    )
+  }
+
   return false
 }

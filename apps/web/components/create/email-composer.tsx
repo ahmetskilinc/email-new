@@ -23,7 +23,10 @@ import {
 } from "@workspace/ui/components/field"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useEmailAliases } from "@/hooks/use-email-aliases"
+import { useConnections } from "@/hooks/use-connections"
+import { useSignatures } from "@/hooks/use-signatures"
 import useComposeEditor from "@/hooks/use-compose-editor"
+import { RecipientInput } from "@/components/create/recipient-input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@workspace/ui/components/button"
@@ -66,6 +69,7 @@ interface EmailComposerProps {
     message: string
     attachments: File[]
     fromEmail?: string
+    signatureId?: string
   }) => Promise<void>
   onClose?: () => void
   className?: string
@@ -93,8 +97,13 @@ export function EmailComposer({
 }: EmailComposerProps) {
   const { data: aliases } = useEmailAliases()
   const { data: settings } = useSettings()
+  const { data: connectionsData } = useConnections()
+  const connections = connectionsData?.connections ?? []
   const [showCc, setShowCc] = useState(initialCc.length > 0)
   const [showBcc, setShowBcc] = useState(initialBcc.length > 0)
+  const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(
+    null,
+  )
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false)
   const [attachments, setAttachments] = useState<File[]>(initialAttachments)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -114,6 +123,33 @@ export function EmailComposer({
 
   const { register, handleSubmit, watch, setValue, formState } = form
   const { errors, isSubmitting, isDirty } = formState
+  const currentFromEmail = watch("fromEmail")
+
+  const activeConnectionId =
+    connections.find(
+      (c) => c.email.toLowerCase() === currentFromEmail?.toLowerCase(),
+    )?.id ?? connections[0]?.id ?? null
+
+  const { data: signatures } = useSignatures(activeConnectionId)
+
+  const hasInitializedSigRef = useRef(false)
+  useEffect(() => {
+    if (!signatures?.length) {
+      setSelectedSignatureId(null)
+      hasInitializedSigRef.current = false
+      return
+    }
+    // Only auto-select default on first load, not on refetches
+    if (!hasInitializedSigRef.current) {
+      const defaultSig = signatures.find((s) => s.isDefault)
+      setSelectedSignatureId(defaultSig?.id ?? null)
+      hasInitializedSigRef.current = true
+    }
+  }, [signatures])
+
+  const selectedSignature = signatures?.find(
+    (s) => s.id === selectedSignatureId,
+  )
 
   const editor = useComposeEditor({
     initialValue: initialMessage,
@@ -150,6 +186,7 @@ export function EmailComposer({
         message: editor?.getHTML() ?? "",
         attachments,
         fromEmail: data.fromEmail || undefined,
+        signatureId: selectedSignatureId || undefined,
       })
       form.reset()
       editor?.commands.clearContent(true)
@@ -213,8 +250,9 @@ export function EmailComposer({
           <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
             To:
           </FieldLabel>
-          <Input
-            {...register("to")}
+          <RecipientInput
+            value={watch("to")}
+            onChange={(v) => setValue("to", v)}
             placeholder="recipient@example.com"
             disabled={isSubmitting}
             aria-invalid={!!errors.to}
@@ -243,8 +281,9 @@ export function EmailComposer({
             <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Cc:
             </FieldLabel>
-            <Input
-              {...register("cc")}
+            <RecipientInput
+              value={watch("cc") ?? ""}
+              onChange={(v) => setValue("cc", v)}
               placeholder="cc@example.com"
               disabled={isSubmitting}
             />
@@ -256,8 +295,9 @@ export function EmailComposer({
             <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Bcc:
             </FieldLabel>
-            <Input
-              {...register("bcc")}
+            <RecipientInput
+              value={watch("bcc") ?? ""}
+              onChange={(v) => setValue("bcc", v)}
               placeholder="bcc@example.com"
               disabled={isSubmitting}
             />
@@ -286,7 +326,7 @@ export function EmailComposer({
               From:
             </FieldLabel>
             <Select
-              value={watch("fromEmail")}
+              value={currentFromEmail}
               onValueChange={(value) => setValue("fromEmail", value ?? "")}
             >
               <SelectTrigger className="border-0 shadow-none focus:ring-0">
@@ -304,6 +344,34 @@ export function EmailComposer({
             </Select>
           </Field>
         )}
+
+        {signatures && signatures.length > 0 && (
+          <Field orientation="horizontal">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+              Sig:
+            </FieldLabel>
+            <Select
+              value={selectedSignatureId ?? "__none__"}
+              onValueChange={(value) =>
+                setSelectedSignatureId(
+                  value === "__none__" ? null : value,
+                )
+              }
+            >
+              <SelectTrigger className="border-0 shadow-none focus:ring-0">
+                <SelectValue placeholder="No signature" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">None</SelectItem>
+                {signatures.map((sig) => (
+                  <SelectItem key={sig.id} value={sig.id}>
+                    {sig.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
       </FieldGroup>
 
       <div
@@ -315,6 +383,15 @@ export function EmailComposer({
             editor={editor}
             className="prose prose-sm dark:prose-invert max-w-none"
           />
+        )}
+        {selectedSignature && (
+          <div className="mt-4 border-t border-dashed pt-3 text-xs text-muted-foreground">
+            <p>--</p>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none opacity-60"
+              dangerouslySetInnerHTML={{ __html: selectedSignature.body }}
+            />
+          </div>
         )}
       </div>
 

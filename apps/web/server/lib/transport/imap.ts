@@ -293,6 +293,7 @@ export async function listThreads(
     const threads = threadEntries.map(([rootMsgId, msgs]) => {
       const latestMsg = msgs[0]!
       const isUnread = !latestMsg.flags.has("\\Seen")
+      const isStarred = msgs.some((m) => m.flags.has("\\Flagged"))
       return {
         id: encodeThreadId(rootMsgId),
         historyId: `${uidValidity}:${latestMsg.uid}`,
@@ -307,6 +308,7 @@ export async function listThreads(
             receivedOn:
               latestMsg.date?.toISOString() ?? new Date().toISOString(),
             unread: isUnread,
+            starred: isStarred,
             totalReplies: msgs.filter((m) => !m.flags.has("\\Draft")).length,
           },
         },

@@ -99,6 +99,26 @@ const categoriesSchema = z.array(mailCategorySchema).superRefine((cats, ctx) => 
   }
 })
 
+export const notificationSettingsSchema = z.object({
+  level: z.enum(["none", "important", "all"]).default("all"),
+  inApp: z.boolean().default(true),
+  desktop: z.boolean().default(false),
+  push: z.boolean().default(false),
+  sound: z.boolean().default(false),
+  marketing: z.boolean().default(false),
+})
+
+export type NotificationSettings = z.infer<typeof notificationSettingsSchema>
+
+export const defaultNotificationSettings: NotificationSettings = {
+  level: "all",
+  inApp: true,
+  desktop: false,
+  push: false,
+  sound: false,
+  marketing: false,
+}
+
 export const userSettingsSchema = z.object({
   language: z.string(),
   timezone: z.string(),
@@ -114,6 +134,7 @@ export const userSettingsSchema = z.object({
   imageCompression: z.enum(["low", "medium", "original"]).default("medium"),
   autoRead: z.boolean().default(true),
   animations: z.boolean().default(false),
+  notifications: notificationSettingsSchema.default(defaultNotificationSettings),
 })
 
 export type UserSettings = z.infer<typeof userSettingsSchema>
@@ -195,4 +216,5 @@ export const defaultUserSettings: UserSettings = {
   undoSendEnabled: false,
   imageCompression: "medium",
   animations: false,
+  notifications: defaultNotificationSettings,
 }
