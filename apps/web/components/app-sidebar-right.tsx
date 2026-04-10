@@ -19,8 +19,7 @@ import { addDays, startOfDay, format } from "date-fns"
 import type { CalendarEvent } from "@/server/lib/calendar/types"
 
 function useStableToday() {
-  const [today, setToday] = React.useState<Date | null>(null)
-  React.useEffect(() => setToday(new Date()), [])
+  const [today] = React.useState(() => new Date())
   return today
 }
 
