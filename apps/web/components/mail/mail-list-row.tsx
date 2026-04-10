@@ -5,6 +5,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Checkbox } from "@workspace/ui/components/checkbox"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
+import { FavouriteIcon as StarOutlineIcon } from "@hugeicons-pro/core-stroke-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
@@ -21,6 +22,7 @@ export interface MailListRowProps {
   loading?: boolean
   onClick?: () => void
   onCheckChange?: (checked: boolean) => void
+  onStarToggle?: () => void
 }
 
 export function MailListRow({
@@ -37,6 +39,7 @@ export function MailListRow({
   loading,
   onClick,
   onCheckChange,
+  onStarToggle,
 }: MailListRowProps) {
   if (loading) {
     return (
@@ -119,13 +122,25 @@ export function MailListRow({
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                {starred && (
+                <button
+                  type="button"
+                  aria-label={starred ? "Unstar" : "Star"}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onStarToggle?.()
+                  }}
+                  className={cn(
+                    "shrink-0 transition-colors",
+                    starred
+                      ? "text-amber-400 hover:text-amber-500"
+                      : "text-transparent hover:text-muted-foreground group-hover:text-muted-foreground/40",
+                  )}
+                >
                   <HugeiconsIcon
-                    icon={StarSolidIcon}
-                    className="size-3 shrink-0 text-amber-400"
-                    aria-label="Starred"
+                    icon={starred ? StarSolidIcon : StarOutlineIcon}
+                    className="size-3.5"
                   />
-                )}
+                </button>
                 {date && (
                   <p
                     className={cn(
