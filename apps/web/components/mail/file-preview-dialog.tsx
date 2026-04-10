@@ -25,7 +25,7 @@ interface FilePreviewDialogProps {
 }
 
 function getPreviewType(
-  mimeType: string,
+  mimeType: string
 ): "image" | "pdf" | "text" | "unsupported" {
   if (mimeType.startsWith("image/")) return "image"
   if (mimeType === "application/pdf") return "pdf"
@@ -63,7 +63,7 @@ export function FilePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[80vh] max-h-[80vh] flex-col overflow-hidden p-0 sm:max-w-4xl">
+      <DialogContent className="flex h-[80vh] max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-4 border-b px-6 py-4">
           <div className="flex min-w-0 flex-col gap-0.5">
             <DialogTitle className="truncate text-sm font-medium">
@@ -97,7 +97,7 @@ export function FilePreviewDialog({
 
           {previewType === "text" && (
             <ScrollArea className="size-full">
-              <pre className="whitespace-pre-wrap break-all p-6 text-sm">
+              <pre className="p-6 text-sm break-all whitespace-pre-wrap">
                 {textContent}
               </pre>
             </ScrollArea>
