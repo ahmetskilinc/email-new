@@ -22,6 +22,7 @@ export function ComposeDialog() {
     message: string
     attachments: File[]
     fromEmail?: string
+    signatureId?: string
   }) => {
     const serializedAttachments = await serializeFiles(data.attachments)
 
@@ -33,6 +34,7 @@ export function ComposeDialog() {
       message: data.message,
       attachments: serializedAttachments,
       fromEmail: data.fromEmail,
+      signatureId: data.signatureId,
       threadId: initialData?.threadId,
       headers: initialData?.headers,
     })

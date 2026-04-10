@@ -1,4 +1,4 @@
-import { connection, user, userSettings } from "../db/schema"
+import { connection, user, userSettings, signature } from "../db/schema"
 import { eq, and } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
@@ -139,6 +139,84 @@ export const getzeitmailDB = async (userId: string) => {
         .update(userSettings)
         .set({ settings, updatedAt: new Date() })
         .where(eq(userSettings.userId, userId)),
+
+    findSignaturesByConnection: (connectionId: string) =>
+      db.query.signature.findMany({
+        where: and(
+          eq(signature.connectionId, connectionId),
+          eq(signature.userId, userId),
+        ),
+        orderBy: (s, { desc }) => [desc(s.isDefault), desc(s.createdAt)],
+      }),
+
+    findAllSignatures: () =>
+      db.query.signature.findMany({
+        where: eq(signature.userId, userId),
+        orderBy: (s, { desc }) => [desc(s.isDefault), desc(s.createdAt)],
+      }),
+
+    findSignature: (id: string) =>
+      db.query.signature.findFirst({
+        where: and(eq(signature.id, id), eq(signature.userId, userId)),
+      }),
+
+    findDefaultSignature: (connectionId: string) =>
+      db.query.signature.findFirst({
+        where: and(
+          eq(signature.connectionId, connectionId),
+          eq(signature.userId, userId),
+          eq(signature.isDefault, true),
+        ),
+      }),
+
+    createSignature: (data: {
+      connectionId: string
+      name: string
+      body: string
+      isDefault: boolean
+    }) => {
+      const id = crypto.randomUUID()
+      const now = new Date()
+      return db
+        .insert(signature)
+        .values({
+          id,
+          userId,
+          connectionId: data.connectionId,
+          name: data.name,
+          body: data.body,
+          isDefault: data.isDefault,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning()
+    },
+
+    updateSignature: (
+      id: string,
+      data: Partial<{ name: string; body: string; isDefault: boolean }>,
+    ) =>
+      db
+        .update(signature)
+        .set({ ...data, updatedAt: new Date() })
+        .where(and(eq(signature.id, id), eq(signature.userId, userId))),
+
+    deleteSignature: (id: string) =>
+      db
+        .delete(signature)
+        .where(and(eq(signature.id, id), eq(signature.userId, userId))),
+
+    clearDefaultSignatures: (connectionId: string) =>
+      db
+        .update(signature)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(signature.connectionId, connectionId),
+            eq(signature.userId, userId),
+            eq(signature.isDefault, true),
+          ),
+        ),
   }
 }
 

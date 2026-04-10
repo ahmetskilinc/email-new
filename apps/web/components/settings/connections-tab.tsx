@@ -12,12 +12,7 @@ import {
 } from "@workspace/ui/components/dialog"
 import { useSession, authClient } from "@/lib/auth-client"
 import { useConnections } from "@/hooks/use-connections"
-import {
-  deleteConnection,
-  updateConnectionSignature,
-} from "@/server/actions/connections"
-import { Textarea } from "@workspace/ui/components/textarea"
-import { Label } from "@workspace/ui/components/label"
+import { deleteConnection } from "@/server/actions/connections"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { emailProviders } from "@/lib/constants"
 import { Button } from "@workspace/ui/components/button"
@@ -165,11 +160,6 @@ export function ConnectionsTab() {
                       Reconnect
                     </Button>
                   )}
-                  <SignatureDialog
-                    connectionId={connection.id}
-                    initialSignature={connection.signature ?? ""}
-                    onSaved={() => void refetchConnections()}
-                  />
                   <Dialog>
                     <DialogTrigger
                       render={
@@ -230,76 +220,3 @@ export function ConnectionsTab() {
   )
 }
 
-function SignatureDialog({
-  connectionId,
-  initialSignature,
-  onSaved,
-}: {
-  connectionId: string
-  initialSignature: string
-  onSaved: () => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [value, setValue] = useState(initialSignature)
-  const [saving, setSaving] = useState(false)
-
-  const handleSave = async () => {
-    setSaving(true)
-    try {
-      await updateConnectionSignature(connectionId, value)
-      toast.success("Signature saved")
-      onSaved()
-      setOpen(false)
-    } catch {
-      toast.error("Failed to save signature")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o)
-        if (o) setValue(initialSignature)
-      }}
-    >
-      <DialogTrigger
-        render={
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            Signature
-          </Button>
-        }
-      />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Email Signature</DialogTitle>
-          <DialogDescription>
-            This signature will be appended to every email you send from this
-            account.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="signature">Signature</Label>
-          <Textarea
-            id="signature"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            rows={6}
-            placeholder="Your signature..."
-            className="resize-y"
-          />
-        </div>
-        <div className="flex justify-end gap-3">
-          <DialogClose
-            render={<Button variant="secondary">Cancel</Button>}
-          />
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-}

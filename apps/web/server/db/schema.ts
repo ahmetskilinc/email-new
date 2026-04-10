@@ -103,7 +103,6 @@ export const connection = createTable(
       .$type<"google" | "microsoft" | "icloud" | "yahoo" | "custom">()
       .notNull(),
     imapConfig: jsonb("imap_config"),
-    signature: text("signature"),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
@@ -112,6 +111,28 @@ export const connection = createTable(
     unique().on(t.userId, t.email),
     index("connection_user_id_idx").on(t.userId),
     index("connection_provider_id_idx").on(t.providerId),
+  ],
+)
+
+export const signature = createTable(
+  "signature",
+  {
+    id: text("id").primaryKey(),
+    connectionId: text("connection_id")
+      .notNull()
+      .references(() => connection.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    body: text("body").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at").notNull(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => [
+    index("signature_connection_id_idx").on(t.connectionId),
+    index("signature_user_id_idx").on(t.userId),
   ],
 )
 

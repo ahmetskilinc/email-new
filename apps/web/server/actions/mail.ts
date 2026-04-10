@@ -257,12 +257,22 @@ export async function sendMail(input: {
   draftId?: string
   isForward?: boolean
   originalMessage?: string
+  signatureId?: string
 }) {
-  const { connection, driver } = await requireActiveDriver()
-  const { draftId, attachments = [], ...mail } = input
+  const { session, connection, driver } = await requireActiveDriver()
+  const { draftId, attachments = [], signatureId, ...mail } = input
 
-  if (connection.signature) {
-    mail.message = `${mail.message}<div><br>--<br>${connection.signature}</div>`
+  const db = await getzeitmailDB(session.user.id)
+  let signatureBody: string | null = null
+  if (signatureId) {
+    const sig = await db.findSignature(signatureId)
+    if (sig) signatureBody = sig.body
+  } else {
+    const defaultSig = await db.findDefaultSignature(connection.id)
+    if (defaultSig) signatureBody = defaultSig.body
+  }
+  if (signatureBody) {
+    mail.message = `${mail.message}<div><br>--<br>${signatureBody}</div>`
   }
 
   const processedAttachments = attachments.map((att: any) =>

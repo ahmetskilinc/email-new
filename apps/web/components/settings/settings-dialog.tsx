@@ -14,13 +14,15 @@ import {
   Notification03Icon,
   UserAccountIcon,
   PaintBoardIcon,
+  QuillWrite01Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import { GeneralTab } from "./general-tab"
 import { AccountTab } from "./account-tab"
 import { ConnectionsTab } from "./connections-tab"
 import { NotificationsTab } from "./notifications-tab"
+import { SignaturesTab } from "./signatures-tab"
 
-type SettingsTab = "general" | "account" | "connections" | "notifications"
+type SettingsTab = "general" | "account" | "connections" | "signatures" | "notifications"
 
 const tabs: {
   id: SettingsTab
@@ -49,6 +51,13 @@ const tabs: {
     icon: Link04Icon,
     title: "Email Accounts",
     description: "Manage your connected email accounts.",
+  },
+  {
+    id: "signatures",
+    label: "Signatures",
+    icon: QuillWrite01Icon,
+    title: "Signatures",
+    description: "Manage email signatures for your accounts.",
   },
   {
     id: "notifications",
@@ -128,6 +137,7 @@ export function SettingsDialog({
               {activeTab === "general" && <GeneralTab />}
               {activeTab === "account" && <AccountTab />}
               {activeTab === "connections" && <ConnectionsTab />}
+              {activeTab === "signatures" && <SignaturesTab />}
               {activeTab === "notifications" && <NotificationsTab />}
             </div>
           </div>
