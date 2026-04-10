@@ -292,13 +292,13 @@ export async function sendMail(input: {
     await driver.create(outgoing)
   }
 
-  // Track recipients for autocomplete (fire-and-forget)
+  // Track recipients for autocomplete
   const allRecipients = [
     ...(input.to ?? []),
     ...(input.cc ?? []),
     ...(input.bcc ?? []),
   ]
-  void Promise.allSettled(
+  await Promise.allSettled(
     allRecipients.map((r) => db.upsertRecipient(r.email, r.name)),
   )
 
@@ -421,17 +421,41 @@ export async function unsubscribeFromList(input: {
   const action = getListUnsubscribeAction(input)
   if (!action) throw new Error("No unsubscribe action available")
 
-  if (action.type === "get") {
-    await fetch(action.url, { method: "GET" })
-    return { type: "success" as const }
-  }
+  if (action.type === "get" || action.type === "post") {
+    const url = new URL(action.url)
+    if (!url.protocol.startsWith("http")) {
+      throw new Error("Invalid unsubscribe URL")
+    }
+    // Block requests to private/internal networks
+    const hostname = url.hostname.toLowerCase()
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("172.") ||
+      hostname === "metadata.google.internal" ||
+      hostname === "[::1]" ||
+      hostname.endsWith(".local")
+    ) {
+      throw new Error("Invalid unsubscribe URL")
+    }
 
-  if (action.type === "post") {
-    await fetch(action.url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: action.body,
+    const res = await fetch(action.url, {
+      method: action.type === "post" ? "POST" : "GET",
+      headers:
+        action.type === "post"
+          ? { "Content-Type": "application/x-www-form-urlencoded" }
+          : undefined,
+      body: action.type === "post" ? action.body : undefined,
+      redirect: "follow",
     })
+
+    if (!res.ok) {
+      throw new Error(`Unsubscribe request failed (${res.status})`)
+    }
+
     return { type: "success" as const }
   }
 

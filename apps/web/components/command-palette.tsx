@@ -88,9 +88,11 @@ export function CommandPalette() {
     }
 
     setSearching(true)
+    let cancelled = false
     debounceRef.current = setTimeout(async () => {
       try {
         const result = await listThreads("inbox", query, 5)
+        if (cancelled) return
         const entries: CommandEntry[] = (result.threads ?? []).map((t) => {
           const preview = normalizeThreadPreview(t.$raw)
           return {
@@ -106,13 +108,14 @@ export function CommandPalette() {
         })
         setSearchResults(entries)
       } catch {
-        setSearchResults([])
+        if (!cancelled) setSearchResults([])
       } finally {
-        setSearching(false)
+        if (!cancelled) setSearching(false)
       }
     }, 300)
 
     return () => {
+      cancelled = true
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [query, router, close])

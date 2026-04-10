@@ -226,9 +226,14 @@ export function SignaturesTab() {
                         </Badge>
                       )}
                     </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">
-                      {sig.body || "(empty)"}
-                    </p>
+                    {sig.body ? (
+                      <div
+                        className="prose-xs line-clamp-2 text-xs text-muted-foreground"
+                        dangerouslySetInnerHTML={{ __html: sig.body }}
+                      />
+                    ) : (
+                      <p className="text-xs text-muted-foreground">(empty)</p>
+                    )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button

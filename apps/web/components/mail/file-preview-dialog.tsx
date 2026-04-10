@@ -55,7 +55,12 @@ export function FilePreviewDialog({
   const textContent = useMemo(() => {
     if (!open || previewType !== "text" || !attachment.body) return ""
     try {
-      return atob(attachment.body)
+      const binary = atob(attachment.body)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i)
+      }
+      return new TextDecoder("utf-8").decode(bytes)
     } catch {
       return "(Unable to decode file content)"
     }

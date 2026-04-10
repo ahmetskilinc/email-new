@@ -132,13 +132,19 @@ export function EmailComposer({
 
   const { data: signatures } = useSignatures(activeConnectionId)
 
+  const hasInitializedSigRef = useRef(false)
   useEffect(() => {
     if (!signatures?.length) {
       setSelectedSignatureId(null)
+      hasInitializedSigRef.current = false
       return
     }
-    const defaultSig = signatures.find((s) => s.isDefault)
-    setSelectedSignatureId(defaultSig?.id ?? null)
+    // Only auto-select default on first load, not on refetches
+    if (!hasInitializedSigRef.current) {
+      const defaultSig = signatures.find((s) => s.isDefault)
+      setSelectedSignatureId(defaultSig?.id ?? null)
+      hasInitializedSigRef.current = true
+    }
   }, [signatures])
 
   const selectedSignature = signatures?.find(

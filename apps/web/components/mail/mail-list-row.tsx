@@ -88,6 +88,7 @@ export function MailListRow({
               <Checkbox
                 checked={checked}
                 onCheckedChange={() => onCheckChange?.(!checked)}
+                aria-label={`Select ${title}`}
               />
             </div>
             {/* Avatar — hidden on hover, or always hidden when any selection active */}
@@ -122,6 +123,7 @@ export function MailListRow({
                   <HugeiconsIcon
                     icon={StarSolidIcon}
                     className="size-3 shrink-0 text-amber-400"
+                    aria-label="Starred"
                   />
                 )}
                 {date && (

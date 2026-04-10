@@ -151,9 +151,16 @@ export function MailDisplay() {
               key={message.id}
               className="flex flex-col border-b last:border-b-0"
             >
-              <button
-                type="button"
+              <div
+                role={isMultiMessage ? "button" : undefined}
+                tabIndex={isMultiMessage ? 0 : undefined}
                 onClick={() => isMultiMessage && toggleExpanded(message.id)}
+                onKeyDown={(e) => {
+                  if (isMultiMessage && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault()
+                    toggleExpanded(message.id)
+                  }
+                }}
                 className={cn(
                   "flex items-center justify-between gap-4 bg-muted/30 px-4 py-2 text-left",
                   isMultiMessage &&
@@ -165,6 +172,7 @@ export function MailDisplay() {
                     <HugeiconsIcon
                       icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
                       className="size-3 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
                     />
                   )}
                   <span className="text-xs font-medium">
@@ -198,7 +206,7 @@ export function MailDisplay() {
                     {formatDate(message.receivedOn)}
                   </span>
                 </div>
-              </button>
+              </div>
 
               {isExpanded && (
                 <>
@@ -361,14 +369,20 @@ function AttachmentCard({
               className="size-3.5 shrink-0 animate-spin text-muted-foreground"
             />
           ) : (
-            <HugeiconsIcon
-              icon={FileDownloadIcon}
-              className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+            <button
+              type="button"
+              aria-label={`Download ${attachment.filename}`}
+              className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
               onClick={(e) => {
                 e.stopPropagation()
                 void handleDownload()
               }}
-            />
+            >
+              <HugeiconsIcon
+                icon={FileDownloadIcon}
+                className="size-3.5 text-muted-foreground"
+              />
+            </button>
           )}
         </div>
       </button>

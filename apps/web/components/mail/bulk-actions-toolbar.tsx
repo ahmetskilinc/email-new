@@ -62,6 +62,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2"
+          aria-label="Archive selected"
           onClick={() =>
             handleAction(bulkArchive, {
               loading: "Archiving...",
@@ -76,6 +77,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2"
+          aria-label="Delete selected"
           onClick={() =>
             handleAction(bulkDelete, {
               loading: "Deleting...",
@@ -90,6 +92,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2"
+          aria-label="Star selected"
           onClick={() =>
             handleAction(bulkStar, {
               loading: "Starring...",
@@ -104,6 +107,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2"
+          aria-label="Mark as read"
           onClick={() =>
             handleAction(markAsRead, {
               loading: "Updating...",
@@ -118,6 +122,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2"
+          aria-label="Mark as unread"
           onClick={() =>
             handleAction(markAsUnread, {
               loading: "Updating...",
@@ -132,6 +137,7 @@ export function BulkActionsToolbar() {
           variant="ghost"
           size="sm"
           className="h-7 px-2 text-muted-foreground"
+          aria-label="Deselect all"
           onClick={clearAll}
         >
           <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />

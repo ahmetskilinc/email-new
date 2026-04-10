@@ -48,8 +48,10 @@ export function useReplyActions(threadId: string | null) {
       ? latestMessage.subject
       : `Re: ${latestMessage.subject ?? ""}`
 
+    const replyTo = latestMessage.replyTo || latestMessage.sender?.email || ""
+
     openCompose({
-      to: [latestMessage.sender?.email ?? ""],
+      to: [replyTo],
       subject,
       message: buildQuotedHtml(latestMessage),
       threadId: latestMessage.threadId ?? threadId ?? undefined,
@@ -63,8 +65,9 @@ export function useReplyActions(threadId: string | null) {
       ? latestMessage.subject
       : `Re: ${latestMessage.subject ?? ""}`
 
+    const replyTo = latestMessage.replyTo || latestMessage.sender?.email || ""
     const allTo = [
-      latestMessage.sender?.email ?? "",
+      replyTo,
       ...(latestMessage.to?.map((r) => r.email) ?? []),
     ].filter((e) => e && !myEmails.has(e.toLowerCase()))
 
@@ -73,7 +76,7 @@ export function useReplyActions(threadId: string | null) {
       .filter((e) => e && !myEmails.has(e.toLowerCase()))
 
     openCompose({
-      to: allTo.length > 0 ? allTo : [latestMessage.sender?.email ?? ""],
+      to: allTo.length > 0 ? allTo : [replyTo],
       cc: allCc.length > 0 ? allCc : undefined,
       subject,
       message: buildQuotedHtml(latestMessage),

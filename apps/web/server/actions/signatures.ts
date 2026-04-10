@@ -38,7 +38,8 @@ export async function createSignature(input: {
   }
 
   const [created] = await db.createSignature(input)
-  return { id: created!.id }
+  if (!created) throw new Error("Failed to create signature")
+  return { id: created.id }
 }
 
 export async function updateSignature(

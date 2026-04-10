@@ -96,11 +96,19 @@ export function SignatureEditor({
             } else {
               const url = window.prompt("URL")
               if (url) {
-                editor
-                  .chain()
-                  .focus()
-                  .setLink({ href: url })
-                  .run()
+                try {
+                  const parsed = new URL(url)
+                  if (!parsed.protocol.startsWith("http")) {
+                    return
+                  }
+                  editor
+                    .chain()
+                    .focus()
+                    .setLink({ href: parsed.toString() })
+                    .run()
+                } catch {
+                  // Invalid URL
+                }
               }
             }
           }}
