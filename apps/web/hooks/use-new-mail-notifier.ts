@@ -58,18 +58,16 @@ export function useNewMailNotifier() {
           toast(msg.from, { description: msg.subject })
         }
 
-        // Desktop notifications via service worker (works in background)
-        if (
-          notifications.desktop &&
-          typeof window !== "undefined" &&
-          "Notification" in window &&
-          Notification.permission === "granted"
-        ) {
-          await showNotification(msg.from, {
-            body: msg.subject,
-            tag: msg.id,
-            data: { url: `/mail/inbox?threadId=${msg.id}` },
-          })
+        // Desktop notifications
+        if (notifications.desktop && Notification.permission === "granted") {
+          try {
+            await showNotification(msg.from, {
+              body: msg.subject,
+              tag: msg.id,
+            })
+          } catch (err) {
+            console.warn("Failed to show notification:", err)
+          }
         }
       }
 

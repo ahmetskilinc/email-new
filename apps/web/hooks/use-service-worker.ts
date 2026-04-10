@@ -4,63 +4,39 @@ import { useEffect, useRef, useCallback } from "react"
 
 export function useServiceWorker() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null)
-  const readyPromiseRef = useRef<Promise<ServiceWorkerRegistration> | null>(
-    null,
-  )
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      !("serviceWorker" in navigator)
-    ) {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return
     }
 
-    // Register and wait for the SW to be active
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
         registrationRef.current = reg
+        console.log("Service worker registered:", reg.scope)
       })
       .catch((err) => {
         console.warn("Service worker registration failed:", err)
       })
-
-    // Store the ready promise so showNotification can await it
-    readyPromiseRef.current = navigator.serviceWorker.ready
-    navigator.serviceWorker.ready.then((reg) => {
-      registrationRef.current = reg
-    })
   }, [])
 
   const showNotification = useCallback(
     async (title: string, options?: NotificationOptions) => {
-      try {
-        // Try to get the active SW registration
-        let reg = registrationRef.current
-        if (!reg && readyPromiseRef.current) {
-          reg = await readyPromiseRef.current
-        }
-
-        if (reg) {
+      // Try service worker first
+      const reg = registrationRef.current
+      if (reg?.active) {
+        try {
           await reg.showNotification(title, options)
           return
+        } catch (err) {
+          console.warn("SW showNotification failed, falling back:", err)
         }
-      } catch {
-        // Fall through to basic API
       }
 
-      // Fallback to basic Notification API
-      if (
-        typeof window !== "undefined" &&
-        "Notification" in window &&
-        Notification.permission === "granted"
-      ) {
-        try {
-          new Notification(title, options)
-        } catch {
-          // Swallow
-        }
+      // Fallback: basic Notification API
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, options)
       }
     },
     [],
