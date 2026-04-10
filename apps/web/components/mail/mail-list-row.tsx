@@ -6,6 +6,8 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { CheckmarkSquare02Icon } from "@hugeicons-pro/core-solid-rounded"
+
 export interface MailListRowProps {
   title: string
   subtitle: string
@@ -13,10 +15,13 @@ export interface MailListRowProps {
   unread?: boolean
   starred?: boolean
   selected?: boolean
+  checked?: boolean
+  anyChecked?: boolean
   avatarEmail?: string
   avatarName?: string
   loading?: boolean
   onClick?: () => void
+  onCheckChange?: (checked: boolean) => void
 }
 
 export function MailListRow({
@@ -26,10 +31,13 @@ export function MailListRow({
   unread,
   starred,
   selected,
+  checked,
+  anyChecked,
   avatarEmail,
   avatarName,
   loading,
   onClick,
+  onCheckChange,
 }: MailListRowProps) {
   if (loading) {
     return (
@@ -67,6 +75,29 @@ export function MailListRow({
             !unread && "opacity-60"
           )}
         >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onCheckChange?.(!checked)
+            }}
+            className={cn(
+              "flex size-5 shrink-0 items-center justify-center rounded border transition-all",
+              checked
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-muted-foreground/30 bg-transparent",
+              anyChecked
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100",
+            )}
+          >
+            {checked && (
+              <HugeiconsIcon
+                icon={CheckmarkSquare02Icon}
+                className="size-3.5"
+              />
+            )}
+          </button>
           <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
 
           <div className="w-full">

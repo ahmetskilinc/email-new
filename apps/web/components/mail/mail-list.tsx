@@ -1,6 +1,10 @@
 "use client"
 
 import { normalizeThreadPreview } from "@/lib/thread-utils"
+import {
+  useSelectedThreadIds,
+  useSelectionActions,
+} from "@/store/selection"
 import { MailListRow } from "@/components/mail/mail-list-row"
 import { useThreads } from "@/hooks/use-threads"
 import { VList, type VListHandle } from "virtua"
@@ -18,6 +22,9 @@ export function MailList() {
   const [query, threads, loadMore] = useThreads()
   const [threadId, setThreadId] = useQueryState("threadId")
   const vListRef = useRef<VListHandle>(null)
+  const selectedIds = useSelectedThreadIds()
+  const { toggle: toggleSelection } = useSelectionActions()
+  const anyChecked = selectedIds.size > 0
 
   const handleScroll = useCallback(
     (scrollOffset: number) => {
@@ -57,11 +64,14 @@ export function MailList() {
             unread={unread}
             starred={starred}
             selected={isSelected}
+            checked={selectedIds.has(thread.id)}
+            anyChecked={anyChecked}
             avatarEmail={sender.email}
             avatarName={sender.name}
             onClick={() => {
               setThreadId(thread.id)
             }}
+            onCheckChange={() => toggleSelection(thread.id)}
           />
           {index === threads.length - 1 && query.isFetchingNextPage && (
             <div className="flex w-full justify-center py-4">
@@ -71,7 +81,7 @@ export function MailList() {
         </>
       )
     },
-    [threads.length, query.isFetchingNextPage, setThreadId, threadId]
+    [threads.length, query.isFetchingNextPage, setThreadId, threadId, selectedIds, anyChecked, toggleSelection]
   )
 
   if (query.isLoading) {

@@ -2,6 +2,7 @@
 
 import { ConnectionSyncer } from "@/components/connection/connection-syncer"
 import { ComposeDialog } from "@/components/create/compose-dialog"
+import { CommandPalette } from "@/components/command-palette"
 import { SiteHeader } from "@/components/site-header"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -30,6 +31,7 @@ export default function RoutesLayout({
       </DualSidebarInset>
       {!calendarRoute && <AppSidebarRight />}
       <ComposeDialog />
+      <CommandPalette />
     </DualSidebarProvider>
   )
 }

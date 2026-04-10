@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useThreads } from "@/hooks/use-threads"
 import { useReplyActions } from "@/hooks/use-reply-actions"
 import { useOpenCompose } from "@/store/compose"
+import { useCommandPalette } from "@/store/command-palette"
 import {
   bulkArchive,
   bulkDelete,
@@ -13,6 +14,10 @@ import {
   markAsRead,
   markAsUnread,
 } from "@/server/actions/mail"
+import {
+  useSelectedThreadIds,
+  useSelectionActions,
+} from "@/store/selection"
 import { toast } from "sonner"
 
 function isTyping(): boolean {
@@ -30,6 +35,9 @@ export function useKeyboardShortcuts() {
   const { handleReply, handleReplyAll, handleForward } =
     useReplyActions(threadId)
   const openCompose = useOpenCompose()
+  const [, setCommandPaletteOpen] = useCommandPalette()
+  const selectedIds = useSelectedThreadIds()
+  const { clearAll: clearSelection } = useSelectionActions()
   const queryClient = useQueryClient()
 
   useEffect(() => {
@@ -40,6 +48,13 @@ export function useKeyboardShortcuts() {
     }
 
     const handler = (e: KeyboardEvent) => {
+      // Command palette — works even when typing
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        setCommandPaletteOpen((prev) => !prev)
+        return
+      }
+
       if (isTyping()) return
 
       const key = e.key
@@ -83,74 +98,66 @@ export function useKeyboardShortcuts() {
         return
       }
 
-      // Archive
-      if (key === "e" && threadId) {
+      // Archive (bulk-aware)
+      if (key === "e") {
+        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        if (!targets) return
         e.preventDefault()
-        const idx = threads.findIndex((t) => t.id === threadId)
-        const next = threads[idx + 1] ?? threads[idx - 1]
-        void setThreadId(next?.id ?? null)
+        if (selectedIds.size === 0 && threadId) {
+          const idx = threads.findIndex((t) => t.id === threadId)
+          const next = threads[idx + 1] ?? threads[idx - 1]
+          void setThreadId(next?.id ?? null)
+        }
         toast.promise(
-          bulkArchive([threadId]).then(() => invalidate()),
-          {
-            loading: "Archiving...",
-            success: "Archived",
-            error: "Failed to archive",
-          },
+          bulkArchive(targets).then(() => { invalidate(); clearSelection() }),
+          { loading: "Archiving...", success: "Archived", error: "Failed to archive" },
         )
         return
       }
 
-      // Delete
-      if (key === "#" && threadId) {
+      // Delete (bulk-aware)
+      if (key === "#") {
+        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        if (!targets) return
         e.preventDefault()
-        const idx = threads.findIndex((t) => t.id === threadId)
-        const next = threads[idx + 1] ?? threads[idx - 1]
-        void setThreadId(next?.id ?? null)
+        if (selectedIds.size === 0 && threadId) {
+          const idx = threads.findIndex((t) => t.id === threadId)
+          const next = threads[idx + 1] ?? threads[idx - 1]
+          void setThreadId(next?.id ?? null)
+        }
         toast.promise(
-          bulkDelete([threadId]).then(() => invalidate()),
-          {
-            loading: "Deleting...",
-            success: "Deleted",
-            error: "Failed to delete",
-          },
+          bulkDelete(targets).then(() => { invalidate(); clearSelection() }),
+          { loading: "Deleting...", success: "Deleted", error: "Failed to delete" },
         )
         return
       }
 
-      // Star
-      if (key === "s" && threadId) {
+      // Star (bulk-aware)
+      if (key === "s") {
+        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        if (!targets) return
         e.preventDefault()
         toast.promise(
-          toggleStar([threadId]).then(() => invalidate()),
-          {
-            loading: "Updating...",
-            success: "Star toggled",
-            error: "Failed to toggle star",
-          },
+          toggleStar(targets).then(() => { invalidate(); clearSelection() }),
+          { loading: "Updating...", success: "Star toggled", error: "Failed to toggle star" },
         )
         return
       }
 
-      // Toggle read/unread
-      if (key === "u" && threadId) {
+      // Toggle read/unread (bulk-aware)
+      if (key === "u") {
+        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        if (!targets) return
         e.preventDefault()
         if (e.shiftKey) {
           toast.promise(
-            markAsUnread([threadId]).then(() => invalidate()),
-            {
-              loading: "Updating...",
-              success: "Marked as unread",
-              error: "Failed to mark as unread",
-            },
+            markAsUnread(targets).then(() => { invalidate(); clearSelection() }),
+            { loading: "Updating...", success: "Marked as unread", error: "Failed to mark as unread" },
           )
         } else {
           toast.promise(
-            markAsRead([threadId]).then(() => invalidate()),
-            {
-              loading: "Updating...",
-              success: "Marked as read",
-              error: "Failed to mark as read",
-            },
+            markAsRead(targets).then(() => { invalidate(); clearSelection() }),
+            { loading: "Updating...", success: "Marked as read", error: "Failed to mark as read" },
           )
         }
         return
@@ -184,6 +191,9 @@ export function useKeyboardShortcuts() {
     handleReplyAll,
     handleForward,
     openCompose,
+    setCommandPaletteOpen,
+    selectedIds,
+    clearSelection,
     queryClient,
   ])
 }
