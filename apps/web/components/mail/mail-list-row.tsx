@@ -2,11 +2,10 @@
 
 import { BimiAvatar } from "@/components/bimi-avatar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { Checkbox } from "@workspace/ui/components/checkbox"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
 import { cn } from "@workspace/ui/lib/utils"
-
-import { CheckmarkSquare02Icon } from "@hugeicons-pro/core-solid-rounded"
 
 export interface MailListRowProps {
   title: string
@@ -75,30 +74,23 @@ export function MailListRow({
             !unread && "opacity-60"
           )}
         >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onCheckChange?.(!checked)
-            }}
-            className={cn(
-              "flex size-5 shrink-0 items-center justify-center rounded border transition-all",
-              checked
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-muted-foreground/30 bg-transparent",
-              anyChecked
-                ? "opacity-100"
-                : "opacity-0 group-hover:opacity-100",
-            )}
-          >
-            {checked && (
-              <HugeiconsIcon
-                icon={CheckmarkSquare02Icon}
-                className="size-3.5"
+          <div className="relative shrink-0">
+            <div
+              className={cn(
+                "absolute -left-1 -top-1 z-10 transition-opacity",
+                checked || anyChecked
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100",
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Checkbox
+                checked={checked}
+                onCheckedChange={() => onCheckChange?.(!checked)}
               />
-            )}
-          </button>
-          <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+            </div>
+            <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+          </div>
 
           <div className="w-full">
             <div className="flex w-full flex-row items-center justify-between">
