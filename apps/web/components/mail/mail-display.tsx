@@ -20,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/popover"
 import { useQueryState } from "nuqs"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   MailReply01Icon,
@@ -93,11 +93,17 @@ export function MailDisplay() {
     )
   }
 
+  const isMultiMessage = data.messages.length > 1
   const lastMessageId = data.messages[data.messages.length - 1]?.id
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set(lastMessageId ? [lastMessageId] : []),
   )
-  const isMultiMessage = data.messages.length > 1
+
+  // Reset expanded state when the thread changes
+  useEffect(() => {
+    const newLastId = data.messages[data.messages.length - 1]?.id
+    setExpandedIds(new Set(newLastId ? [newLastId] : []))
+  }, [threadId, data.messages.length])
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -139,7 +145,7 @@ export function MailDisplay() {
       {/* Scrollable body — per-message blocks */}
       <ScrollArea className="min-h-0 flex-1">
         {data.messages.map((message) => {
-          const isExpanded = expandedIds.has(message.id)
+          const isExpanded = !isMultiMessage || expandedIds.has(message.id)
 
           return (
             <div
