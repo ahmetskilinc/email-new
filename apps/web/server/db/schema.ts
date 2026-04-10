@@ -103,6 +103,7 @@ export const connection = createTable(
       .$type<"google" | "microsoft" | "icloud" | "yahoo" | "custom">()
       .notNull(),
     imapConfig: jsonb("imap_config"),
+    signature: text("signature"),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),

@@ -1,0 +1,159 @@
+"use client"
+
+import { useEffect } from "react"
+import { useQueryState } from "nuqs"
+import { useQueryClient } from "@tanstack/react-query"
+import { useThreads } from "@/hooks/use-threads"
+import { useReplyActions } from "@/hooks/use-reply-actions"
+import { useOpenCompose } from "@/store/compose"
+import {
+  bulkArchive,
+  bulkDelete,
+  toggleStar,
+  markAsRead,
+  markAsUnread,
+} from "@/server/actions/mail"
+import { toast } from "sonner"
+
+function isTyping(): boolean {
+  const el = document.activeElement
+  if (!el) return false
+  const tag = el.tagName.toLowerCase()
+  if (tag === "input" || tag === "textarea" || tag === "select") return true
+  if ((el as HTMLElement).isContentEditable) return true
+  return false
+}
+
+export function useKeyboardShortcuts() {
+  const [threadId, setThreadId] = useQueryState("threadId")
+  const [, threads] = useThreads()
+  const { handleReply, handleReplyAll, handleForward } =
+    useReplyActions(threadId)
+  const openCompose = useOpenCompose()
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: ["threads"] })
+      queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
+    }
+
+    const handler = (e: KeyboardEvent) => {
+      if (isTyping()) return
+
+      const key = e.key
+
+      // Navigation
+      if (key === "j" || key === "k") {
+        e.preventDefault()
+        if (threads.length === 0) return
+        const currentIndex = threadId
+          ? threads.findIndex((t) => t.id === threadId)
+          : -1
+        const nextIndex =
+          key === "j"
+            ? Math.min(currentIndex + 1, threads.length - 1)
+            : Math.max(currentIndex - 1, 0)
+        void setThreadId(threads[nextIndex]!.id)
+        return
+      }
+
+      // Compose
+      if (key === "c") {
+        e.preventDefault()
+        openCompose()
+        return
+      }
+
+      // Reply / Reply All / Forward (require selected thread)
+      if (key === "r" && !e.shiftKey) {
+        e.preventDefault()
+        handleReply()
+        return
+      }
+      if (key === "a") {
+        e.preventDefault()
+        handleReplyAll()
+        return
+      }
+      if (key === "f") {
+        e.preventDefault()
+        handleForward()
+        return
+      }
+
+      // Archive
+      if (key === "e" && threadId) {
+        e.preventDefault()
+        void bulkArchive([threadId]).then(() => {
+          const idx = threads.findIndex((t) => t.id === threadId)
+          const next = threads[idx + 1] ?? threads[idx - 1]
+          void setThreadId(next?.id ?? null)
+          invalidate()
+          toast.success("Archived")
+        })
+        return
+      }
+
+      // Delete
+      if (key === "#" && threadId) {
+        e.preventDefault()
+        void bulkDelete([threadId]).then(() => {
+          const idx = threads.findIndex((t) => t.id === threadId)
+          const next = threads[idx + 1] ?? threads[idx - 1]
+          void setThreadId(next?.id ?? null)
+          invalidate()
+          toast.success("Deleted")
+        })
+        return
+      }
+
+      // Star
+      if (key === "s" && threadId) {
+        e.preventDefault()
+        void toggleStar([threadId]).then(() => invalidate())
+        return
+      }
+
+      // Toggle read/unread
+      if (key === "u" && threadId) {
+        e.preventDefault()
+        if (e.shiftKey) {
+          void markAsUnread([threadId]).then(() => invalidate())
+        } else {
+          void markAsRead([threadId]).then(() => invalidate())
+        }
+        return
+      }
+
+      // Escape — deselect
+      if (key === "Escape") {
+        e.preventDefault()
+        void setThreadId(null)
+        return
+      }
+
+      // Focus search
+      if (key === "/") {
+        e.preventDefault()
+        const input = document.querySelector<HTMLInputElement>(
+          '[data-slot="search-input"]',
+        )
+        input?.focus()
+        return
+      }
+    }
+
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [
+    threadId,
+    threads,
+    setThreadId,
+    handleReply,
+    handleReplyAll,
+    handleForward,
+    openCompose,
+    queryClient,
+  ])
+}

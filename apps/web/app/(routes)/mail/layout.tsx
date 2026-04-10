@@ -2,6 +2,7 @@
 
 import { useConnections } from "@/hooks/use-connections"
 import { useNewMailNotifier } from "@/hooks/use-new-mail-notifier"
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
 import { useSession } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -17,6 +18,7 @@ export default function MailLayout({
     useConnections()
 
   useNewMailNotifier()
+  useKeyboardShortcuts()
 
   useEffect(() => {
     if (sessionPending || connectionsPending) return

@@ -7,6 +7,7 @@ import {
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
 import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
+import { getListUnsubscribeAction } from "../lib/email-utils"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
 import type { DeleteAllSpamResponse } from "../types"
@@ -257,8 +258,12 @@ export async function sendMail(input: {
   isForward?: boolean
   originalMessage?: string
 }) {
-  const { driver } = await requireActiveDriver()
+  const { connection, driver } = await requireActiveDriver()
   const { draftId, attachments = [], ...mail } = input
+
+  if (connection.signature) {
+    mail.message = `${mail.message}<div><br>--<br>${connection.signature}</div>`
+  }
 
   const processedAttachments = attachments.map((att: any) =>
     typeof att?.arrayBuffer === "function"
@@ -385,5 +390,34 @@ export async function pollNewMessages(cursor: string | null): Promise<{
   return {
     cursor: threads[0]?.id ?? cursor,
     newMessages,
+  }
+}
+
+export async function unsubscribeFromList(input: {
+  listUnsubscribe: string
+  listUnsubscribePost?: string
+}) {
+  await requireSession()
+  const action = getListUnsubscribeAction(input)
+  if (!action) throw new Error("No unsubscribe action available")
+
+  if (action.type === "get") {
+    await fetch(action.url, { method: "GET" })
+    return { type: "success" as const }
+  }
+
+  if (action.type === "post") {
+    await fetch(action.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: action.body,
+    })
+    return { type: "success" as const }
+  }
+
+  return {
+    type: "email" as const,
+    email: action.emailAddress,
+    subject: action.subject,
   }
 }

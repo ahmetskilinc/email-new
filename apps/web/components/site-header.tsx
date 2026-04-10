@@ -63,6 +63,7 @@ export function SiteHeader() {
         />
         <Input
           ref={inputRef}
+          data-slot="search-input"
           value={localValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}

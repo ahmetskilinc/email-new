@@ -1,10 +1,13 @@
 "use client"
 
 import { MailContent } from "@/components/mail/mail-content"
-import { useEmailAliases } from "@/hooks/use-email-aliases"
 import { useThread } from "@/hooks/use-threads"
-import { useOpenCompose, type ComposeInitialData } from "@/store/compose"
-import { getMessageAttachments } from "@/server/actions/mail"
+import { useReplyActions } from "@/hooks/use-reply-actions"
+import {
+  getMessageAttachments,
+  unsubscribeFromList,
+} from "@/server/actions/mail"
+import { useOpenCompose } from "@/store/compose"
 import { formatDate, formatFileSize } from "@/lib/utils"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
@@ -16,7 +19,7 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/popover"
 import { useQueryState } from "nuqs"
-import { useCallback, useMemo, useState } from "react"
+import { useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   MailReply01Icon,
@@ -28,104 +31,32 @@ import {
 import type { ParsedMessage } from "@/server/types"
 import { toast } from "sonner"
 
-function buildQuotedHtml(message: ParsedMessage): string {
-  const date = message.receivedOn
-    ? new Date(message.receivedOn).toLocaleString()
-    : ""
-  const from = message.sender?.name
-    ? `${message.sender.name} &lt;${message.sender.email}&gt;`
-    : (message.sender?.email ?? "")
-
-  return `<br/><br/><div style="border-left:2px solid #ccc;padding-left:12px;margin-left:0;color:#666"><p>On ${date}, ${from} wrote:</p>${message.decodedBody ?? ""}</div>`
-}
-
-function buildReplyHeaders(message: ParsedMessage): Record<string, string> {
-  const headers: Record<string, string> = {}
-  if (message.messageId) {
-    headers["In-Reply-To"] = message.messageId
-    const existingRefs = message.references ?? ""
-    headers["References"] = `${existingRefs} ${message.messageId}`.trim()
-  }
-  return headers
-}
-
 export function MailDisplay() {
   const [threadId] = useQueryState("threadId")
   const { data, isLoading } = useThread(threadId)
-  const { data: aliases } = useEmailAliases()
+  const { handleReply, handleReplyAll, handleForward } =
+    useReplyActions(threadId)
   const openCompose = useOpenCompose()
 
-  const myEmails = useMemo(() => {
-    if (!aliases) return new Set<string>()
-    return new Set(aliases.map((a: { email: string }) => a.email.toLowerCase()))
-  }, [aliases])
-
-  const latestMessage = useMemo(() => {
-    if (!data?.messages?.length) return null
-    return data.messages[data.messages.length - 1]!
-  }, [data?.messages])
-
-  const handleReply = useCallback(() => {
-    if (!latestMessage) return
-    const subject = latestMessage.subject?.startsWith("Re:")
-      ? latestMessage.subject
-      : `Re: ${latestMessage.subject ?? ""}`
-
-    openCompose({
-      to: [latestMessage.sender?.email ?? ""],
-      subject,
-      message: buildQuotedHtml(latestMessage),
-      threadId: latestMessage.threadId ?? threadId ?? undefined,
-      headers: buildReplyHeaders(latestMessage),
-    })
-  }, [latestMessage, threadId, openCompose])
-
-  const handleReplyAll = useCallback(() => {
-    if (!latestMessage) return
-    const subject = latestMessage.subject?.startsWith("Re:")
-      ? latestMessage.subject
-      : `Re: ${latestMessage.subject ?? ""}`
-
-    const allTo = [
-      latestMessage.sender?.email ?? "",
-      ...(latestMessage.to?.map((r) => r.email) ?? []),
-    ].filter((e) => e && !myEmails.has(e.toLowerCase()))
-
-    const allCc = (latestMessage.cc ?? [])
-      .map((r) => r.email)
-      .filter((e) => e && !myEmails.has(e.toLowerCase()))
-
-    openCompose({
-      to: allTo.length > 0 ? allTo : [latestMessage.sender?.email ?? ""],
-      cc: allCc.length > 0 ? allCc : undefined,
-      subject,
-      message: buildQuotedHtml(latestMessage),
-      threadId: latestMessage.threadId ?? threadId ?? undefined,
-      headers: buildReplyHeaders(latestMessage),
-    })
-  }, [latestMessage, threadId, myEmails, openCompose])
-
-  const handleForward = useCallback(() => {
-    if (!latestMessage) return
-    const subject = latestMessage.subject?.startsWith("Fwd:")
-      ? latestMessage.subject
-      : `Fwd: ${latestMessage.subject ?? ""}`
-
-    const date = latestMessage.receivedOn
-      ? new Date(latestMessage.receivedOn).toLocaleString()
-      : ""
-    const from = latestMessage.sender?.name
-      ? `${latestMessage.sender.name} <${latestMessage.sender.email}>`
-      : (latestMessage.sender?.email ?? "")
-    const to = latestMessage.to?.map((r) => r.email).join(", ") ?? ""
-
-    const fwdHeader = `<br/><br/>---------- Forwarded message ----------<br/>From: ${from}<br/>Date: ${date}<br/>Subject: ${latestMessage.subject ?? ""}<br/>To: ${to}<br/><br/>`
-
-    openCompose({
-      subject,
-      message: `${fwdHeader}${latestMessage.decodedBody ?? ""}`,
-    })
-  }, [latestMessage, openCompose])
+  const handleUnsubscribe = async (message: ParsedMessage) => {
+    if (!message.listUnsubscribe) return
+    try {
+      const result = await unsubscribeFromList({
+        listUnsubscribe: message.listUnsubscribe,
+        listUnsubscribePost: message.listUnsubscribePost ?? undefined,
+      })
+      if (result.type === "email") {
+        openCompose({
+          to: [result.email],
+          subject: result.subject || "Unsubscribe",
+        })
+      } else {
+        toast.success("Unsubscribed successfully")
+      }
+    } catch {
+      toast.error("Failed to unsubscribe")
+    }
+  }
 
   if (!threadId) {
     return (
@@ -172,9 +103,20 @@ export function MailDisplay() {
                 </div>
                 {message.to && message.to.length > 0 && (
                   <>
-                    <span className="text-xs text-muted-foreground">
-                      From: {message.sender?.name || message.sender?.email}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        From: {message.sender?.name || message.sender?.email}
+                      </span>
+                      {message.listUnsubscribe && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnsubscribe(message)}
+                          className="text-xs text-muted-foreground underline hover:text-foreground"
+                        >
+                          Unsubscribe
+                        </button>
+                      )}
+                    </div>
                     <span className="text-xs text-muted-foreground">
                       To: {message.to.map((t) => t.email).join(", ")}
                     </span>

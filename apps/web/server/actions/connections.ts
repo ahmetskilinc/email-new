@@ -29,6 +29,7 @@ export async function listConnections() {
       picture: connection.picture,
       createdAt: connection.createdAt,
       providerId: connection.providerId,
+      signature: connection.signature ?? null,
     })),
     disconnectedIds,
   }
@@ -227,5 +228,17 @@ export async function createCustomConnection(
     imapConfig,
   })
 
+  return { success: true }
+}
+
+export async function updateConnectionSignature(
+  connectionId: string,
+  signature: string,
+) {
+  const session = await requireSession()
+  const db = await getzeitmailDB(session.user.id)
+  const found = await db.findUserConnection(connectionId)
+  if (!found) throw new Error("Connection not found")
+  await db.updateConnection(connectionId, { signature })
   return { success: true }
 }

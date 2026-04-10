@@ -23,7 +23,7 @@ const processHttpUrl = (url: URL, listUnsubscribePost?: string) => {
 // Relevant specs:
 // - https://www.ietf.org/rfc/rfc2369.txt (list-unsubscribe)
 // - https://www.ietf.org/rfc/rfc8058.txt (list-unsubscribe-post)
-const getListUnsubscribeAction = ({
+export const getListUnsubscribeAction = ({
   listUnsubscribe,
   listUnsubscribePost,
 }: {
