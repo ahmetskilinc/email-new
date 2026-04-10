@@ -42,6 +42,15 @@ export function MailDisplay() {
     useReplyActions(threadId)
   const openCompose = useOpenCompose()
 
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+
+  // Reset expanded state when the thread changes
+  useEffect(() => {
+    if (!data?.messages?.length) return
+    const newLastId = data.messages[data.messages.length - 1]?.id
+    setExpandedIds(new Set(newLastId ? [newLastId] : []))
+  }, [threadId, data?.messages?.length])
+
   const handleUnsubscribe = async (message: ParsedMessage) => {
     if (!message.listUnsubscribe) return
     try {
@@ -94,16 +103,6 @@ export function MailDisplay() {
   }
 
   const isMultiMessage = data.messages.length > 1
-  const lastMessageId = data.messages[data.messages.length - 1]?.id
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(
-    () => new Set(lastMessageId ? [lastMessageId] : []),
-  )
-
-  // Reset expanded state when the thread changes
-  useEffect(() => {
-    const newLastId = data.messages[data.messages.length - 1]?.id
-    setExpandedIds(new Set(newLastId ? [newLastId] : []))
-  }, [threadId, data.messages.length])
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
