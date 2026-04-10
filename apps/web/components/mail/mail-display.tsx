@@ -321,7 +321,8 @@ function AttachmentCard({
   }
 
   const ext = getFileExtension(attachment.filename)
-  const isImage = isPreviewableImage(attachment.mimeType) && resolvedBody
+  const isImage =
+    isPreviewableImage(attachment.mimeType) && !!resolvedBody
 
   return (
     <>
@@ -373,7 +374,7 @@ function AttachmentCard({
         </div>
       </button>
 
-      {resolvedBody && (
+      {previewOpen && resolvedBody && (
         <FilePreviewDialog
           open={previewOpen}
           onOpenChange={setPreviewOpen}

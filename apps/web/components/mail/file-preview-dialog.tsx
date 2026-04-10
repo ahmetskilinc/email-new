@@ -46,16 +46,20 @@ export function FilePreviewDialog({
   onDownload,
 }: FilePreviewDialogProps) {
   const previewType = getPreviewType(attachment.mimeType)
-  const dataUrl = `data:${attachment.mimeType};base64,${attachment.body}`
+
+  const dataUrl = useMemo(() => {
+    if (!open || !attachment.body) return ""
+    return `data:${attachment.mimeType};base64,${attachment.body}`
+  }, [open, attachment.mimeType, attachment.body])
 
   const textContent = useMemo(() => {
-    if (previewType !== "text" || !attachment.body) return ""
+    if (!open || previewType !== "text" || !attachment.body) return ""
     try {
       return atob(attachment.body)
     } catch {
       return "(Unable to decode file content)"
     }
-  }, [previewType, attachment.body])
+  }, [open, previewType, attachment.body])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
