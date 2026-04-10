@@ -43,16 +43,12 @@ export function useNewMailNotifier() {
       const res = await pollNewMessages(cursorRef.current)
       cursorRef.current = res.cursor
 
-      console.log("[notifier] poll result:", res.newMessages.length, "new messages, desktop:", notifications?.desktop, "level:", notifications?.level)
-
       if (!notifications || res.newMessages.length === 0) return res
 
       const filtered = res.newMessages.filter((msg) => {
         if (notifications.level === "important" && !msg.isUnread) return false
         return true
       })
-
-      console.log("[notifier] filtered:", filtered.length, "messages to notify")
 
       if (filtered.length === 0) return res
 
@@ -63,23 +59,15 @@ export function useNewMailNotifier() {
         }
 
         // Desktop notifications
-        if (Notification.permission === "granted") {
-          if (!notifications.desktop) {
-            console.warn("[notifier] desktop setting is OFF, skipping")
-          } else {
-            console.log("[notifier] firing notification for:", msg.from, msg.subject)
-            try {
-              await showNotification(msg.from, {
-                body: msg.subject,
-                tag: msg.id,
-              })
-              console.log("[notifier] showNotification completed")
-            } catch (err) {
-              console.warn("[notifier] showNotification failed:", err)
-            }
+        if (notifications.desktop && Notification.permission === "granted") {
+          try {
+            await showNotification(msg.from, {
+              body: msg.subject,
+              tag: msg.id,
+            })
+          } catch (err) {
+            console.warn("Failed to show notification:", err)
           }
-        } else {
-          console.warn("[notifier] Notification.permission is:", Notification.permission)
         }
       }
 
