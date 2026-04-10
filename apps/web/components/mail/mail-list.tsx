@@ -44,9 +44,8 @@ export function MailList() {
 
   const renderItem = useCallback(
     (thread: (typeof threads)[number], index: number) => {
-      const { sender, subject, receivedOn, unread } = normalizeThreadPreview(
-        thread.$raw
-      )
+      const { sender, subject, receivedOn, unread, starred } =
+        normalizeThreadPreview(thread.$raw)
       const isSelected = threadId === thread.id
 
       return (
@@ -56,6 +55,7 @@ export function MailList() {
             subtitle={subject}
             date={receivedOn ? formatDate(receivedOn) : undefined}
             unread={unread}
+            starred={starred}
             selected={isSelected}
             avatarEmail={sender.email}
             avatarName={sender.name}

@@ -86,42 +86,48 @@ export function useKeyboardShortcuts() {
       // Archive
       if (key === "e" && threadId) {
         e.preventDefault()
-        void bulkArchive([threadId])
-          .then(() => {
-            const idx = threads.findIndex((t) => t.id === threadId)
-            const next = threads[idx + 1] ?? threads[idx - 1]
-            void setThreadId(next?.id ?? null)
-            invalidate()
-            toast.success("Archived")
-          })
-          .catch(() => toast.error("Failed to archive"))
+        const idx = threads.findIndex((t) => t.id === threadId)
+        const next = threads[idx + 1] ?? threads[idx - 1]
+        void setThreadId(next?.id ?? null)
+        toast.promise(
+          bulkArchive([threadId]).then(() => invalidate()),
+          {
+            loading: "Archiving...",
+            success: "Archived",
+            error: "Failed to archive",
+          },
+        )
         return
       }
 
       // Delete
       if (key === "#" && threadId) {
         e.preventDefault()
-        void bulkDelete([threadId])
-          .then(() => {
-            const idx = threads.findIndex((t) => t.id === threadId)
-            const next = threads[idx + 1] ?? threads[idx - 1]
-            void setThreadId(next?.id ?? null)
-            invalidate()
-            toast.success("Deleted")
-          })
-          .catch(() => toast.error("Failed to delete"))
+        const idx = threads.findIndex((t) => t.id === threadId)
+        const next = threads[idx + 1] ?? threads[idx - 1]
+        void setThreadId(next?.id ?? null)
+        toast.promise(
+          bulkDelete([threadId]).then(() => invalidate()),
+          {
+            loading: "Deleting...",
+            success: "Deleted",
+            error: "Failed to delete",
+          },
+        )
         return
       }
 
       // Star
       if (key === "s" && threadId) {
         e.preventDefault()
-        void toggleStar([threadId])
-          .then(() => {
-            invalidate()
-            toast.success("Star toggled")
-          })
-          .catch(() => toast.error("Failed to toggle star"))
+        toast.promise(
+          toggleStar([threadId]).then(() => invalidate()),
+          {
+            loading: "Updating...",
+            success: "Star toggled",
+            error: "Failed to toggle star",
+          },
+        )
         return
       }
 
@@ -129,19 +135,23 @@ export function useKeyboardShortcuts() {
       if (key === "u" && threadId) {
         e.preventDefault()
         if (e.shiftKey) {
-          void markAsUnread([threadId])
-            .then(() => {
-              invalidate()
-              toast.success("Marked as unread")
-            })
-            .catch(() => toast.error("Failed to mark as unread"))
+          toast.promise(
+            markAsUnread([threadId]).then(() => invalidate()),
+            {
+              loading: "Updating...",
+              success: "Marked as unread",
+              error: "Failed to mark as unread",
+            },
+          )
         } else {
-          void markAsRead([threadId])
-            .then(() => {
-              invalidate()
-              toast.success("Marked as read")
-            })
-            .catch(() => toast.error("Failed to mark as read"))
+          toast.promise(
+            markAsRead([threadId]).then(() => invalidate()),
+            {
+              loading: "Updating...",
+              success: "Marked as read",
+              error: "Failed to mark as read",
+            },
+          )
         }
         return
       }

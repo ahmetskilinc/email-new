@@ -2,6 +2,9 @@
 
 import { BimiAvatar } from "@/components/bimi-avatar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Star01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { StarIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
@@ -9,6 +12,7 @@ export interface MailListRowProps {
   subtitle: string
   date?: string
   unread?: boolean
+  starred?: boolean
   selected?: boolean
   avatarEmail?: string
   avatarName?: string
@@ -21,6 +25,7 @@ export function MailListRow({
   subtitle,
   date,
   unread,
+  starred,
   selected,
   avatarEmail,
   avatarName,
@@ -79,16 +84,24 @@ export function MailListRow({
                   </span>
                 </span>
               </div>
-              {date && (
-                <p
-                  className={cn(
-                    "text-xs font-normal text-nowrap text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]",
-                    selected && "opacity-100"
-                  )}
-                >
-                  {date}
-                </p>
-              )}
+              <div className="flex items-center gap-1.5">
+                {starred && (
+                  <HugeiconsIcon
+                    icon={StarSolidIcon}
+                    className="size-3 shrink-0 text-amber-400"
+                  />
+                )}
+                {date && (
+                  <p
+                    className={cn(
+                      "text-xs font-normal text-nowrap text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]",
+                      selected && "opacity-100"
+                    )}
+                  >
+                    {date}
+                  </p>
+                )}
+              </div>
             </div>
             <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]">
               {subtitle}
