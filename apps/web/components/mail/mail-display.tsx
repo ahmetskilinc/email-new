@@ -287,8 +287,58 @@ function AttachmentDownload({
   )
 }
 
+function formatContact(c: { name?: string; email: string }) {
+  return c.name ? `${c.name} <${c.email}>` : c.email
+}
+
 function DetailsPopover({ message }: { message: ParsedMessage }) {
   const [open, setOpen] = useState(false)
+
+  const rows: { label: string; value: string }[] = []
+
+  if (message.sender) {
+    rows.push({ label: "From", value: formatContact(message.sender) })
+  }
+  if (message.to?.length) {
+    rows.push({ label: "To", value: message.to.map(formatContact).join(", ") })
+  }
+  if (message.cc?.length) {
+    rows.push({ label: "Cc", value: message.cc.map(formatContact).join(", ") })
+  }
+  if (message.bcc?.length) {
+    rows.push({
+      label: "Bcc",
+      value: message.bcc.map(formatContact).join(", "),
+    })
+  }
+  if (message.replyTo) {
+    rows.push({ label: "Reply-To", value: message.replyTo })
+  }
+  if (message.receivedOn) {
+    rows.push({
+      label: "Date",
+      value: new Date(message.receivedOn).toLocaleString(),
+    })
+  }
+  if (message.subject) {
+    rows.push({ label: "Subject", value: message.subject })
+  }
+  if (message.messageId) {
+    rows.push({ label: "Message-ID", value: message.messageId })
+  }
+  if (message.inReplyTo) {
+    rows.push({ label: "In-Reply-To", value: message.inReplyTo })
+  }
+  if (message.tls !== undefined) {
+    rows.push({ label: "TLS", value: message.tls ? "Encrypted" : "Not encrypted" })
+  }
+  if (message.tags?.length) {
+    rows.push({
+      label: "Labels",
+      value: message.tags.map((t) => t.name).join(", "),
+    })
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -298,25 +348,20 @@ function DetailsPopover({ message }: { message: ParsedMessage }) {
           </Button>
         }
       />
-      <PopoverContent className="w-80">
-        <div className="grid gap-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Details</span>
-            <span className="text-xs text-muted-foreground">
-              {message.sender?.name || message.sender?.email}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {message.to.map((t) => t.email).join(", ")}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {message.cc?.map((c) => c.email).join(", ")}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {message.bcc?.map((b) => b.email).join(", ")}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {message.receivedOn ? formatDate(message.receivedOn) : ""}
-            </span>
+      <PopoverContent className="w-96">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Message Details</span>
+          <div className="flex flex-col gap-1.5">
+            {rows.map((row) => (
+              <div key={row.label} className="flex gap-2 text-xs">
+                <span className="w-20 shrink-0 font-medium text-muted-foreground">
+                  {row.label}
+                </span>
+                <span className="min-w-0 break-all text-foreground">
+                  {row.value}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </PopoverContent>
