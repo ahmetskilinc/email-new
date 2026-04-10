@@ -31,7 +31,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", fontSans.variable, fontMono.variable)}
     >
-      <body>
+      <body className="h-screen overflow-hidden">
         <TooltipProvider>
           <NuqsAdapter>
             <ThemeProvider>
