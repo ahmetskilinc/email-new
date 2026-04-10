@@ -109,7 +109,12 @@ export function MailDisplay() {
   }
 
   const stripHtml = (html: string) =>
-    html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+    html
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
 
   return (
     <div className="flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col">
