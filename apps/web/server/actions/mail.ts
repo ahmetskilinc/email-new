@@ -292,6 +292,16 @@ export async function sendMail(input: {
     await driver.create(outgoing)
   }
 
+  // Track recipients for autocomplete (fire-and-forget)
+  const allRecipients = [
+    ...(input.to ?? []),
+    ...(input.cc ?? []),
+    ...(input.bcc ?? []),
+  ]
+  void Promise.allSettled(
+    allRecipients.map((r) => db.upsertRecipient(r.email, r.name)),
+  )
+
   return { success: true }
 }
 

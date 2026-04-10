@@ -13,7 +13,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Badge } from "@workspace/ui/components/badge"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
-import { Textarea } from "@workspace/ui/components/textarea"
+import { SignatureEditor } from "./signature-editor"
 import {
   Select,
   SelectContent,
@@ -158,16 +158,10 @@ export function SignaturesTab() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="sig-body">Signature</Label>
-            <Textarea
-              id="sig-body"
+            <Label>Signature</Label>
+            <SignatureEditor
               value={editing.body}
-              onChange={(e) =>
-                setEditing({ ...editing, body: e.target.value })
-              }
-              rows={6}
-              placeholder="Your signature text..."
-              className="resize-y"
+              onChange={(html) => setEditing({ ...editing, body: html })}
             />
           </div>
           <div className="flex items-center gap-2">

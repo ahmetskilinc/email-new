@@ -26,6 +26,7 @@ import { useEmailAliases } from "@/hooks/use-email-aliases"
 import { useConnections } from "@/hooks/use-connections"
 import { useSignatures } from "@/hooks/use-signatures"
 import useComposeEditor from "@/hooks/use-compose-editor"
+import { RecipientInput } from "@/components/create/recipient-input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useSettings } from "@/hooks/use-settings"
 import { Button } from "@workspace/ui/components/button"
@@ -243,8 +244,9 @@ export function EmailComposer({
           <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
             To:
           </FieldLabel>
-          <Input
-            {...register("to")}
+          <RecipientInput
+            value={watch("to")}
+            onChange={(v) => setValue("to", v)}
             placeholder="recipient@example.com"
             disabled={isSubmitting}
             aria-invalid={!!errors.to}
@@ -273,8 +275,9 @@ export function EmailComposer({
             <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Cc:
             </FieldLabel>
-            <Input
-              {...register("cc")}
+            <RecipientInput
+              value={watch("cc") ?? ""}
+              onChange={(v) => setValue("cc", v)}
               placeholder="cc@example.com"
               disabled={isSubmitting}
             />
@@ -286,8 +289,9 @@ export function EmailComposer({
             <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
               Bcc:
             </FieldLabel>
-            <Input
-              {...register("bcc")}
+            <RecipientInput
+              value={watch("bcc") ?? ""}
+              onChange={(v) => setValue("bcc", v)}
               placeholder="bcc@example.com"
               disabled={isSubmitting}
             />
@@ -375,10 +379,12 @@ export function EmailComposer({
           />
         )}
         {selectedSignature && (
-          <div className="mt-4 border-t border-dashed pt-3 text-xs text-muted-foreground whitespace-pre-wrap">
-            --
-            {"\n"}
-            {selectedSignature.body}
+          <div className="mt-4 border-t border-dashed pt-3 text-xs text-muted-foreground">
+            <p>--</p>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none opacity-60"
+              dangerouslySetInnerHTML={{ __html: selectedSignature.body }}
+            />
           </div>
         )}
       </div>

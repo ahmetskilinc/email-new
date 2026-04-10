@@ -9,6 +9,7 @@ import {
 } from "@/server/actions/mail"
 import { useOpenCompose } from "@/store/compose"
 import { formatDate, formatFileSize } from "@/lib/utils"
+import { cn } from "@workspace/ui/lib/utils"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Separator } from "@workspace/ui/components/separator"
@@ -19,7 +20,7 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/popover"
 import { useQueryState } from "nuqs"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   MailReply01Icon,
@@ -27,8 +28,11 @@ import {
   Share08Icon,
   FileDownloadIcon,
   Loading03Icon,
+  ArrowDown01Icon,
+  ArrowUp01Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import type { ParsedMessage } from "@/server/types"
+import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
 import { toast } from "sonner"
 
 export function MailDisplay() {
@@ -89,6 +93,24 @@ export function MailDisplay() {
     )
   }
 
+  const lastMessageId = data.messages[data.messages.length - 1]?.id
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(
+    () => new Set(lastMessageId ? [lastMessageId] : []),
+  )
+  const isMultiMessage = data.messages.length > 1
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const stripHtml = (html: string) =>
+    html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+
   return (
     <div className="flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col">
       {/* Pinned header — thread subject */}
@@ -98,6 +120,11 @@ export function MailDisplay() {
             {data.messages[0]?.subject}
           </span>
           <DetailsPopover message={data.messages[0]!} />
+          {isMultiMessage && (
+            <span className="text-xs text-muted-foreground">
+              {data.messages.length} messages
+            </span>
+          )}
         </div>
         <span className="shrink-0 text-xs text-muted-foreground">
           {formatDate(data.messages[0]?.receivedOn ?? "")}
@@ -106,56 +133,89 @@ export function MailDisplay() {
 
       {/* Scrollable body — per-message blocks */}
       <ScrollArea className="min-h-0 flex-1">
-        {data.messages.map((message) => (
-          <div key={message.id} className="flex flex-col border-b last:border-b-0">
-            <div className="flex items-center justify-between gap-4 bg-muted/30 px-4 py-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium">
-                  {message.sender?.name || message.sender?.email}
-                </span>
-                {message.listUnsubscribe && (
-                  <button
-                    type="button"
-                    onClick={() => handleUnsubscribe(message)}
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
-                  >
-                    Unsubscribe
-                  </button>
+        {data.messages.map((message) => {
+          const isExpanded = expandedIds.has(message.id)
+
+          return (
+            <div
+              key={message.id}
+              className="flex flex-col border-b last:border-b-0"
+            >
+              <button
+                type="button"
+                onClick={() => isMultiMessage && toggleExpanded(message.id)}
+                className={cn(
+                  "flex items-center justify-between gap-4 bg-muted/30 px-4 py-2 text-left",
+                  isMultiMessage &&
+                    "cursor-pointer transition-colors hover:bg-muted/50",
                 )}
-              </div>
-              <div className="flex items-center gap-3">
-                {message.to && message.to.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    To: {message.to.map((t) => t.email).join(", ")}
+              >
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  {isMultiMessage && (
+                    <HugeiconsIcon
+                      icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
+                      className="size-3 shrink-0 text-muted-foreground"
+                    />
+                  )}
+                  <span className="text-xs font-medium">
+                    {message.sender?.name || message.sender?.email}
                   </span>
-                )}
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDate(message.receivedOn)}
-                </span>
-              </div>
+                  {!isExpanded && message.decodedBody && (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {stripHtml(message.decodedBody).slice(0, 100)}
+                    </span>
+                  )}
+                  {message.listUnsubscribe && isExpanded && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleUnsubscribe(message)
+                      }}
+                      className="text-xs text-muted-foreground underline hover:text-foreground"
+                    >
+                      Unsubscribe
+                    </button>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  {isExpanded && message.to && message.to.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      To: {message.to.map((t) => t.email).join(", ")}
+                    </span>
+                  )}
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {formatDate(message.receivedOn)}
+                  </span>
+                </div>
+              </button>
+
+              {isExpanded && (
+                <>
+                  {message.decodedBody && (
+                    <MailContent
+                      id={message.id}
+                      html={message.decodedBody}
+                      senderEmail={message.sender?.email ?? ""}
+                    />
+                  )}
+
+                  {message.attachments && message.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 px-4 pb-2">
+                      {message.attachments.map((att) => (
+                        <AttachmentCard
+                          key={att.attachmentId}
+                          messageId={message.id}
+                          attachment={att}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
-
-            {message.decodedBody && (
-              <MailContent
-                id={message.id}
-                html={message.decodedBody}
-                senderEmail={message.sender?.email ?? ""}
-              />
-            )}
-
-            {message.attachments && message.attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 px-4 pb-2">
-                {message.attachments.map((att) => (
-                  <AttachmentDownload
-                    key={att.attachmentId}
-                    messageId={message.id}
-                    attachment={att}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </ScrollArea>
 
       {/* Pinned footer — action buttons */}
@@ -185,7 +245,7 @@ function isPreviewableImage(mimeType: string): boolean {
   return mimeType.startsWith("image/")
 }
 
-function AttachmentDownload({
+function AttachmentCard({
   messageId,
   attachment,
 }: {
@@ -199,91 +259,118 @@ function AttachmentDownload({
   }
 }) {
   const [loading, setLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [resolvedBody, setResolvedBody] = useState(attachment.body)
 
-  const handleDownload = async () => {
+  const resolveBody = async (): Promise<string | null> => {
+    if (resolvedBody) return resolvedBody
     setLoading(true)
     try {
-      let base64 = attachment.body
-      if (!base64) {
-        const attachments = await getMessageAttachments(messageId)
-        const match = attachments.find(
-          (a) => a.attachmentId === attachment.attachmentId,
-        )
-        if (!match?.body) {
-          toast.error("Could not download attachment")
-          return
-        }
-        base64 = match.body
+      const attachments = await getMessageAttachments(messageId)
+      const match = attachments.find(
+        (a) => a.attachmentId === attachment.attachmentId,
+      )
+      if (!match?.body) {
+        toast.error("Could not load attachment")
+        return null
       }
-
-      const binary = atob(base64)
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i)
-      }
-      const blob = new Blob([bytes], { type: attachment.mimeType })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = attachment.filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setResolvedBody(match.body)
+      return match.body
     } catch {
-      toast.error("Failed to download attachment")
+      toast.error("Failed to load attachment")
+      return null
     } finally {
       setLoading(false)
     }
   }
 
+  const handleDownload = async () => {
+    const base64 = await resolveBody()
+    if (!base64) return
+
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const blob = new Blob([bytes], { type: attachment.mimeType })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = attachment.filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  const handleClick = async () => {
+    const body = await resolveBody()
+    if (body) setPreviewOpen(true)
+  }
+
   const ext = getFileExtension(attachment.filename)
-  const previewable = isPreviewableImage(attachment.mimeType) && attachment.body
+  const isImage = isPreviewableImage(attachment.mimeType) && resolvedBody
 
   return (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={loading}
-      className="group flex w-40 flex-col overflow-hidden rounded-lg border bg-muted/30 text-left transition-colors hover:bg-muted/60"
-    >
-      {previewable ? (
-        <div className="flex h-20 items-center justify-center overflow-hidden bg-muted">
-          <img
-            src={`data:${attachment.mimeType};base64,${attachment.body}`}
-            alt={attachment.filename}
-            className="size-full object-cover"
-          />
-        </div>
-      ) : (
-        <div className="flex h-20 items-center justify-center bg-muted">
-          <span className="text-xs font-medium text-muted-foreground uppercase">
-            {ext}
-          </span>
-        </div>
-      )}
-      <div className="flex items-center gap-2 p-2">
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-xs font-medium">
-            {attachment.filename}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatFileSize(attachment.size)}
-          </span>
-        </div>
-        {loading ? (
-          <HugeiconsIcon
-            icon={Loading03Icon}
-            className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-          />
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        className="group flex w-40 flex-col overflow-hidden rounded-lg border bg-muted/30 text-left transition-colors hover:bg-muted/60"
+      >
+        {isImage ? (
+          <div className="flex h-20 items-center justify-center overflow-hidden bg-muted">
+            <img
+              src={`data:${attachment.mimeType};base64,${resolvedBody}`}
+              alt={attachment.filename}
+              className="size-full object-cover"
+            />
+          </div>
         ) : (
-          <HugeiconsIcon
-            icon={FileDownloadIcon}
-            className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-          />
+          <div className="flex h-20 items-center justify-center bg-muted">
+            <span className="text-xs font-medium text-muted-foreground uppercase">
+              {ext}
+            </span>
+          </div>
         )}
-      </div>
-    </button>
+        <div className="flex items-center gap-2 p-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="truncate text-xs font-medium">
+              {attachment.filename}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatFileSize(attachment.size)}
+            </span>
+          </div>
+          {loading ? (
+            <HugeiconsIcon
+              icon={Loading03Icon}
+              className="size-3.5 shrink-0 animate-spin text-muted-foreground"
+            />
+          ) : (
+            <HugeiconsIcon
+              icon={FileDownloadIcon}
+              className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
+              onClick={(e) => {
+                e.stopPropagation()
+                void handleDownload()
+              }}
+            />
+          )}
+        </div>
+      </button>
+
+      {resolvedBody && (
+        <FilePreviewDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          attachment={{ ...attachment, body: resolvedBody }}
+          onDownload={handleDownload}
+        />
+      )}
+    </>
   )
 }
 

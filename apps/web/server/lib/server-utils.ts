@@ -1,5 +1,5 @@
-import { connection, user, userSettings, signature } from "../db/schema"
-import { eq, and } from "drizzle-orm"
+import { connection, user, userSettings, signature, recipient } from "../db/schema"
+import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
 import { decrypt } from "./encryption"
@@ -217,6 +217,35 @@ export const getzeitmailDB = async (userId: string) => {
             eq(signature.isDefault, true),
           ),
         ),
+
+    searchRecipients: (query: string) =>
+      db.query.recipient.findMany({
+        where: and(
+          eq(recipient.userId, userId),
+          or(
+            ilike(recipient.email, `%${query}%`),
+            ilike(recipient.name, `%${query}%`),
+          ),
+        ),
+        orderBy: [desc(recipient.frequency), desc(recipient.lastUsed)],
+        limit: 10,
+      }),
+
+    upsertRecipient: (email: string, name?: string | null) => {
+      const id = crypto.randomUUID()
+      const now = new Date()
+      return db
+        .insert(recipient)
+        .values({ id, userId, email, name: name ?? null, frequency: 1, lastUsed: now, createdAt: now })
+        .onConflictDoUpdate({
+          target: [recipient.userId, recipient.email],
+          set: {
+            name: name ?? undefined,
+            frequency: sql`${recipient.frequency} + 1`,
+            lastUsed: now,
+          },
+        })
+    },
   }
 }
 

@@ -6,6 +6,7 @@ import {
   jsonb,
   unique,
   index,
+  integer,
 } from "drizzle-orm/pg-core"
 import { defaultUserSettings } from "../lib/schemas"
 
@@ -149,3 +150,22 @@ export const userSettings = createTable("user_settings", {
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
 })
+
+export const recipient = createTable(
+  "recipient",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    name: text("name"),
+    frequency: integer("frequency").notNull().default(1),
+    lastUsed: timestamp("last_used").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => [
+    unique().on(t.userId, t.email),
+    index("recipient_user_id_idx").on(t.userId),
+  ],
+)
