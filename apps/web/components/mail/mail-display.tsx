@@ -90,43 +90,49 @@ export function MailDisplay() {
   }
 
   return (
-    <ScrollArea className="max-h-[calc(100dvh-(3rem+16px))] overflow-scroll">
-      <div className="flex flex-col">
-        {data.messages.map((message) => (
-          <div key={message.id} className="flex flex-col">
-            <div className="flex items-start justify-between gap-4 p-4">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{message.subject}</span>
+    <div className="flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col">
+      {/* Pinned header — thread subject */}
+      <div className="flex shrink-0 items-start justify-between gap-4 border-b p-4">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">
+            {data.messages[0]?.subject}
+          </span>
+          <DetailsPopover message={data.messages[0]!} />
+        </div>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {formatDate(data.messages[0]?.receivedOn ?? "")}
+        </span>
+      </div>
 
-                  <DetailsPopover message={message} />
-                </div>
-                {message.to && message.to.length > 0 && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        From: {message.sender?.name || message.sender?.email}
-                      </span>
-                      {message.listUnsubscribe && (
-                        <button
-                          type="button"
-                          onClick={() => handleUnsubscribe(message)}
-                          className="text-xs text-muted-foreground underline hover:text-foreground"
-                        >
-                          Unsubscribe
-                        </button>
-                      )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      To: {message.to.map((t) => t.email).join(", ")}
-                    </span>
-                  </>
+      {/* Scrollable body — per-message blocks */}
+      <ScrollArea className="min-h-0 flex-1">
+        {data.messages.map((message) => (
+          <div key={message.id} className="flex flex-col border-b last:border-b-0">
+            <div className="flex items-center justify-between gap-4 bg-muted/30 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium">
+                  {message.sender?.name || message.sender?.email}
+                </span>
+                {message.listUnsubscribe && (
+                  <button
+                    type="button"
+                    onClick={() => handleUnsubscribe(message)}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    Unsubscribe
+                  </button>
                 )}
               </div>
-
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {formatDate(message.receivedOn)}
-              </span>
+              <div className="flex items-center gap-3">
+                {message.to && message.to.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    To: {message.to.map((t) => t.email).join(", ")}
+                  </span>
+                )}
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatDate(message.receivedOn)}
+                </span>
+              </div>
             </div>
 
             {message.decodedBody && (
@@ -150,23 +156,24 @@ export function MailDisplay() {
             )}
           </div>
         ))}
+      </ScrollArea>
 
-        <div className="flex items-center gap-2 border-t p-4">
-          <Button variant="outline" size="sm" onClick={handleReply}>
-            <HugeiconsIcon icon={MailReply01Icon} data-icon="inline-start" />
-            Reply
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleReplyAll}>
-            <HugeiconsIcon icon={MailReplyAll01Icon} data-icon="inline-start" />
-            Reply All
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleForward}>
-            <HugeiconsIcon icon={Share08Icon} data-icon="inline-start" />
-            Forward
-          </Button>
-        </div>
+      {/* Pinned footer — action buttons */}
+      <div className="flex shrink-0 items-center gap-2 border-t p-4">
+        <Button variant="outline" size="sm" onClick={handleReply}>
+          <HugeiconsIcon icon={MailReply01Icon} data-icon="inline-start" />
+          Reply
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleReplyAll}>
+          <HugeiconsIcon icon={MailReplyAll01Icon} data-icon="inline-start" />
+          Reply All
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleForward}>
+          <HugeiconsIcon icon={Share08Icon} data-icon="inline-start" />
+          Forward
+        </Button>
       </div>
-    </ScrollArea>
+    </div>
   )
 }
 
