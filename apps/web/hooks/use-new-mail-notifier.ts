@@ -65,7 +65,7 @@ export function useNewMailNotifier() {
           "Notification" in window &&
           Notification.permission === "granted"
         ) {
-          showNotification(msg.from, {
+          await showNotification(msg.from, {
             body: msg.subject,
             tag: msg.id,
             data: { url: `/mail/inbox?threadId=${msg.id}` },

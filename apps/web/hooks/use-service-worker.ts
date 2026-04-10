@@ -4,6 +4,9 @@ import { useEffect, useRef, useCallback } from "react"
 
 export function useServiceWorker() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null)
+  const readyPromiseRef = useRef<Promise<ServiceWorkerRegistration> | null>(
+    null,
+  )
 
   useEffect(() => {
     if (
@@ -13,6 +16,7 @@ export function useServiceWorker() {
       return
     }
 
+    // Register and wait for the SW to be active
     navigator.serviceWorker
       .register("/sw.js")
       .then((reg) => {
@@ -21,19 +25,37 @@ export function useServiceWorker() {
       .catch((err) => {
         console.warn("Service worker registration failed:", err)
       })
+
+    // Store the ready promise so showNotification can await it
+    readyPromiseRef.current = navigator.serviceWorker.ready
+    navigator.serviceWorker.ready.then((reg) => {
+      registrationRef.current = reg
+    })
   }, [])
 
   const showNotification = useCallback(
-    (title: string, options?: NotificationOptions) => {
-      const reg = registrationRef.current
-      if (reg) {
-        reg.showNotification(title, options)
-      } else if (
+    async (title: string, options?: NotificationOptions) => {
+      try {
+        // Try to get the active SW registration
+        let reg = registrationRef.current
+        if (!reg && readyPromiseRef.current) {
+          reg = await readyPromiseRef.current
+        }
+
+        if (reg) {
+          await reg.showNotification(title, options)
+          return
+        }
+      } catch {
+        // Fall through to basic API
+      }
+
+      // Fallback to basic Notification API
+      if (
         typeof window !== "undefined" &&
         "Notification" in window &&
         Notification.permission === "granted"
       ) {
-        // Fallback to basic Notification API
         try {
           new Notification(title, options)
         } catch {
@@ -44,5 +66,5 @@ export function useServiceWorker() {
     [],
   )
 
-  return { showNotification, registration: registrationRef }
+  return { showNotification }
 }
