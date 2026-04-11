@@ -10,8 +10,6 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Search01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { toast } from "sonner"
 
-export const dynamic = "force-dynamic"
-
 export default function ContactsPage() {
   const [search, setSearch] = useState("")
   const query = search.length >= 2 ? search : undefined

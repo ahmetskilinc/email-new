@@ -83,7 +83,7 @@ export function ContactsTable({
                 placeholder="Name"
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveEdit(contact.id)
+                  if (e.key === "Enter") void saveEdit(contact.id).catch(() => {})
                   if (e.key === "Escape") cancelEdit()
                 }}
               />

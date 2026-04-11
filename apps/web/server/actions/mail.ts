@@ -121,7 +121,10 @@ export async function searchMail(params: {
   const { driver } = await requireActiveDriver()
 
   let query = params.q || ""
-  if (params.from) query += ` from:${params.from}`
+  if (params.from) {
+    const fromValue = params.from.includes(" ") ? `"${params.from}"` : params.from
+    query += ` from:${fromValue}`
+  }
   if (params.after) query += ` after:${params.after}`
   if (params.before) query += ` before:${params.before}`
   if (params.hasAttachment) query += ` has:attachment`

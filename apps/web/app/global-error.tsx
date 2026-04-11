@@ -10,9 +10,9 @@ export default function GlobalError({
   return (
     <html lang="en">
       <body className="h-screen overflow-hidden">
-        <div className="flex min-h-dvh w-full items-center justify-center text-center">
+        <div role="alert" aria-live="assertive" className="flex min-h-dvh w-full items-center justify-center text-center">
           <div className="flex flex-col items-center gap-4">
-            <h1 className="select-none text-[120px] font-bold leading-none text-gray-200">
+            <h1 aria-hidden="true" className="select-none text-[120px] font-bold leading-none text-gray-200">
               !
             </h1>
             <div className="flex flex-col gap-1">

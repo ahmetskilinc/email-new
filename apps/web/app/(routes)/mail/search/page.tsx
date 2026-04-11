@@ -23,8 +23,6 @@ import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { toast } from "sonner"
 import { useRef } from "react"
 
-export const dynamic = "force-dynamic"
-
 export default function SearchPage() {
   const savedLayout = useMailLayout()
   const [isMobile, setIsMobile] = useState(false)

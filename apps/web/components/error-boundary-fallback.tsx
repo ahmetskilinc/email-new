@@ -14,9 +14,9 @@ export function ErrorBoundaryFallback({
   description?: string
 }) {
   return (
-    <div className="flex h-full w-full items-center justify-center text-center">
+    <div role="alert" aria-live="assertive" className="flex h-full w-full items-center justify-center text-center">
       <div className="flex flex-col items-center gap-4">
-        <h1 className="text-muted-foreground/20 select-none text-[120px] font-bold leading-none">
+        <h1 aria-hidden="true" className="text-muted-foreground/20 select-none text-[120px] font-bold leading-none">
           !
         </h1>
         <div className="flex flex-col gap-1">

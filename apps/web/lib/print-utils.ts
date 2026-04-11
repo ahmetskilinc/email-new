@@ -1,10 +1,18 @@
 import type { ParsedMessage } from "@/server/types"
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
 function formatSenders(
   senders: { name?: string; email: string }[] | null | undefined,
 ): string {
   if (!senders?.length) return ""
-  return senders.map((s) => (s.name ? `${s.name} &lt;${s.email}&gt;` : s.email)).join(", ")
+  return senders.map((s) => (s.name ? `${escapeHtml(s.name)} &lt;${escapeHtml(s.email)}&gt;` : escapeHtml(s.email))).join(", ")
 }
 
 function formatDate(dateStr: string): string {
@@ -23,7 +31,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function buildPrintHtml(messages: ParsedMessage[]): string {
-  const subject = messages[0]?.subject ?? "No Subject"
+  const subject = escapeHtml(messages[0]?.subject ?? "No Subject")
 
   const messageBlocks = messages
     .map((msg, i) => {
@@ -38,7 +46,7 @@ export function buildPrintHtml(messages: ParsedMessage[]): string {
         ${i > 0 ? '<hr class="separator">' : ""}
         <div class="message">
           <table class="header-table">
-            <tr><td class="label">From:</td><td>${msg.sender.name ? `${msg.sender.name} &lt;${msg.sender.email}&gt;` : msg.sender.email}</td></tr>
+            <tr><td class="label">From:</td><td>${msg.sender ? (msg.sender.name ? `${escapeHtml(msg.sender.name)} &lt;${escapeHtml(msg.sender.email)}&gt;` : escapeHtml(msg.sender.email)) : "Unknown"}</td></tr>
             <tr><td class="label">To:</td><td>${formatSenders(msg.to)}</td></tr>
             ${msg.cc?.length ? `<tr><td class="label">Cc:</td><td>${formatSenders(msg.cc)}</td></tr>` : ""}
             <tr><td class="label">Date:</td><td>${formatDate(msg.receivedOn)}</td></tr>
