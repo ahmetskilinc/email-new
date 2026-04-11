@@ -12,7 +12,7 @@ import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { UserAdd01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
 
 export function AddContactDialog({
   onAdd,
@@ -39,7 +39,7 @@ export function AddContactDialog({
       <DialogTrigger
         render={
           <Button variant="secondary" size="sm">
-            <HugeiconsIcon icon={UserAdd01Icon} className="mr-1.5 size-4" />
+            <HugeiconsIcon icon={Add01Icon} className="mr-1.5 size-4" />
             Add Contact
           </Button>
         }

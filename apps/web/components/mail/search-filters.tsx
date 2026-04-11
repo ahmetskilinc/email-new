@@ -8,7 +8,7 @@ import { Checkbox } from "@workspace/ui/components/checkbox"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Search01Icon,
-  FilterIcon,
+  Settings04Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import type { SearchParams } from "@/hooks/use-search"
 
@@ -73,7 +73,7 @@ export function SearchFilters({
           onClick={() => setShowFilters((v) => !v)}
           title="Toggle filters"
         >
-          <HugeiconsIcon icon={FilterIcon} className="size-4" />
+          <HugeiconsIcon icon={Settings04Icon} className="size-4" />
         </Button>
       </div>
 

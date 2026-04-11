@@ -30,7 +30,7 @@ import {
   Loading03Icon,
   ArrowDown01Icon,
   ArrowUp01Icon,
-  Printer01Icon,
+  PrinterIcon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import type { ParsedMessage } from "@/server/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
@@ -155,7 +155,7 @@ export function MailDisplay({ className }: { className?: string }) {
             }}
             title="Print"
           >
-            <HugeiconsIcon icon={Printer01Icon} className="size-4" />
+            <HugeiconsIcon icon={PrinterIcon} className="size-4" />
           </Button>
         </div>
       </div>
