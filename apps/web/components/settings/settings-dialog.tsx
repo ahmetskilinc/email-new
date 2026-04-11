@@ -16,6 +16,10 @@ import {
   PaintBoardIcon,
   QuillWrite01Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
+import {
+  ArrowLeft01Icon,
+  Cancel01Icon,
+} from "@hugeicons-pro/core-stroke-rounded"
 import { GeneralTab } from "./general-tab"
 import { AccountTab } from "./account-tab"
 import { ConnectionsTab } from "./connections-tab"
@@ -80,10 +84,57 @@ export function SettingsDialog({
   defaultTab = "general",
 }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = React.useState<SettingsTab>(defaultTab)
+  const [mobileShowContent, setMobileShowContent] = React.useState(false)
 
   React.useEffect(() => {
-    if (open) setActiveTab(defaultTab)
+    if (open) {
+      setActiveTab(defaultTab)
+      setMobileShowContent(false)
+    }
   }, [open, defaultTab])
+
+  const activeTabData = tabs.find((t) => t.id === activeTab)
+
+  const tabContent = (
+    <>
+      {activeTab === "general" && <GeneralTab />}
+      {activeTab === "account" && <AccountTab />}
+      {activeTab === "connections" && <ConnectionsTab />}
+      {activeTab === "signatures" && <SignaturesTab />}
+      {activeTab === "notifications" && <NotificationsTab />}
+    </>
+  )
+
+  const sidebarNav = (
+    <>
+      <div className="mb-2 flex items-center gap-2 px-2 py-1">
+        <HugeiconsIcon
+          icon={Settings04Icon}
+          className="size-4 text-muted-foreground"
+        />
+        <span className="text-sm font-semibold">Settings</span>
+      </div>
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          onClick={() => {
+            setActiveTab(tab.id)
+            setMobileShowContent(true)
+          }}
+          className={cn(
+            "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+            activeTab === tab.id
+              ? "bg-muted font-medium text-foreground"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          )}
+        >
+          <HugeiconsIcon icon={tab.icon} className="size-3.5" />
+          {tab.label}
+        </button>
+      ))}
+    </>
+  )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -92,55 +143,97 @@ export function SettingsDialog({
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">Settings</DialogTitle>
-        <div className="flex h-full min-h-0">
-          {/* Sidebar nav — always visible, never scrolls */}
-          <div className="flex w-48 shrink-0 flex-col gap-1 border-r border-border bg-muted/30 p-3">
-            <div className="mb-2 flex items-center gap-2 px-2 py-1">
-              <HugeiconsIcon
-                icon={Settings04Icon}
-                className="size-4 text-muted-foreground"
-              />
-              <span className="text-sm font-semibold">Settings</span>
-            </div>
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                  activeTab === tab.id
-                    ? "bg-muted font-medium text-foreground"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                )}
-              >
-                <HugeiconsIcon icon={tab.icon} className="size-3.5" />
-                {tab.label}
-              </button>
-            ))}
-          </div>
 
-          {/* Content */}
+        {/* Desktop: side-by-side */}
+        <div className="hidden h-full min-h-0 sm:flex">
+          <div className="flex w-48 shrink-0 flex-col gap-1 border-r border-border bg-muted/30 p-3">
+            {sidebarNav}
+          </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            {/* Pinned header */}
             <div className="shrink-0 border-b border-border px-6 pt-6 pb-4">
               <h2 className="text-base font-semibold">
-                {tabs.find((t) => t.id === activeTab)?.title}
+                {activeTabData?.title}
               </h2>
               <p className="text-sm text-muted-foreground">
-                {tabs.find((t) => t.id === activeTab)?.description}
+                {activeTabData?.description}
               </p>
             </div>
-
-            {/* Scrollable body */}
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-              {activeTab === "general" && <GeneralTab />}
-              {activeTab === "account" && <AccountTab />}
-              {activeTab === "connections" && <ConnectionsTab />}
-              {activeTab === "signatures" && <SignaturesTab />}
-              {activeTab === "notifications" && <NotificationsTab />}
+              {tabContent}
             </div>
           </div>
+        </div>
+
+        {/* Mobile: stacked navigation */}
+        <div className="flex h-full min-h-0 flex-col sm:hidden">
+          {!mobileShowContent ? (
+            <div className="flex flex-1 flex-col gap-1 p-3">
+              <div className="mb-2 flex items-center justify-between px-2 py-1">
+                <div className="flex items-center gap-2">
+                  <HugeiconsIcon
+                    icon={Settings04Icon}
+                    className="size-4 text-muted-foreground"
+                  />
+                  <span className="text-sm font-semibold">Settings</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+                  <span className="sr-only">Close</span>
+                </button>
+              </div>
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    setMobileShowContent(true)
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                    activeTab === tab.id
+                      ? "bg-muted font-medium text-foreground"
+                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  )}
+                >
+                  <HugeiconsIcon icon={tab.icon} className="size-3.5" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMobileShowContent(false)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={2} />
+                  </button>
+                  <h2 className="text-sm font-semibold">
+                    {activeTabData?.title}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+                  <span className="sr-only">Close</span>
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                {tabContent}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

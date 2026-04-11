@@ -10,11 +10,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useDualSidebarWithSide,
 } from "@workspace/ui/components/dual-sidebar"
 import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
 import { useOpenCompose } from "@/store/compose"
 import { Button } from "@workspace/ui/components/button"
 import { usePathname } from "next/navigation"
+import { useEffect } from "react"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -25,9 +27,14 @@ import {
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { isMobile, setOpenMobile } = useDualSidebarWithSide("left")
   const config = navigationConfig
   const topNavConfig = navigationConfigTopNav
   const openCompose = useOpenCompose()
+
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [pathname, isMobile, setOpenMobile])
 
   return (
     <DualSidebar side="left" variant="inset" collapsible="icon">

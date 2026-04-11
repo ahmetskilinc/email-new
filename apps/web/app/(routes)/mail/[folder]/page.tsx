@@ -3,7 +3,7 @@
 import { useLabels } from "@/hooks/use-labels"
 import { useMailLayout } from "@/hooks/use-mail-layout"
 import { useParams, useRouter } from "next/navigation"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQueryState } from "nuqs"
 import { MailDisplay } from "@/components/mail/mail-display"
 import { MailList } from "@/components/mail/mail-list"
@@ -42,7 +42,16 @@ export default function FolderPage() {
   const folder = params.folder as string
   const router = useRouter()
 
-  const layout = useMailLayout()
+  const savedLayout = useMailLayout()
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 767px)")
+    setIsMobile(mql.matches)
+    const onChange = () => setIsMobile(mql.matches)
+    mql.addEventListener("change", onChange)
+    return () => mql.removeEventListener("change", onChange)
+  }, [])
+  const layout = isMobile ? "centered" : savedLayout
   const [threadId, setThreadId] = useQueryState("threadId")
   const isStandardFolder = ALLOWED_FOLDERS.has(folder)
   const { userLabels, isLoading: isLoadingLabels } = useLabels()
@@ -90,7 +99,7 @@ export default function FolderPage() {
         >
           <SheetContent
             side="right"
-            className="w-full! p-0 sm:max-w-3xl lg:min-w-4xl"
+            className="w-full p-0 sm:w-3/4 sm:max-w-3xl lg:min-w-4xl"
             showCloseButton={false}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
