@@ -38,7 +38,7 @@ export function buildPrintHtml(messages: ParsedMessage[]): string {
       const attachmentList =
         msg.attachments?.length
           ? `<div class="attachments">
-              <strong>Attachments:</strong> ${msg.attachments.map((a) => `${a.filename} (${(a.size / 1024).toFixed(1)} KB)`).join(", ")}
+              <strong>Attachments:</strong> ${msg.attachments.map((a) => `${escapeHtml(a.filename)} (${(a.size / 1024).toFixed(1)} KB)`).join(", ")}
             </div>`
           : ""
 
@@ -51,7 +51,7 @@ export function buildPrintHtml(messages: ParsedMessage[]): string {
             ${msg.cc?.length ? `<tr><td class="label">Cc:</td><td>${formatSenders(msg.cc)}</td></tr>` : ""}
             <tr><td class="label">Date:</td><td>${formatDate(msg.receivedOn)}</td></tr>
           </table>
-          <div class="body">${msg.processedHtml || msg.body}</div>
+          <div class="body">${msg.processedHtml || escapeHtml(msg.body)}</div>
           ${attachmentList}
         </div>`
     })

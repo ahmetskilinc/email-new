@@ -72,7 +72,7 @@ export default function SearchPage() {
       const isSelected = threadId === thread.id
 
       return (
-        <>
+        <div key={thread.id}>
           <MailListRow
             layout={layout}
             title={sender.name || sender.email || "Unknown"}
@@ -101,7 +101,7 @@ export default function SearchPage() {
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-900 border-t-transparent dark:border-white dark:border-t-transparent" />
             </div>
           )}
-        </>
+        </div>
       )
     },
     [threads.length, query.isFetchingNextPage, setThreadId, threadId, queryClient, layout],

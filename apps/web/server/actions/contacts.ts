@@ -31,8 +31,15 @@ export async function createContact(email: string, name?: string) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)
 
-  const [created] = await db.createRecipient(email, name ?? null)
-  return created
+  try {
+    const [created] = await db.createRecipient(email, name ?? null)
+    return created
+  } catch (err: any) {
+    if (err?.code === "23505" || err?.message?.includes("unique")) {
+      throw new Error("A contact with this email already exists")
+    }
+    throw err
+  }
 }
 
 export async function updateContact(id: string, name: string) {

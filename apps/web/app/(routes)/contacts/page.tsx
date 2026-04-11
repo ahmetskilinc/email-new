@@ -16,12 +16,14 @@ export default function ContactsPage() {
   const { contacts, isLoading, create, update, remove, isCreating } =
     useContacts(query)
 
-  const handleAdd = async (email: string, name?: string) => {
+  const handleAdd = async (email: string, name?: string): Promise<boolean> => {
     try {
       await create({ email, name })
       toast.success("Contact added")
-    } catch {
-      toast.error("Failed to add contact")
+      return true
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add contact")
+      return false
     }
   }
 

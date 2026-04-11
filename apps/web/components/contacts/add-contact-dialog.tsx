@@ -18,7 +18,7 @@ export function AddContactDialog({
   onAdd,
   isAdding,
 }: {
-  onAdd: (email: string, name?: string) => Promise<void>
+  onAdd: (email: string, name?: string) => Promise<boolean>
   isAdding: boolean
 }) {
   const [open, setOpen] = useState(false)
@@ -28,10 +28,12 @@ export function AddContactDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) return
-    await onAdd(email.trim(), name.trim() || undefined)
-    setEmail("")
-    setName("")
-    setOpen(false)
+    const success = await onAdd(email.trim(), name.trim() || undefined)
+    if (success) {
+      setEmail("")
+      setName("")
+      setOpen(false)
+    }
   }
 
   return (

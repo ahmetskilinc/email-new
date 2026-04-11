@@ -111,7 +111,7 @@ export function ContactsTable({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => saveEdit(contact.id)}
+                  onClick={() => void saveEdit(contact.id).catch(() => {})}
                   title="Save"
                 >
                   <HugeiconsIcon icon={Tick01Icon} className="size-4" />
@@ -138,7 +138,7 @@ export function ContactsTable({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => handleDelete(contact)}
+                  onClick={() => void handleDelete(contact).catch(() => {})}
                   title="Delete"
                 >
                   <HugeiconsIcon icon={Delete02Icon} className="size-4 text-destructive" />
