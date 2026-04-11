@@ -246,6 +246,47 @@ export const getzeitmailDB = async (userId: string) => {
           },
         })
     },
+
+    listRecipients: (limit = 50, offset = 0) =>
+      db.query.recipient.findMany({
+        where: eq(recipient.userId, userId),
+        orderBy: [desc(recipient.frequency), desc(recipient.lastUsed)],
+        limit,
+        offset,
+      }),
+
+    findRecipient: (id: string) =>
+      db.query.recipient.findFirst({
+        where: and(eq(recipient.id, id), eq(recipient.userId, userId)),
+      }),
+
+    createRecipient: (email: string, name?: string | null) => {
+      const id = crypto.randomUUID()
+      const now = new Date()
+      return db
+        .insert(recipient)
+        .values({
+          id,
+          userId,
+          email,
+          name: name ?? null,
+          frequency: 0,
+          lastUsed: now,
+          createdAt: now,
+        })
+        .returning()
+    },
+
+    updateRecipient: (id: string, data: { name?: string | null }) =>
+      db
+        .update(recipient)
+        .set(data)
+        .where(and(eq(recipient.id, id), eq(recipient.userId, userId))),
+
+    deleteRecipient: (id: string) =>
+      db
+        .delete(recipient)
+        .where(and(eq(recipient.id, id), eq(recipient.userId, userId))),
   }
 }
 
