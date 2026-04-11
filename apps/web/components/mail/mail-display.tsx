@@ -30,9 +30,11 @@ import {
   Loading03Icon,
   ArrowDown01Icon,
   ArrowUp01Icon,
+  Printer01Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
 import type { ParsedMessage } from "@/server/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
+import { buildPrintHtml } from "@/lib/print-utils"
 import { toast } from "sonner"
 
 export function MailDisplay({ className }: { className?: string }) {
@@ -136,9 +138,26 @@ export function MailDisplay({ className }: { className?: string }) {
             </span>
           )}
         </div>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {formatDate(data.messages[0]?.receivedOn ?? "")}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            {formatDate(data.messages[0]?.receivedOn ?? "")}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              const html = buildPrintHtml(data.messages)
+              const printWindow = window.open("", "_blank")
+              if (printWindow) {
+                printWindow.document.write(html)
+                printWindow.document.close()
+              }
+            }}
+            title="Print"
+          >
+            <HugeiconsIcon icon={Printer01Icon} className="size-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Scrollable body — per-message blocks */}

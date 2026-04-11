@@ -108,6 +108,33 @@ export async function listThreads(
   })
 }
 
+export async function searchMail(params: {
+  q: string
+  from?: string
+  after?: string
+  before?: string
+  hasAttachment?: boolean
+  folder?: string
+  maxResults?: number
+  cursor?: string
+}) {
+  const { driver } = await requireActiveDriver()
+
+  let query = params.q || ""
+  if (params.from) query += ` from:${params.from}`
+  if (params.after) query += ` after:${params.after}`
+  if (params.before) query += ` before:${params.before}`
+  if (params.hasAttachment) query += ` has:attachment`
+
+  const folder = params.folder || "inbox"
+  return driver.list({
+    folder,
+    query: query.trim() || undefined,
+    maxResults: params.maxResults ?? defaultPageSize,
+    pageToken: params.cursor || undefined,
+  })
+}
+
 export async function markAsRead(ids: string[], connectionId?: string) {
   const { session, connection, driver } = await requireActiveDriver()
   let activeDriver = driver
