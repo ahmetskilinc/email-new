@@ -1,0 +1,9 @@
+{
+  "extends": "@workspace/typescript-config/base.json",
+  "compilerOptions": {
+    "outDir": "out",
+    "rootDir": "src",
+    "composite": true
+  },
+  "include": ["src/main/**/*", "src/preload/**/*"]
+}

@@ -1,0 +1,31 @@
+appId: com.zeitmail.desktop
+productName: Tulli
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**/*
+  - "!**/*.map"
+asarUnpack:
+  - "**/*.node"
+mac:
+  target:
+    - dmg
+    - zip
+  artifactName: ${name}-${version}-${arch}.${ext}
+  entitlementsInherit: build/entitlements.mac.plist
+win:
+  target:
+    - nsis
+    - zip
+  artifactName: ${name}-${version}-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  artifactName: ${name}-${version}-${arch}.${ext}
+  category: Office
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+npmRebuild: true
