@@ -3,8 +3,11 @@ import { getDb } from "../db"
 import { user, userSettings } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { defaultUserSettings } from "@workspace/core/schemas"
+import { registerOAuthHandlers } from "../auth/oauth"
 
 export function registerAuthHandlers(): void {
+  // Register OAuth IPC handlers (Google & Microsoft)
+  registerOAuthHandlers()
   ipcMain.handle("auth:getUser", async () => {
     const db = getDb()
     const firstUser = db.select().from(user).limit(1).get()

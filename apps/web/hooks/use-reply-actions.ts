@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react"
 import { useThread } from "@/hooks/use-threads"
 import { useEmailAliases } from "@/hooks/use-email-aliases"
 import { useOpenCompose } from "@/store/compose"
-import type { ParsedMessage } from "@/server/types"
+import type { ParsedMessage } from "@workspace/core/types"
 
 function buildQuotedHtml(message: ParsedMessage): string {
   const date = message.receivedOn

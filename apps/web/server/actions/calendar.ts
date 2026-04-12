@@ -2,10 +2,10 @@
 
 import { requireSession } from "../lib/session"
 import { getActiveConnection, getzeitmailDB, resolveAccessToken } from "../lib/server-utils"
-import { createCalendarProvider } from "../lib/calendar"
-import type { CalendarEvent, CalendarInfo } from "../lib/calendar"
-import { createEventSchema, updateEventSchema, deleteEventSchema } from "../lib/schemas"
-import type { CreateEventData, UpdateEventData, DeleteEventData } from "../lib/schemas"
+import { createCalendarProvider } from "@workspace/core/calendar"
+import type { CalendarEvent, CalendarInfo } from "@workspace/core/calendar/types"
+import { createEventSchema, updateEventSchema, deleteEventSchema } from "@workspace/core/schemas"
+import type { CreateEventData, UpdateEventData, DeleteEventData } from "@workspace/core/schemas"
 
 async function resolveConnection(userId: string, connectionId?: string) {
   if (connectionId) {

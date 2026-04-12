@@ -31,7 +31,7 @@ import {
   ArrowDown01Icon,
   ArrowUp01Icon,
 } from "@hugeicons-pro/core-stroke-rounded"
-import type { ParsedMessage } from "@/server/types"
+import type { ParsedMessage } from "@workspace/core/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
 import { toast } from "sonner"
 

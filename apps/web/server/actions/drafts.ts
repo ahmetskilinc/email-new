@@ -1,7 +1,7 @@
 "use server"
 
 import { requireActiveDriver } from "../lib/session"
-import type { CreateDraftData } from "../lib/schemas"
+import type { CreateDraftData } from "@workspace/core/schemas"
 
 export async function getDraft(id: string) {
   const { driver } = await requireActiveDriver()

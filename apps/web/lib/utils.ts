@@ -4,7 +4,7 @@ import {
   isThisMonth,
   isToday,
 } from "date-fns"
-import type { Sender } from "@/server/types"
+import type { Sender } from "@workspace/core/types"
 
 export const FOLDERS = {
   SPAM: "spam",

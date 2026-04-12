@@ -6,12 +6,12 @@ import {
 } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
 import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
-import { processEmailHtml } from "../lib/email-processor"
-import { getListUnsubscribeAction } from "../lib/email-utils"
-import { defaultPageSize, FOLDERS } from "../lib/utils"
-import { toAttachmentFiles } from "../lib/attachments"
-import type { DeleteAllSpamResponse } from "../types"
-import type { Sender } from "../types"
+import { processEmailHtml } from "@workspace/core/email-processor"
+import { getListUnsubscribeAction } from "@workspace/core/email-utils"
+import { defaultPageSize, FOLDERS } from "@workspace/core/utils"
+import { toAttachmentFiles } from "@workspace/core/attachments"
+import type { DeleteAllSpamResponse } from "@workspace/core/types"
+import type { Sender } from "@workspace/core/types"
 
 export async function getThread(
   id: string,

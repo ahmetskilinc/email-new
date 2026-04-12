@@ -1,7 +1,7 @@
 // @ts-nocheck
 import emailAddresses from 'email-addresses';
 const { parseFrom: _parseFrom, parseAddressList: _parseAddressList } = emailAddresses as any;
-import type { Sender } from '../types';
+import type { Sender } from '@workspace/core/types';
 
 type ListUnsubscribeAction =
   | { type: 'get'; url: string; host: string }

@@ -2,10 +2,10 @@
 
 import { requireSession } from "../lib/session"
 import { getActiveConnection, getzeitmailDB } from "../lib/server-utils"
-import { autoDiscoverFolders } from "../lib/transport/provider-config"
-import { createDriver } from "../lib/driver"
+import { autoDiscoverFolders } from "@workspace/core/transport/provider-config"
+import { createDriver } from "@workspace/core/driver"
 import { encrypt } from "../lib/encryption"
-import { EProviders } from "../types"
+import { EProviders } from "@workspace/core/types"
 
 export async function listConnections() {
   const session = await requireSession()

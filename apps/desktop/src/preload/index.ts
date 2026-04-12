@@ -63,6 +63,10 @@ const api = {
     createLocalUser: (data: { name: string; email: string }) =>
       ipcRenderer.invoke("auth:createLocalUser", data),
     deleteUser: () => ipcRenderer.invoke("auth:deleteUser"),
+    startGoogleOAuth: (clientId: string, clientSecret: string) =>
+      ipcRenderer.invoke("auth:startGoogleOAuth", clientId, clientSecret),
+    startMicrosoftOAuth: (clientId: string, clientSecret: string) =>
+      ipcRenderer.invoke("auth:startMicrosoftOAuth", clientId, clientSecret),
   },
 }
 
