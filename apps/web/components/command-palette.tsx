@@ -9,6 +9,7 @@ import { Input } from "@workspace/ui/components/input"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { useCommandPalette } from "@/store/command-palette"
 import { useOpenCompose } from "@/store/compose"
+import { useOpenSettings } from "@/store/settings"
 import { useConnections, useActiveConnection } from "@/hooks/use-connections"
 import {
   navigationConfig,
@@ -55,6 +56,7 @@ export function CommandPalette() {
   const [searching, setSearching] = useState(false)
   const router = useRouter()
   const openCompose = useOpenCompose()
+  const openSettings = useOpenSettings()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
   const [threadId, setThreadId] = useQueryState("threadId")
@@ -301,19 +303,28 @@ export function CommandPalette() {
         id: "settings-general",
         label: "Settings: General",
         group: "Settings",
-        onSelect: () => close(),
+        onSelect: () => {
+          openSettings("general")
+          close()
+        },
       },
       {
         id: "settings-signatures",
         label: "Settings: Signatures",
         group: "Settings",
-        onSelect: () => close(),
+        onSelect: () => {
+          openSettings("signatures")
+          close()
+        },
       },
       {
         id: "settings-notifications",
         label: "Settings: Notifications",
         group: "Settings",
-        onSelect: () => close(),
+        onSelect: () => {
+          openSettings("notifications")
+          close()
+        },
       },
     )
 
@@ -324,6 +335,7 @@ export function CommandPalette() {
     activeConnection?.id,
     router,
     openCompose,
+    openSettings,
     setTheme,
     setThreadId,
     invalidate,
