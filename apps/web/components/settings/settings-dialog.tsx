@@ -25,8 +25,7 @@ import { AccountTab } from "./account-tab"
 import { ConnectionsTab } from "./connections-tab"
 import { NotificationsTab } from "./notifications-tab"
 import { SignaturesTab } from "./signatures-tab"
-
-type SettingsTab = "general" | "account" | "connections" | "signatures" | "notifications"
+import { useSettingsDialog, type SettingsTab } from "@/store/settings"
 
 const tabs: {
   id: SettingsTab
@@ -72,26 +71,22 @@ const tabs: {
   },
 ]
 
-interface SettingsDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  defaultTab?: SettingsTab
-}
-
-export function SettingsDialog({
-  open,
-  onOpenChange,
-  defaultTab = "general",
-}: SettingsDialogProps) {
-  const [activeTab, setActiveTab] = React.useState<SettingsTab>(defaultTab)
+export function SettingsDialog() {
+  const [{ open, tab }, setOpen] = useSettingsDialog()
+  const [activeTab, setActiveTab] = React.useState<SettingsTab>(tab)
   const [mobileShowContent, setMobileShowContent] = React.useState(false)
 
   React.useEffect(() => {
     if (open) {
-      setActiveTab(defaultTab)
+      setActiveTab(tab)
       setMobileShowContent(false)
     }
-  }, [open, defaultTab])
+  }, [open, tab])
+
+  const onOpenChange = React.useCallback(
+    (value: boolean) => setOpen(value),
+    [setOpen],
+  )
 
   const activeTabData = tabs.find((t) => t.id === activeTab)
 

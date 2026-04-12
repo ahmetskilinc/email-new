@@ -42,7 +42,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Settings04Icon, Link04Icon } from "@hugeicons-pro/core-stroke-rounded"
-import { SettingsDialog } from "./settings/settings-dialog"
+import { useOpenSettings } from "@/store/settings"
 import { AddConnectionDialog } from "./settings/add-connection-dialog"
 
 const themeOptions = [
@@ -66,10 +66,7 @@ const themeOptions = [
 export function NavUser() {
   const [switchTarget, setSwitchTarget] = useState<SwitchTarget | null>(null)
   const [mounted, setMounted] = useState(typeof window !== "undefined")
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<
-    "general" | "account" | "connections" | "notifications"
-  >("general")
+  const openSettings = useOpenSettings()
   const [addConnectionOpen, setAddConnectionOpen] = useState(false)
   const { isMobile } = useDualSidebar()
   const { theme, setTheme } = useTheme()
@@ -261,19 +258,13 @@ export function NavUser() {
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem
-                  onClick={() => {
-                    setSettingsTab("general")
-                    setSettingsOpen(true)
-                  }}
+                  onClick={() => openSettings("general")}
                 >
                   <HugeiconsIcon icon={Settings04Icon} className="h-4 w-4" />
                   General
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => {
-                    setSettingsTab("connections")
-                    setSettingsOpen(true)
-                  }}
+                  onClick={() => openSettings("connections")}
                 >
                   <HugeiconsIcon icon={Link04Icon} className="h-4 w-4" />
                   Connections
@@ -319,11 +310,6 @@ export function NavUser() {
       <AccountSwitchDialog
         target={switchTarget}
         onComplete={() => setSwitchTarget(null)}
-      />
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        defaultTab={settingsTab}
       />
       <AddConnectionDialog
         open={addConnectionOpen}
