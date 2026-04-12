@@ -6,6 +6,7 @@ import { createDriver } from "@workspace/core/driver"
 import type { MailManager, ManagerConfig } from "@workspace/core/driver/types"
 import type { IOutgoingMessage } from "@workspace/core/types"
 import { processEmailHtml } from "@workspace/core/email-processor"
+import { getListUnsubscribeAction } from "@workspace/core/email-utils"
 import { defaultPageSize, FOLDERS } from "@workspace/core/utils"
 
 function getLocalUserId(): string {
@@ -195,5 +196,120 @@ export function registerMailHandlers(): void {
     const conn = getActiveConnection()
     const driver = connectionToDriver(conn)
     return driver.count()
+  })
+
+  ipcMain.handle("mail:getEmailAliases", async () => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.getEmailAliases()
+  })
+
+  ipcMain.handle("mail:getMessageAttachments", async (_e, messageId: string) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.getMessageAttachments(messageId)
+  })
+
+  ipcMain.handle(
+    "mail:unsubscribeFromList",
+    async (_e, input: { listUnsubscribe: string; listUnsubscribePost?: string }) => {
+      const action = getListUnsubscribeAction(input)
+      if (!action) throw new Error("No unsubscribe action available")
+
+      if (action.type === "get" || action.type === "post") {
+        const url = new URL(action.url)
+        if (!url.protocol.startsWith("http")) {
+          throw new Error("Invalid unsubscribe URL")
+        }
+        const hostname = url.hostname.toLowerCase()
+        if (
+          hostname === "localhost" ||
+          hostname === "127.0.0.1" ||
+          hostname === "0.0.0.0" ||
+          hostname.startsWith("10.") ||
+          hostname.startsWith("192.168.") ||
+          hostname.startsWith("172.") ||
+          hostname === "metadata.google.internal" ||
+          hostname === "[::1]" ||
+          hostname.endsWith(".local")
+        ) {
+          throw new Error("Invalid unsubscribe URL")
+        }
+
+        const res = await fetch(action.url, {
+          method: action.type === "post" ? "POST" : "GET",
+          headers:
+            action.type === "post"
+              ? { "Content-Type": "application/x-www-form-urlencoded" }
+              : undefined,
+          body: action.type === "post" ? action.body : undefined,
+          redirect: "follow",
+        })
+
+        if (!res.ok) {
+          throw new Error(`Unsubscribe request failed (${res.status})`)
+        }
+
+        return { type: "success" as const }
+      }
+
+      return {
+        type: "email" as const,
+        email: action.emailAddress,
+        subject: action.subject,
+      }
+    },
+  )
+
+  ipcMain.handle("mail:sendDraft", async (_e, draftId: string, data: IOutgoingMessage) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.sendDraft(draftId, data)
+  })
+
+  ipcMain.handle("mail:deleteDraft", async (_e, draftId: string) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.deleteDraft(draftId)
+  })
+
+  ipcMain.handle("mail:getDraft", async (_e, draftId: string) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.getDraft(draftId)
+  })
+
+  ipcMain.handle("mail:getAttachment", async (_e, messageId: string, attachmentId: string) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.getAttachment(messageId, attachmentId)
+  })
+
+  ipcMain.handle(
+    "mail:createLabel",
+    async (_e, label: { name: string; color?: { backgroundColor: string; textColor: string } }) => {
+      const conn = getActiveConnection()
+      const driver = connectionToDriver(conn)
+      return driver.createLabel(label)
+    },
+  )
+
+  ipcMain.handle(
+    "mail:updateLabel",
+    async (
+      _e,
+      id: string,
+      label: { name: string; color?: { backgroundColor: string; textColor: string } },
+    ) => {
+      const conn = getActiveConnection()
+      const driver = connectionToDriver(conn)
+      return driver.updateLabel(id, label)
+    },
+  )
+
+  ipcMain.handle("mail:deleteLabel", async (_e, id: string) => {
+    const conn = getActiveConnection()
+    const driver = connectionToDriver(conn)
+    return driver.deleteLabel(id)
   })
 }

@@ -52,4 +52,24 @@ export function registerAuthHandlers(): void {
     }
     return { success: true }
   })
+
+  ipcMain.handle("auth:updateUser", async (_e, fields: { name?: string }) => {
+    const db = getDb()
+    const firstUser = db.select().from(user).limit(1).get()
+    if (!firstUser) throw new Error("No local user found")
+    db.update(user)
+      .set({ ...fields, updatedAt: new Date() })
+      .where(eq(user.id, firstUser.id))
+      .run()
+    return { success: true }
+  })
+
+  ipcMain.handle(
+    "auth:changePassword",
+    async (_e, _opts: { currentPassword: string; newPassword: string }) => {
+      // Desktop app doesn't use password-based auth — this is a no-op stub
+      // for compatibility with the settings UI
+      return { success: true }
+    },
+  )
 }

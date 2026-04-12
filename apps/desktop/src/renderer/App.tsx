@@ -3,11 +3,14 @@ import { QueryProvider } from "./providers/query-provider"
 import { ThemeProvider } from "./providers/theme-provider"
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 import { Toaster } from "@workspace/ui/components/sonner"
-import { Suspense } from "react"
+import { Suspense, lazy } from "react"
 import { MailLayout } from "./routes/mail/layout"
 import { MailFolder } from "./routes/mail/folder"
-import { CalendarPage } from "./routes/calendar"
 import { OnboardingPage } from "./routes/onboarding"
+
+const CalendarPage = lazy(() =>
+  import("./routes/calendar").then((m) => ({ default: m.CalendarPage })),
+)
 
 const router = createHashRouter([
   {
@@ -18,13 +21,25 @@ const router = createHashRouter([
     path: "/mail",
     element: <MailLayout />,
     children: [
+      { index: true, element: <Navigate to="/mail/inbox" replace /> },
       { path: ":folder", element: <MailFolder /> },
       { path: "all-inboxes", element: <MailFolder /> },
+      { path: "compose", element: <MailFolder /> },
     ],
   },
   {
     path: "/calendar",
-    element: <CalendarPage />,
+    element: <MailLayout />,
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={null}>
+            <CalendarPage />
+          </Suspense>
+        ),
+      },
+    ],
   },
   {
     path: "/onboarding",

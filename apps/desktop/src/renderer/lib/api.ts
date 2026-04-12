@@ -48,6 +48,50 @@ export const toggleStar = (threadIds: string[], starred: boolean) =>
 
 export const getRawEmail = (id: string) => window.api.mail.getRawEmail(id)
 
+export const bulkArchive = (ids: string[]) =>
+  window.api.mail.modifyLabels(ids, { addLabels: [], removeLabels: ["INBOX"] })
+
+export const bulkDelete = (ids: string[]) =>
+  window.api.mail.modifyLabels(ids, { addLabels: ["TRASH"], removeLabels: [] })
+
+export const bulkStar = (ids: string[]) =>
+  window.api.mail.modifyLabels(ids, { addLabels: ["STARRED"], removeLabels: [] })
+
+export const getEmailAliases = () => window.api.mail.getEmailAliases()
+
+export const getMessageAttachments = (messageId: string) =>
+  window.api.mail.getMessageAttachments(messageId)
+
+export const unsubscribeFromList = async (input: {
+  listUnsubscribe: string
+  listUnsubscribePost?: string
+}) => window.api.mail.unsubscribeFromList(input)
+
+export const sendDraft = (draftId: string, data: unknown) =>
+  window.api.mail.sendDraft(draftId, data)
+
+export const deleteDraft = (draftId: string) =>
+  window.api.mail.deleteDraft(draftId)
+
+export const getDraft = (draftId: string) =>
+  window.api.mail.getDraft(draftId)
+
+export const getAttachment = (messageId: string, attachmentId: string) =>
+  window.api.mail.getAttachment(messageId, attachmentId)
+
+export const createLabel = (label: { name: string; color?: { backgroundColor: string; textColor: string } }) =>
+  window.api.mail.createLabel(label)
+
+export const updateLabel = (id: string, label: { name: string; color?: { backgroundColor: string; textColor: string } }) =>
+  window.api.mail.updateLabel(id, label)
+
+export const deleteLabel = (id: string) => window.api.mail.deleteLabel(id)
+
+export const getDefaultConnection = async () => {
+  const connections = await window.api.connections.list()
+  return connections?.[0] ?? null
+}
+
 export const pollNewMessages = async () => {
   // In the desktop app, polling is handled by the main process.
   // This is a no-op stub for compatibility with hooks that call it.

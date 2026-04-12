@@ -22,6 +22,22 @@ const api = {
       ipcRenderer.invoke("mail:toggleStar", threadIds, starred),
     getRawEmail: (id: string) => ipcRenderer.invoke("mail:getRawEmail", id),
     count: () => ipcRenderer.invoke("mail:count"),
+    getEmailAliases: () => ipcRenderer.invoke("mail:getEmailAliases"),
+    getMessageAttachments: (messageId: string) =>
+      ipcRenderer.invoke("mail:getMessageAttachments", messageId),
+    unsubscribeFromList: (input: { listUnsubscribe: string; listUnsubscribePost?: string }) =>
+      ipcRenderer.invoke("mail:unsubscribeFromList", input),
+    sendDraft: (draftId: string, data: unknown) =>
+      ipcRenderer.invoke("mail:sendDraft", draftId, data),
+    deleteDraft: (draftId: string) => ipcRenderer.invoke("mail:deleteDraft", draftId),
+    getDraft: (draftId: string) => ipcRenderer.invoke("mail:getDraft", draftId),
+    getAttachment: (messageId: string, attachmentId: string) =>
+      ipcRenderer.invoke("mail:getAttachment", messageId, attachmentId),
+    createLabel: (label: { name: string; color?: { backgroundColor: string; textColor: string } }) =>
+      ipcRenderer.invoke("mail:createLabel", label),
+    updateLabel: (id: string, label: { name: string; color?: { backgroundColor: string; textColor: string } }) =>
+      ipcRenderer.invoke("mail:updateLabel", id, label),
+    deleteLabel: (id: string) => ipcRenderer.invoke("mail:deleteLabel", id),
   },
   connections: {
     list: () => ipcRenderer.invoke("connections:list"),
@@ -63,6 +79,10 @@ const api = {
     createLocalUser: (data: { name: string; email: string }) =>
       ipcRenderer.invoke("auth:createLocalUser", data),
     deleteUser: () => ipcRenderer.invoke("auth:deleteUser"),
+    updateUser: (fields: { name?: string }) =>
+      ipcRenderer.invoke("auth:updateUser", fields),
+    changePassword: (opts: { currentPassword: string; newPassword: string }) =>
+      ipcRenderer.invoke("auth:changePassword", opts),
     startGoogleOAuth: (clientId: string, clientSecret: string) =>
       ipcRenderer.invoke("auth:startGoogleOAuth", clientId, clientSecret),
     startMicrosoftOAuth: (clientId: string, clientSecret: string) =>
