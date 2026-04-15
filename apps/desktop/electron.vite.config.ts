@@ -25,10 +25,21 @@ export default defineConfig({
   },
   renderer: {
     resolve: {
-      alias: {
-        "@": resolve("src/renderer"),
-        "@workspace/ui": resolve("../../packages/ui/src"),
-      },
+      // Array form so we can order entries — the globals.css alias must take
+      // precedence over the generic "@workspace/ui" prefix, otherwise the
+      // latter rewrites "@workspace/ui/globals.css" to src/globals.css
+      // (which doesn't exist; the real file lives under src/styles/).
+      alias: [
+        { find: "@", replacement: resolve("src/renderer") },
+        {
+          find: "@workspace/ui/globals.css",
+          replacement: resolve("../../packages/ui/src/styles/globals.css"),
+        },
+        {
+          find: /^@workspace\/ui\/(.*)$/,
+          replacement: resolve("../../packages/ui/src") + "/$1",
+        },
+      ],
     },
     plugins: [react(), tailwindcss()],
   },

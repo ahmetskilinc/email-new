@@ -15,7 +15,7 @@ import {
 } from "date-fns"
 import { cn } from "@workspace/ui/lib/utils"
 import { useCalendarEvents } from "@/hooks/use-calendar"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
+import type { CalendarEvent } from "@workspace/core/calendar/types"
 
 const MAX_CHIPS = 3
 

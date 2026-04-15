@@ -14,8 +14,8 @@ import {
 } from "@workspace/ui/components/select"
 import { RecurrencePicker } from "./recurrence-picker"
 import { useCalendars } from "@/hooks/use-calendar"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
-import type { CreateEventData } from "@/server/lib/schemas"
+import type { CalendarEvent } from "@workspace/core/calendar/types"
+import type { CreateEventData } from "@workspace/core/schemas"
 
 interface EventFormProps {
   event?: CalendarEvent

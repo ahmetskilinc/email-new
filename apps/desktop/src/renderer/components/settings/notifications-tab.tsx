@@ -16,7 +16,7 @@ import { toast } from "sonner"
 import {
   defaultNotificationSettings,
   type NotificationSettings,
-} from "@/server/lib/schemas"
+} from "@workspace/core/schemas"
 
 export function NotificationsTab() {
   const queryClient = useQueryClient()

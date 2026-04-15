@@ -8,7 +8,7 @@ import {
   addDays,
 } from "date-fns"
 import { cn } from "@workspace/ui/lib/utils"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
+import type { CalendarEvent } from "@workspace/core/calendar/types"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 
 interface EventListProps {
