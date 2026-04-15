@@ -1,9 +1,7 @@
 import { BimiAvatar } from "@/components/bimi-avatar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { Checkbox } from "@workspace/ui/components/checkbox"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
-import { FavouriteIcon as StarOutlineIcon } from "@hugeicons-pro/core-stroke-rounded"
+import { Star } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
@@ -148,9 +146,9 @@ export function MailListRow({
                       : "text-transparent hover:text-muted-foreground group-hover:text-muted-foreground/40",
                   )}
                 >
-                  <HugeiconsIcon
-                    icon={starred ? StarSolidIcon : StarOutlineIcon}
+                  <Star
                     className="size-3.5"
+                    fill={starred ? "currentColor" : "none"}
                   />
                 </button>
                 {date && (
