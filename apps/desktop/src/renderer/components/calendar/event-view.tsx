@@ -18,7 +18,7 @@ import {
 } from "@hugeicons-pro/core-stroke-rounded"
 import { detectConferenceLink } from "@/lib/meeting-links"
 import { describeRRule } from "@/lib/recurrence"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
+import type { CalendarEvent } from "@workspace/core/calendar/types"
 
 interface EventViewProps {
   event: CalendarEvent

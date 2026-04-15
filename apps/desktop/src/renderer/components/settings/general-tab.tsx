@@ -25,7 +25,7 @@ import { saveSettings } from "@/lib/api"
 import { useSession } from "@/lib/auth-client"
 import { toast } from "sonner"
 import { setMailLayoutCookie } from "@/hooks/use-mail-layout"
-import type { UserSettings } from "@/server/lib/schemas"
+import type { UserSettings } from "@workspace/core/schemas"
 
 const layouts = [
   { value: "split" as const, label: "Split", icon: LayoutLeftIcon },

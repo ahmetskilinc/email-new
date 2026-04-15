@@ -4,6 +4,7 @@ import { connection, user } from "../db/schema"
 import { eq, and } from "drizzle-orm"
 import { createDriver } from "@workspace/core/driver"
 import type { EProviders } from "@workspace/core/types"
+import { encryptNullable } from "../auth/credentials"
 
 function getLocalUserId(): string {
   // Single-user desktop app — use the first (and only) user
@@ -17,7 +18,14 @@ export function registerConnectionHandlers(): void {
   ipcMain.handle("connections:list", async () => {
     const db = getDb()
     const userId = getLocalUserId()
-    return db.select().from(connection).where(eq(connection.userId, userId)).all()
+    const rows = db
+      .select()
+      .from(connection)
+      .where(eq(connection.userId, userId))
+      .all()
+    // Never ship tokens across the context bridge — the renderer only needs
+    // connection metadata for the account switcher / settings UI.
+    return rows.map(({ accessToken: _a, refreshToken: _r, ...rest }) => rest)
   })
 
   ipcMain.handle("connections:setDefault", async (_e, connectionId: string) => {
@@ -68,8 +76,11 @@ export function registerConnectionHandlers(): void {
           email,
           name: data.name ?? null,
           picture: data.picture ?? null,
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken ?? null,
+          // IMAP app passwords live in the access_token column. Encrypt them
+          // at rest via Electron's safeStorage API (OS keychain on macOS /
+          // Windows, libsecret on Linux). See auth/credentials.ts.
+          accessToken: encryptNullable(data.accessToken),
+          refreshToken: encryptNullable(data.refreshToken ?? null),
           scope: data.scope,
           imapConfig: data.imapConfig ?? null,
           expiresAt: new Date(data.expiresAt),

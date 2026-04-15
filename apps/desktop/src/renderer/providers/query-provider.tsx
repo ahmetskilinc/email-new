@@ -9,7 +9,12 @@ import {
   type InfiniteData,
 } from "@tanstack/react-query"
 import { get, set, del } from "idb-keyval"
-import { useMemo, type ReactNode } from "react"
+import { useEffect, useMemo, type ReactNode } from "react"
+
+// Module-level singleton shared with ConnectionSyncer — gives non-React
+// callers (e.g. cache restore hooks) a way to read the currently-active
+// connection id without wiring through props/context.
+export const connectionIdRef = { current: null as string | null }
 
 function createIDBPersister(
   idbValidKey: IDBValidKey = "mail-query-cache",
@@ -62,6 +67,20 @@ const CACHE_BURST_KEY = "v1"
 export function QueryProvider({ children }: { children: ReactNode }) {
   const client = useMemo(() => getQueryClient(), [])
   const persister = useMemo(() => createIDBPersister(), [])
+
+  // Refresh the thread list whenever the main-process background sync loop
+  // reports a completed poll. We deliberately do a broad invalidation rather
+  // than a surgical cache merge — react-query's dedup + staleTime keeps this
+  // cheap, and the background sync only fires once per minute.
+  useEffect(() => {
+    const events = window.api?.events
+    if (!events?.onMailSynced) return
+    const unsubscribe = events.onMailSynced(() => {
+      client.invalidateQueries({ queryKey: ["threads"] })
+      client.invalidateQueries({ queryKey: ["mail-count"] })
+    })
+    return unsubscribe
+  }, [client])
 
   return (
     <PersistQueryClientProvider

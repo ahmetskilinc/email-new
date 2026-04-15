@@ -8,6 +8,7 @@ import type { IOutgoingMessage } from "@workspace/core/types"
 import { processEmailHtml } from "@workspace/core/email-processor"
 import { getListUnsubscribeAction } from "@workspace/core/email-utils"
 import { defaultPageSize, FOLDERS } from "@workspace/core/utils"
+import { ensureFreshTokens } from "../auth/refresh"
 
 function getLocalUserId(): string {
   const db = getDb()
@@ -53,7 +54,7 @@ function connectionToDriver(conn: typeof connection.$inferSelect): MailManager {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     imapConfig: conn.imapConfig as ManagerConfig["imapConfig"],
-    onAuthFailure: async (userId: string) => {
+    onAuthFailure: async (_userId: string) => {
       const db = getDb()
       db.delete(connection).where(eq(connection.id, conn.id)).run()
     },
@@ -61,12 +62,16 @@ function connectionToDriver(conn: typeof connection.$inferSelect): MailManager {
   return createDriver(conn.providerId, config)
 }
 
+async function activeDriver(): Promise<MailManager> {
+  const conn = await ensureFreshTokens(getActiveConnection())
+  return connectionToDriver(conn)
+}
+
 export function registerMailHandlers(): void {
   ipcMain.handle(
     "mail:listThreads",
     async (_e, folder: string, query?: string, maxResults?: number, cursor?: string, labelIds?: string[]) => {
-      const conn = getActiveConnection()
-      const driver = connectionToDriver(conn)
+      const driver = await activeDriver()
       return driver.list({
         folder,
         query,
@@ -91,13 +96,14 @@ export function registerMailHandlers(): void {
       connections
         .filter((c) => c.accessToken)
         .map(async (conn) => {
-          const driver = connectionToDriver(conn)
+          const fresh = await ensureFreshTokens(conn)
+          const driver = connectionToDriver(fresh)
           const result = await driver.list({
             folder: "inbox",
             maxResults: maxResults ?? defaultPageSize,
-            pageToken: cursors[conn.id] || undefined,
+            pageToken: cursors[fresh.id] || undefined,
           })
-          return { connectionId: conn.id, ...result }
+          return { connectionId: fresh.id, ...result }
         }),
     )
 
@@ -121,13 +127,13 @@ export function registerMailHandlers(): void {
       if (!specificConn) throw new Error("Connection not found")
       conn = specificConn
     }
-    const driver = connectionToDriver(conn)
+    const fresh = await ensureFreshTokens(conn)
+    const driver = connectionToDriver(fresh)
     return driver.get(id)
   })
 
   ipcMain.handle("mail:sendMail", async (_e, data: IOutgoingMessage) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.create(data)
   })
 
@@ -138,27 +144,25 @@ export function registerMailHandlers(): void {
       const specificConn = db.select().from(connection).where(eq(connection.id, connectionId)).get()
       if (specificConn) conn = specificConn
     }
-    const driver = connectionToDriver(conn)
+    const fresh = await ensureFreshTokens(conn)
+    const driver = connectionToDriver(fresh)
     return driver.markAsRead(threadIds)
   })
 
   ipcMain.handle("mail:markAsUnread", async (_e, threadIds: string[]) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.markAsUnread(threadIds)
   })
 
   ipcMain.handle("mail:deleteThread", async (_e, id: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.delete(id)
   })
 
   ipcMain.handle(
     "mail:modifyLabels",
     async (_e, ids: string[], options: { addLabels: string[]; removeLabels: string[] }) => {
-      const conn = getActiveConnection()
-      const driver = connectionToDriver(conn)
+      const driver = await activeDriver()
       return driver.modifyLabels(ids, options)
     },
   )
@@ -171,8 +175,7 @@ export function registerMailHandlers(): void {
   )
 
   ipcMain.handle("mail:toggleStar", async (_e, threadIds: string[], starred: boolean) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     if (starred) {
       return driver.modifyLabels(threadIds, {
         addLabels: ["STARRED"],
@@ -187,26 +190,22 @@ export function registerMailHandlers(): void {
   })
 
   ipcMain.handle("mail:getRawEmail", async (_e, id: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.getRawEmail(id)
   })
 
   ipcMain.handle("mail:count", async () => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.count()
   })
 
   ipcMain.handle("mail:getEmailAliases", async () => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.getEmailAliases()
   })
 
   ipcMain.handle("mail:getMessageAttachments", async (_e, messageId: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.getMessageAttachments(messageId)
   })
 
@@ -262,34 +261,29 @@ export function registerMailHandlers(): void {
   )
 
   ipcMain.handle("mail:sendDraft", async (_e, draftId: string, data: IOutgoingMessage) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.sendDraft(draftId, data)
   })
 
   ipcMain.handle("mail:deleteDraft", async (_e, draftId: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.deleteDraft(draftId)
   })
 
   ipcMain.handle("mail:getDraft", async (_e, draftId: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.getDraft(draftId)
   })
 
   ipcMain.handle("mail:getAttachment", async (_e, messageId: string, attachmentId: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.getAttachment(messageId, attachmentId)
   })
 
   ipcMain.handle(
     "mail:createLabel",
     async (_e, label: { name: string; color?: { backgroundColor: string; textColor: string } }) => {
-      const conn = getActiveConnection()
-      const driver = connectionToDriver(conn)
+      const driver = await activeDriver()
       return driver.createLabel(label)
     },
   )
@@ -301,15 +295,13 @@ export function registerMailHandlers(): void {
       id: string,
       label: { name: string; color?: { backgroundColor: string; textColor: string } },
     ) => {
-      const conn = getActiveConnection()
-      const driver = connectionToDriver(conn)
+      const driver = await activeDriver()
       return driver.updateLabel(id, label)
     },
   )
 
   ipcMain.handle("mail:deleteLabel", async (_e, id: string) => {
-    const conn = getActiveConnection()
-    const driver = connectionToDriver(conn)
+    const driver = await activeDriver()
     return driver.deleteLabel(id)
   })
 }

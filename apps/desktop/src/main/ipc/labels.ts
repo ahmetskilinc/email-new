@@ -4,6 +4,7 @@ import { connection, user } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { createDriver } from "@workspace/core/driver"
 import type { ManagerConfig } from "@workspace/core/driver/types"
+import { ensureFreshTokens } from "../auth/refresh"
 
 export function registerLabelHandlers(): void {
   ipcMain.handle("labels:list", async () => {
@@ -11,11 +12,12 @@ export function registerLabelHandlers(): void {
     const firstUser = db.select().from(user).limit(1).get()
     if (!firstUser) throw new Error("No local user found")
 
-    const conn = firstUser.defaultConnectionId
+    const rawConn = firstUser.defaultConnectionId
       ? db.select().from(connection).where(eq(connection.id, firstUser.defaultConnectionId)).get()
       : db.select().from(connection).where(eq(connection.userId, firstUser.id)).limit(1).get()
 
-    if (!conn) throw new Error("No connection found")
+    if (!rawConn) throw new Error("No connection found")
+    const conn = await ensureFreshTokens(rawConn)
 
     const config: ManagerConfig = {
       auth: {

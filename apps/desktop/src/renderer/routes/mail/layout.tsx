@@ -18,20 +18,30 @@ export function MailLayout() {
   const navigate = useNavigate()
   const calendarRoute = location.pathname.startsWith("/calendar")
   const { data: session, isPending: sessionPending } = useSession()
-  const { data: connections, isPending: connectionsPending } = useConnections()
+  // useConnections has `enabled: !!userId`, and react-query v5 reports
+  // isPending=true for disabled queries — so we can't gate on it before
+  // knowing there's a user. Check session first, then gate on connections
+  // only once the user is known.
+  const {
+    data: connections,
+    isPending: connectionsPending,
+    isFetched: connectionsFetched,
+  } = useConnections()
 
   useEffect(() => {
-    if (sessionPending || connectionsPending) return
+    if (sessionPending) return
     if (!session?.user) {
       navigate("/onboarding")
       return
     }
+    // User exists — wait for connections to finish loading before deciding.
+    if (!connectionsFetched) return
     if (!connections?.length) {
       navigate("/onboarding")
     }
-  }, [session, sessionPending, connections, connectionsPending, navigate])
+  }, [session, sessionPending, connections, connectionsFetched, navigate])
 
-  if (sessionPending || connectionsPending) {
+  if (sessionPending) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="size-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
@@ -40,6 +50,14 @@ export function MailLayout() {
   }
 
   if (!session?.user) return null
+
+  if (connectionsPending && !connectionsFetched) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="size-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+      </div>
+    )
+  }
 
   return (
     <DualSidebarProvider>

@@ -1,9 +1,45 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from "electron"
-import { join } from "path"
+import { existsSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
+import { loadEnv } from "./env"
 import { initDatabase, runMigrations } from "./db"
 import { registerIpcHandlers } from "./ipc"
 import { handleMicrosoftProtocolCallback } from "./auth/oauth"
+import { startBackgroundSync, stopBackgroundSync } from "./sync"
+
+// ESM main processes don't have __dirname. electron-vite usually injects a
+// shim, but fall back to deriving it from import.meta.url so we don't
+// depend on the bundler's behaviour.
+const __dirname_safe =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url))
+
+/**
+ * electron-vite's output extension for main/preload depends on package.json
+ * `"type"` and any custom config — it can be `.js` or `.mjs`. Resolve the
+ * preload path by probing both so we don't have to guess which one this
+ * build produced.
+ */
+function resolvePreloadPath(): string {
+  const candidates = [
+    join(__dirname_safe, "../preload/index.js"),
+    join(__dirname_safe, "../preload/index.mjs"),
+    join(__dirname_safe, "../preload/index.cjs"),
+  ]
+  const found = candidates.find((p) => existsSync(p))
+  if (!found) {
+    console.error(
+      "[main] could not find a preload script; looked at:",
+      candidates,
+    )
+    return candidates[0]!
+  }
+  console.log("[main] resolved preload:", found)
+  return found
+}
 
 // Register zeitmail:// as a custom protocol for Microsoft OAuth deep links.
 // This must be called before app.whenReady() to take effect.
@@ -55,7 +91,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: resolvePreloadPath(),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -71,16 +107,34 @@ function createWindow(): void {
     return { action: "deny" }
   })
 
+  console.log("[main] is.dev:", is.dev)
+  console.log("[main] ELECTRON_RENDERER_URL:", process.env.ELECTRON_RENDERER_URL)
+
   if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    console.log("[main] loading dev URL:", process.env.ELECTRON_RENDERER_URL)
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    // Auto-open DevTools in dev so renderer errors are immediately visible.
+    mainWindow.webContents.openDevTools({ mode: "detach" })
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"))
+    const filePath = join(__dirname_safe, "../renderer/index.html")
+    console.log("[main] loading file:", filePath)
+    mainWindow.loadFile(filePath)
+    mainWindow.webContents.openDevTools({ mode: "detach" })
   }
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_e, errorCode, errorDescription, validatedURL) => {
+      console.error(
+        `[main] did-fail-load ${errorCode} ${errorDescription} ${validatedURL}`,
+      )
+    },
+  )
 }
 
 function createTray(): void {
   const icon = nativeImage.createFromPath(
-    join(__dirname, "../../resources/icon.png"),
+    join(__dirname_safe, "../../resources/icon.png"),
   )
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
@@ -107,6 +161,10 @@ function createTray(): void {
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId("com.zeitmail.desktop")
 
+  // Load .env (userData/.env in prod, repo-root .env in dev) so OAuth
+  // credentials and other secrets are available to IPC handlers.
+  loadEnv()
+
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -121,6 +179,9 @@ app.whenReady().then(async () => {
   // Create window and tray
   createWindow()
   createTray()
+
+  // Kick off background mail sync.
+  startBackgroundSync(() => mainWindow)
 
   // ----- Deep-link handling ------------------------------------------------
 
@@ -159,6 +220,11 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    stopBackgroundSync()
     app.quit()
   }
+})
+
+app.on("before-quit", () => {
+  stopBackgroundSync()
 })

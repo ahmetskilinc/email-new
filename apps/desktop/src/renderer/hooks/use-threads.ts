@@ -43,15 +43,14 @@ export const useThreads = () => {
   const threads =
     activeQuery.data?.pages.flatMap((page: any) => page?.threads ?? []) ?? []
 
-  return {
-    threads,
-    isLoading: activeQuery.isLoading,
-    isFetchingNextPage: activeQuery.isFetchingNextPage,
-    hasNextPage: activeQuery.hasNextPage,
-    fetchNextPage: activeQuery.fetchNextPage,
-    error: activeQuery.error,
-    refetch: activeQuery.refetch,
+  const loadMore = async () => {
+    if (activeQuery.isLoading || activeQuery.isFetchingNextPage) return
+    await activeQuery.fetchNextPage()
   }
+
+  // Tuple shape mirrors apps/web/hooks/use-threads.ts — components that
+  // consume this hook destructure as `[query, threads, loadMore]`.
+  return [activeQuery, threads, loadMore] as const
 }
 
 export const useThread = (threadId: string | null, connectionId?: string) => {

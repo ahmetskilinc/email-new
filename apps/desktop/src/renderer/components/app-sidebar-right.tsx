@@ -14,7 +14,7 @@ import { EventList } from "./calendar/event-list"
 import { EventDialog } from "./calendar/event-dialog"
 import { useCalendarEvents } from "@/hooks/use-calendar"
 import { addDays, startOfDay, format } from "date-fns"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
+import type { CalendarEvent } from "@workspace/core/calendar/types"
 
 function useStableToday() {
   const [today] = React.useState(() => new Date())

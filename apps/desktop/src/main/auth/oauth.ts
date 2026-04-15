@@ -3,6 +3,14 @@ import { OAuth2Client } from "google-auth-library"
 import http from "node:http"
 import https from "node:https"
 import { URL, URLSearchParams } from "node:url"
+import { eq } from "drizzle-orm"
+import { createDriver } from "@workspace/core/driver"
+import type { ManagerConfig } from "@workspace/core/driver/types"
+import { defaultUserSettings } from "@workspace/core/schemas"
+import { getDb } from "../db"
+import { connection, user, userSettings } from "../db/schema"
+import { encryptNullable } from "./credentials"
+import { getOAuthConfig } from "../env"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -303,10 +311,241 @@ export async function startMicrosoftOAuth(
 }
 
 // ---------------------------------------------------------------------------
+// Connection persistence
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensure there's a zeitmail_user row for this email and return its id.
+ * The desktop app is single-user, so if one already exists we reuse it and
+ * just update the name/email when OAuth reports fresher values. Otherwise we
+ * create a fresh row + default settings.
+ */
+function upsertLocalUser(info: {
+  email: string
+  name: string
+}): string {
+  const db = getDb()
+  const existing = db.select().from(user).limit(1).get()
+  const now = new Date()
+
+  if (existing) {
+    db.update(user)
+      .set({
+        // Only fill in values if they're missing — don't stomp user tweaks.
+        name: existing.name || info.name,
+        email: existing.email || info.email,
+        updatedAt: now,
+      })
+      .where(eq(user.id, existing.id))
+      .run()
+    return existing.id
+  }
+
+  const id = crypto.randomUUID()
+  db.insert(user)
+    .values({
+      id,
+      name: info.name || info.email,
+      email: info.email,
+      emailVerified: true,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  db.insert(userSettings)
+    .values({
+      id: crypto.randomUUID(),
+      userId: id,
+      settings: defaultUserSettings,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  return id
+}
+
+/**
+ * Insert or update a zeitmail_connection row for this (user, email) pair.
+ * Returns the connection id. Tokens are always stored encrypted.
+ */
+function upsertConnection(params: {
+  userId: string
+  providerId: "google" | "microsoft"
+  email: string
+  name: string | null
+  picture: string | null
+  accessToken: string
+  refreshToken: string
+  scope: string
+  expiresAt: Date
+}): string {
+  const db = getDb()
+  const now = new Date()
+
+  const existing = db
+    .select()
+    .from(connection)
+    .where(eq(connection.email, params.email))
+    .get()
+
+  if (existing) {
+    db.update(connection)
+      .set({
+        providerId: params.providerId,
+        name: params.name ?? existing.name,
+        picture: params.picture ?? existing.picture,
+        accessToken: encryptNullable(params.accessToken),
+        refreshToken: encryptNullable(params.refreshToken),
+        scope: params.scope,
+        expiresAt: params.expiresAt,
+        updatedAt: now,
+      })
+      .where(eq(connection.id, existing.id))
+      .run()
+    return existing.id
+  }
+
+  const id = crypto.randomUUID()
+  db.insert(connection)
+    .values({
+      id,
+      userId: params.userId,
+      providerId: params.providerId,
+      email: params.email,
+      name: params.name,
+      picture: params.picture,
+      accessToken: encryptNullable(params.accessToken),
+      refreshToken: encryptNullable(params.refreshToken),
+      scope: params.scope,
+      expiresAt: params.expiresAt,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .run()
+
+  // If the user has no default connection yet, promote this one.
+  const userData = db.select().from(user).where(eq(user.id, params.userId)).get()
+  if (userData && !userData.defaultConnectionId) {
+    db.update(user)
+      .set({ defaultConnectionId: id, updatedAt: now })
+      .where(eq(user.id, params.userId))
+      .run()
+  }
+
+  return id
+}
+
+interface ConnectResult {
+  userId: string
+  connectionId: string
+  email: string
+}
+
+async function connectGoogle(): Promise<ConnectResult> {
+  const cfg = getOAuthConfig()
+  if (!cfg.google) {
+    throw new Error(
+      "Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.",
+    )
+  }
+
+  const tokens = await startGoogleOAuth(cfg.google.clientId, cfg.google.clientSecret)
+
+  // Build a temporary Google driver with the fresh tokens so we can call
+  // getUserInfo() to discover the user's email/name/photo. We stuff the
+  // driver's config with the clientId/secret because the googleapis
+  // OAuth2Client needs them to sign subsequent refreshes.
+  const managerConfig: ManagerConfig = {
+    auth: {
+      userId: "pending",
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      email: "",
+    },
+    clientId: cfg.google.clientId,
+    clientSecret: cfg.google.clientSecret,
+  }
+  const driver = createDriver("google", managerConfig)
+  const info = await driver.getUserInfo()
+
+  const userId = upsertLocalUser({ email: info.address, name: info.name })
+  const connectionId = upsertConnection({
+    userId,
+    providerId: "google",
+    email: info.address,
+    name: info.name || null,
+    picture: info.photo || null,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    scope: [
+      "https://mail.google.com/",
+      "https://www.googleapis.com/auth/gmail.modify",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/contacts.readonly",
+    ].join(" "),
+    expiresAt: new Date(tokens.expiresAt),
+  })
+
+  return { userId, connectionId, email: info.address }
+}
+
+async function connectMicrosoft(): Promise<ConnectResult> {
+  const cfg = getOAuthConfig()
+  if (!cfg.microsoft) {
+    throw new Error(
+      "Microsoft OAuth credentials not configured. Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in your .env file.",
+    )
+  }
+
+  const tokens = await startMicrosoftOAuth(
+    cfg.microsoft.clientId,
+    cfg.microsoft.clientSecret,
+  )
+
+  const managerConfig: ManagerConfig = {
+    auth: {
+      userId: "pending",
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      email: "",
+    },
+    clientId: cfg.microsoft.clientId,
+    clientSecret: cfg.microsoft.clientSecret,
+  }
+  const driver = createDriver("microsoft", managerConfig)
+  const info = await driver.getUserInfo()
+
+  const userId = upsertLocalUser({ email: info.address, name: info.name })
+  const connectionId = upsertConnection({
+    userId,
+    providerId: "microsoft",
+    email: info.address,
+    name: info.name || null,
+    picture: info.photo || null,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+    scope: MICROSOFT_SCOPES.join(" "),
+    expiresAt: new Date(tokens.expiresAt),
+  })
+
+  return { userId, connectionId, email: info.address }
+}
+
+// ---------------------------------------------------------------------------
 // IPC Handlers
 // ---------------------------------------------------------------------------
 
 export function registerOAuthHandlers(): void {
+  // Full-flow handlers — OAuth → getUserInfo → upsert user & connection.
+  ipcMain.handle("auth:connectGoogle", async () => connectGoogle())
+  ipcMain.handle("auth:connectMicrosoft", async () => connectMicrosoft())
+
+  // Low-level handlers (kept for backwards compatibility — they only return
+  // raw tokens and do not persist anything).
   ipcMain.handle(
     "auth:startGoogleOAuth",
     async (_e, clientId: string, clientSecret: string) => {

@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog"
 import { Button } from "@workspace/ui/components/button"
-import type { RecurringEventScope } from "@/server/lib/calendar/types"
+import type { RecurringEventScope } from "@workspace/core/calendar/types"
 
 interface RecurrenceScopeDialogProps {
   open: boolean

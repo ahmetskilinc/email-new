@@ -1,28 +1,54 @@
 import { safeStorage } from "electron"
 
+// Prefix applied to every encrypted value so we can tell a ciphertext row
+// apart from a plaintext legacy row when decrypting. Anything without this
+// prefix is returned as-is (it was written before encryption was introduced).
+const ENC_PREFIX = "enc:v1:"
+
 /**
- * Encrypt a string using Electron's safeStorage API.
- * Returns a base64-encoded string. Falls back to a plain base64 encoding
- * if safeStorage is not available (e.g. in development on some Linux distros).
+ * Encrypt a string using Electron's safeStorage API. Returns a prefixed
+ * base64 string. Falls back to plain base64 if safeStorage is not available
+ * (e.g. on some Linux setups without a secret-service backend) so the app
+ * still functions.
  */
 export function encrypt(text: string): string {
+  if (!text) return text
   if (safeStorage.isEncryptionAvailable()) {
     const encrypted = safeStorage.encryptString(text)
-    return encrypted.toString("base64")
+    return ENC_PREFIX + encrypted.toString("base64")
   }
-  // Fallback: base64 encode (not secure, but allows the app to function)
-  return Buffer.from(text, "utf-8").toString("base64")
+  return ENC_PREFIX + Buffer.from(text, "utf-8").toString("base64")
 }
 
 /**
- * Decrypt a base64-encoded string that was encrypted with `encrypt()`.
- * Falls back to plain base64 decoding if safeStorage is not available.
+ * Decrypt a string previously produced by `encrypt()`. Plaintext inputs
+ * (no ENC prefix) are passed through unchanged, which keeps existing
+ * plaintext rows working across upgrades.
  */
-export function decrypt(b64: string): string {
+export function decrypt(value: string): string {
+  if (!value) return value
+  if (!value.startsWith(ENC_PREFIX)) return value
+
+  const payload = value.slice(ENC_PREFIX.length)
   if (safeStorage.isEncryptionAvailable()) {
-    const buffer = Buffer.from(b64, "base64")
-    return safeStorage.decryptString(buffer)
+    try {
+      const buffer = Buffer.from(payload, "base64")
+      return safeStorage.decryptString(buffer)
+    } catch (err) {
+      console.warn("[credentials] decryptString failed; treating as plaintext:", err)
+      return Buffer.from(payload, "base64").toString("utf-8")
+    }
   }
-  // Fallback: base64 decode
-  return Buffer.from(b64, "base64").toString("utf-8")
+  return Buffer.from(payload, "base64").toString("utf-8")
+}
+
+/** Nullable-safe variants — handy when pulling from Drizzle columns. */
+export function encryptNullable(v: string | null | undefined): string | null {
+  if (v == null || v === "") return null
+  return encrypt(v)
+}
+
+export function decryptNullable(v: string | null | undefined): string | null {
+  if (v == null || v === "") return null
+  return decrypt(v)
 }
