@@ -105,6 +105,18 @@ const api = {
       ipcRenderer.invoke("auth:startGoogleOAuth", clientId, clientSecret),
     startMicrosoftOAuth: (clientId: string, clientSecret: string) =>
       ipcRenderer.invoke("auth:startMicrosoftOAuth", clientId, clientSecret),
+    connectGoogle: () =>
+      ipcRenderer.invoke("auth:connectGoogle") as Promise<{
+        userId: string
+        connectionId: string
+        email: string
+      }>,
+    connectMicrosoft: () =>
+      ipcRenderer.invoke("auth:connectMicrosoft") as Promise<{
+        userId: string
+        connectionId: string
+        email: string
+      }>,
   },
 }
 
