@@ -4,12 +4,23 @@ import { connection, user } from "../db/schema"
 import { eq } from "drizzle-orm"
 import { createCalendarProvider } from "@workspace/core/calendar"
 import type { CreateEventInput, UpdateEventInput, DeleteEventInput } from "@workspace/core/calendar/types"
+import { ensureFreshTokens } from "../auth/refresh"
 
 function getLocalUserId(): string {
   const db = getDb()
   const firstUser = db.select().from(user).limit(1).get()
   if (!firstUser) throw new Error("No local user found")
   return firstUser.id
+}
+
+function providerFromConn(conn: typeof connection.$inferSelect) {
+  return createCalendarProvider(conn.providerId, {
+    accessToken: conn.accessToken!,
+    refreshToken: conn.refreshToken ?? "",
+    email: conn.email,
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  })
 }
 
 export function registerCalendarHandlers(): void {
@@ -26,14 +37,8 @@ export function registerCalendarHandlers(): void {
       connections
         .filter((c) => c.accessToken)
         .map(async (conn) => {
-          const provider = createCalendarProvider(conn.providerId, {
-            accessToken: conn.accessToken!,
-            refreshToken: conn.refreshToken ?? "",
-            email: conn.email,
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          })
-          return provider.listEvents({
+          const fresh = await ensureFreshTokens(conn)
+          return providerFromConn(fresh).listEvents({
             timeMin: new Date(timeMin),
             timeMax: new Date(timeMax),
           })
@@ -58,14 +63,8 @@ export function registerCalendarHandlers(): void {
       connections
         .filter((c) => c.accessToken)
         .map(async (conn) => {
-          const provider = createCalendarProvider(conn.providerId, {
-            accessToken: conn.accessToken!,
-            refreshToken: conn.refreshToken ?? "",
-            email: conn.email,
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          })
-          return provider.listCalendars()
+          const fresh = await ensureFreshTokens(conn)
+          return providerFromConn(fresh).listCalendars()
         }),
     )
 
@@ -74,7 +73,7 @@ export function registerCalendarHandlers(): void {
       .flatMap((r) => r.value)
   })
 
-  ipcMain.handle("calendar:createEvent", async (_e, input: CreateEventInput) => {
+  async function firstConnection() {
     const db = getDb()
     const userId = getLocalUserId()
     const conn = db
@@ -84,56 +83,18 @@ export function registerCalendarHandlers(): void {
       .limit(1)
       .get()
     if (!conn) throw new Error("No connection found")
+    return ensureFreshTokens(conn)
+  }
 
-    const provider = createCalendarProvider(conn.providerId, {
-      accessToken: conn.accessToken!,
-      refreshToken: conn.refreshToken ?? "",
-      email: conn.email,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-    return provider.createEvent(input)
+  ipcMain.handle("calendar:createEvent", async (_e, input: CreateEventInput) => {
+    return providerFromConn(await firstConnection()).createEvent(input)
   })
 
   ipcMain.handle("calendar:updateEvent", async (_e, input: UpdateEventInput) => {
-    const db = getDb()
-    const userId = getLocalUserId()
-    const conn = db
-      .select()
-      .from(connection)
-      .where(eq(connection.userId, userId))
-      .limit(1)
-      .get()
-    if (!conn) throw new Error("No connection found")
-
-    const provider = createCalendarProvider(conn.providerId, {
-      accessToken: conn.accessToken!,
-      refreshToken: conn.refreshToken ?? "",
-      email: conn.email,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-    return provider.updateEvent(input)
+    return providerFromConn(await firstConnection()).updateEvent(input)
   })
 
   ipcMain.handle("calendar:deleteEvent", async (_e, input: DeleteEventInput) => {
-    const db = getDb()
-    const userId = getLocalUserId()
-    const conn = db
-      .select()
-      .from(connection)
-      .where(eq(connection.userId, userId))
-      .limit(1)
-      .get()
-    if (!conn) throw new Error("No connection found")
-
-    const provider = createCalendarProvider(conn.providerId, {
-      accessToken: conn.accessToken!,
-      refreshToken: conn.refreshToken ?? "",
-      email: conn.email,
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-    return provider.deleteEvent(input)
+    return providerFromConn(await firstConnection()).deleteEvent(input)
   })
 }

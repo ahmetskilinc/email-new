@@ -1,9 +1,11 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from "electron"
 import { join } from "path"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
+import { loadEnv } from "./env"
 import { initDatabase, runMigrations } from "./db"
 import { registerIpcHandlers } from "./ipc"
 import { handleMicrosoftProtocolCallback } from "./auth/oauth"
+import { startBackgroundSync, stopBackgroundSync } from "./sync"
 
 // Register zeitmail:// as a custom protocol for Microsoft OAuth deep links.
 // This must be called before app.whenReady() to take effect.
@@ -107,6 +109,10 @@ function createTray(): void {
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId("com.zeitmail.desktop")
 
+  // Load .env (userData/.env in prod, repo-root .env in dev) so OAuth
+  // credentials and other secrets are available to IPC handlers.
+  loadEnv()
+
   app.on("browser-window-created", (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -121,6 +127,9 @@ app.whenReady().then(async () => {
   // Create window and tray
   createWindow()
   createTray()
+
+  // Kick off background mail sync.
+  startBackgroundSync(() => mainWindow)
 
   // ----- Deep-link handling ------------------------------------------------
 
@@ -159,6 +168,11 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    stopBackgroundSync()
     app.quit()
   }
+})
+
+app.on("before-quit", () => {
+  stopBackgroundSync()
 })

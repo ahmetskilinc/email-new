@@ -74,7 +74,25 @@ const api = {
   contacts: {
     search: (query: string) => ipcRenderer.invoke("contacts:search", query),
   },
+  events: {
+    onMailSynced: (
+      handler: (payload: {
+        connections: { connectionId: string; email: string; count: number }[]
+        at: number
+      }) => void,
+    ) => {
+      const listener = (_e: unknown, payload: unknown) =>
+        handler(payload as Parameters<typeof handler>[0])
+      ipcRenderer.on("mail:synced", listener)
+      return () => ipcRenderer.off("mail:synced", listener)
+    },
+  },
   auth: {
+    getOAuthConfig: () =>
+      ipcRenderer.invoke("auth:getOAuthConfig") as Promise<{
+        google: { clientId: string; clientSecret: string } | null
+        microsoft: { clientId: string; clientSecret: string } | null
+      }>,
     getUser: () => ipcRenderer.invoke("auth:getUser"),
     createLocalUser: (data: { name: string; email: string }) =>
       ipcRenderer.invoke("auth:createLocalUser", data),

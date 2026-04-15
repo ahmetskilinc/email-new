@@ -29,19 +29,46 @@ export function OnboardingPage() {
     setLoading(true)
     setError(null)
     try {
-      const clientId = "" // User will need to provide via settings
-      const clientSecret = ""
-      if (!clientId) {
+      const cfg = await window.api.auth.getOAuthConfig()
+      if (!cfg.google) {
         setError(
-          "Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.",
+          "Google OAuth credentials not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.",
         )
         setLoading(false)
         return
       }
-      await window.api.auth.startGoogleOAuth(clientId, clientSecret)
+      await window.api.auth.startGoogleOAuth(
+        cfg.google.clientId,
+        cfg.google.clientSecret,
+      )
       navigate("/mail/inbox")
     } catch (err) {
       setError("Failed to connect Google account.")
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleMicrosoftConnect = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const cfg = await window.api.auth.getOAuthConfig()
+      if (!cfg.microsoft) {
+        setError(
+          "Microsoft OAuth credentials not configured. Set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET in your .env file.",
+        )
+        setLoading(false)
+        return
+      }
+      await window.api.auth.startMicrosoftOAuth(
+        cfg.microsoft.clientId,
+        cfg.microsoft.clientSecret,
+      )
+      navigate("/mail/inbox")
+    } catch (err) {
+      setError("Failed to connect Microsoft account.")
       console.error(err)
     } finally {
       setLoading(false)
@@ -97,6 +124,7 @@ export function OnboardingPage() {
             </button>
 
             <button
+              onClick={handleMicrosoftConnect}
               disabled={loading}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-border px-4 py-2.5 text-sm font-medium hover:bg-accent disabled:opacity-50"
             >
