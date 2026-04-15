@@ -36,6 +36,7 @@
     "@tiptap/pm": "^3.22.0",
     "@tiptap/react": "^3.22.0",
     "@tiptap/starter-kit": "^3.22.0",
+    "@workspace/core": "workspace:*",
     "@workspace/ui": "workspace:*",
     "base64-js": "^1.5.1",
     "better-auth": "^1.5.6",

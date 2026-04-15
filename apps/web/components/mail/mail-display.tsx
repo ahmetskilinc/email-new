@@ -32,7 +32,7 @@ import {
   ArrowUp01Icon,
   PrinterIcon,
 } from "@hugeicons-pro/core-stroke-rounded"
-import type { ParsedMessage } from "@/server/types"
+import type { ParsedMessage } from "@workspace/core/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
 import { buildPrintHtml } from "@/lib/print-utils"
 import { toast } from "sonner"

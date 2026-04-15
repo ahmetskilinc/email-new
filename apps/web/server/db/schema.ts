@@ -8,7 +8,7 @@ import {
   index,
   integer,
 } from "drizzle-orm/pg-core"
-import { defaultUserSettings } from "../lib/schemas"
+import { defaultUserSettings } from "@workspace/core/schemas"
 
 export const createTable = pgTableCreator((name) => `zeitmail_${name}`)
 

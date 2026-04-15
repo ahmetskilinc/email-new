@@ -5,7 +5,7 @@ import {
   defaultUserSettings,
   userSettingsSchema,
   type UserSettings,
-} from "../lib/schemas"
+} from "@workspace/core/schemas"
 import { getzeitmailDB } from "../lib/server-utils"
 
 export async function getSettings() {

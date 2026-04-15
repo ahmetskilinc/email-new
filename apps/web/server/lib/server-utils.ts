@@ -1,7 +1,7 @@
 import { connection, user, userSettings, signature, recipient } from "../db/schema"
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
-import type { EProviders } from "../types"
-import { createDriver } from "./driver"
+import type { EProviders } from "@workspace/core/types"
+import { createDriver } from "@workspace/core/driver"
 import { decrypt } from "./encryption"
 import { createDb } from "../db"
 import { env } from "../env"
@@ -349,7 +349,7 @@ export const connectionToDriver = (
     },
     ...(activeConnection.imapConfig != null
       ? {
-          imapConfig: activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
+          imapConfig: activeConnection.imapConfig as import("@workspace/core/transport/provider-config").ImapProviderConfig,
         }
       : {}),
   })
