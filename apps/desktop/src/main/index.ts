@@ -1,11 +1,45 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from "electron"
-import { join } from "path"
+import { existsSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { electronApp, optimizer, is } from "@electron-toolkit/utils"
 import { loadEnv } from "./env"
 import { initDatabase, runMigrations } from "./db"
 import { registerIpcHandlers } from "./ipc"
 import { handleMicrosoftProtocolCallback } from "./auth/oauth"
 import { startBackgroundSync, stopBackgroundSync } from "./sync"
+
+// ESM main processes don't have __dirname. electron-vite usually injects a
+// shim, but fall back to deriving it from import.meta.url so we don't
+// depend on the bundler's behaviour.
+const __dirname_safe =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url))
+
+/**
+ * electron-vite's output extension for main/preload depends on package.json
+ * `"type"` and any custom config — it can be `.js` or `.mjs`. Resolve the
+ * preload path by probing both so we don't have to guess which one this
+ * build produced.
+ */
+function resolvePreloadPath(): string {
+  const candidates = [
+    join(__dirname_safe, "../preload/index.js"),
+    join(__dirname_safe, "../preload/index.mjs"),
+    join(__dirname_safe, "../preload/index.cjs"),
+  ]
+  const found = candidates.find((p) => existsSync(p))
+  if (!found) {
+    console.error(
+      "[main] could not find a preload script; looked at:",
+      candidates,
+    )
+    return candidates[0]!
+  }
+  console.log("[main] resolved preload:", found)
+  return found
+}
 
 // Register zeitmail:// as a custom protocol for Microsoft OAuth deep links.
 // This must be called before app.whenReady() to take effect.
@@ -57,7 +91,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: "hiddenInset",
     webPreferences: {
-      preload: join(__dirname, "../preload/index.js"),
+      preload: resolvePreloadPath(),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
@@ -82,7 +116,7 @@ function createWindow(): void {
     // Auto-open DevTools in dev so renderer errors are immediately visible.
     mainWindow.webContents.openDevTools({ mode: "detach" })
   } else {
-    const filePath = join(__dirname, "../renderer/index.html")
+    const filePath = join(__dirname_safe, "../renderer/index.html")
     console.log("[main] loading file:", filePath)
     mainWindow.loadFile(filePath)
     mainWindow.webContents.openDevTools({ mode: "detach" })
@@ -100,7 +134,7 @@ function createWindow(): void {
 
 function createTray(): void {
   const icon = nativeImage.createFromPath(
-    join(__dirname, "../../resources/icon.png"),
+    join(__dirname_safe, "../../resources/icon.png"),
   )
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
