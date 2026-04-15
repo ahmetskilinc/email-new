@@ -8,10 +8,16 @@ import {
 import { EventForm } from "./event-form"
 import { EventView } from "./event-view"
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog"
-import { useCreateEvent, useUpdateEvent, useDeleteEvent } from "@/hooks/use-calendar"
-import type { CalendarEvent } from "@/server/lib/calendar/types"
-import type { RecurringEventScope } from "@/server/lib/calendar/types"
-import type { CreateEventData } from "@/server/lib/schemas"
+import {
+  useCreateCalendarEvent,
+  useUpdateCalendarEvent,
+  useDeleteCalendarEvent,
+} from "@/hooks/use-calendar"
+import type {
+  CalendarEvent,
+  RecurringEventScope,
+} from "@workspace/core/calendar/types"
+import type { CreateEventData } from "@workspace/core/schemas"
 import { toast } from "sonner"
 
 interface EventDialogProps {
@@ -27,9 +33,9 @@ export function EventDialog({
   event,
   initialDate,
 }: EventDialogProps) {
-  const createEvent = useCreateEvent()
-  const updateEvent = useUpdateEvent()
-  const deleteEvent = useDeleteEvent()
+  const createEvent = useCreateCalendarEvent()
+  const updateEvent = useUpdateCalendarEvent()
+  const deleteEvent = useDeleteCalendarEvent()
 
   const [mode, setMode] = React.useState<"view" | "edit">("view")
   const [scopeAction, setScopeAction] = React.useState<{

@@ -11,6 +11,11 @@ import {
 import { get, set, del } from "idb-keyval"
 import { useEffect, useMemo, type ReactNode } from "react"
 
+// Module-level singleton shared with ConnectionSyncer — gives non-React
+// callers (e.g. cache restore hooks) a way to read the currently-active
+// connection id without wiring through props/context.
+export const connectionIdRef = { current: null as string | null }
+
 function createIDBPersister(
   idbValidKey: IDBValidKey = "mail-query-cache",
 ): Persister {
