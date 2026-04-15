@@ -105,12 +105,24 @@ export interface OAuthConfig {
 /**
  * Read OAuth client credentials from the environment. Returns `null` for a
  * provider whose id or secret is missing so the UI can show a clear error.
+ *
+ * Desktop-specific vars (GOOGLE_DESKTOP_CLIENT_ID / _SECRET, likewise for
+ * Microsoft) take precedence over the generic ones. This lets the same repo
+ * support both the web app (using GOOGLE_CLIENT_ID with a Web OAuth client)
+ * and the desktop app (which requires a Desktop OAuth client because it
+ * uses the loopback redirect flow — web clients can't list random ports).
  */
 export function getOAuthConfig(): OAuthConfig {
-  const googleId = process.env.GOOGLE_CLIENT_ID
-  const googleSecret = process.env.GOOGLE_CLIENT_SECRET
-  const msId = process.env.MICROSOFT_CLIENT_ID
-  const msSecret = process.env.MICROSOFT_CLIENT_SECRET
+  const googleId =
+    process.env.GOOGLE_DESKTOP_CLIENT_ID || process.env.GOOGLE_CLIENT_ID
+  const googleSecret =
+    process.env.GOOGLE_DESKTOP_CLIENT_SECRET ||
+    process.env.GOOGLE_CLIENT_SECRET
+  const msId =
+    process.env.MICROSOFT_DESKTOP_CLIENT_ID || process.env.MICROSOFT_CLIENT_ID
+  const msSecret =
+    process.env.MICROSOFT_DESKTOP_CLIENT_SECRET ||
+    process.env.MICROSOFT_CLIENT_SECRET
 
   return {
     google:
