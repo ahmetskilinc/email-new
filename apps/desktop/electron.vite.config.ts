@@ -11,17 +11,33 @@ import tailwindcss from "@tailwindcss/vite"
 // app's own package.json.
 const workspaceBundled = ["@workspace/core", "@workspace/ui"]
 
+// The desktop app's package.json sets "type": "module", so every .js file
+// under apps/desktop is parsed as ESM. electron-vite can default to .mjs for
+// main/preload output in that case, but our main process references the
+// preload as "../preload/index.js" — force the output filenames to .js so
+// the paths line up and keep them as ESM (format: "es").
+const esJsOutput = {
+  format: "es" as const,
+  entryFileNames: "[name].js",
+}
+
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
     build: {
       rollupOptions: {
         external: ["better-sqlite3"],
+        output: esJsOutput,
       },
     },
   },
   preload: {
     plugins: [externalizeDepsPlugin({ exclude: workspaceBundled })],
+    build: {
+      rollupOptions: {
+        output: esJsOutput,
+      },
+    },
   },
   renderer: {
     resolve: {
