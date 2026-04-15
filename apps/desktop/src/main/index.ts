@@ -73,13 +73,29 @@ function createWindow(): void {
     return { action: "deny" }
   })
 
+  console.log("[main] is.dev:", is.dev)
+  console.log("[main] ELECTRON_RENDERER_URL:", process.env.ELECTRON_RENDERER_URL)
+
   if (is.dev && process.env.ELECTRON_RENDERER_URL) {
+    console.log("[main] loading dev URL:", process.env.ELECTRON_RENDERER_URL)
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
     // Auto-open DevTools in dev so renderer errors are immediately visible.
     mainWindow.webContents.openDevTools({ mode: "detach" })
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"))
+    const filePath = join(__dirname, "../renderer/index.html")
+    console.log("[main] loading file:", filePath)
+    mainWindow.loadFile(filePath)
+    mainWindow.webContents.openDevTools({ mode: "detach" })
   }
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_e, errorCode, errorDescription, validatedURL) => {
+      console.error(
+        `[main] did-fail-load ${errorCode} ${errorDescription} ${validatedURL}`,
+      )
+    },
+  )
 }
 
 function createTray(): void {
