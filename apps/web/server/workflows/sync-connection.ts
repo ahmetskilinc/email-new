@@ -45,8 +45,12 @@ async function loadSyncStateStep(connectionId: string): Promise<{
   return { historyId: state?.historyId ?? null }
 }
 
-async function claimSyncLockStep(connectionId: string, runId: string) {
+async function claimSyncLockStep(
+  connectionId: string,
+  providedRunId?: string,
+): Promise<string> {
   "use step"
+  const runId = providedRunId ?? crypto.randomUUID()
   const { db } = createDb(env.DATABASE_URL)
   const now = new Date()
   const staleCutoff = new Date(now.getTime() - STALE_LOCK_MS)
@@ -63,6 +67,7 @@ async function claimSyncLockStep(connectionId: string, runId: string) {
       `Sync lock held since ${previous.toISOString()} for ${connectionId}`,
     )
   }
+  return runId
 }
 
 async function releaseSyncLockStep(
@@ -296,9 +301,9 @@ async function connectionExistsStep(connectionId: string): Promise<boolean> {
  * so both the one-shot `syncConnection` workflow and the looping
  * `scheduleSyncConnection` workflow can share the same logic.
  */
-async function runSyncCycle(connectionId: string, runId: string) {
+async function runSyncCycle(connectionId: string, providedRunId?: string) {
   const { historyId } = await loadSyncStateStep(connectionId)
-  await claimSyncLockStep(connectionId, runId)
+  const runId = await claimSyncLockStep(connectionId, providedRunId)
 
   let upserted = 0
   let latestHistoryId: string | null = historyId
@@ -342,7 +347,7 @@ async function runSyncCycle(connectionId: string, runId: string) {
     }
 
     await releaseSyncLockStep(connectionId)
-    return { mode, upserted, historyId: latestHistoryId }
+    return { mode, upserted, historyId: latestHistoryId, runId }
   } catch (err) {
     await releaseSyncLockStep(connectionId, {
       error: err instanceof Error ? err.message : String(err),
@@ -360,9 +365,14 @@ export async function syncConnection(input: {
   runId?: string
 }) {
   "use workflow"
-  const runId = input.runId ?? crypto.randomUUID()
-  const result = await runSyncCycle(input.connectionId, runId)
-  return { connectionId: input.connectionId, runId, ...result }
+  const result = await runSyncCycle(input.connectionId, input.runId)
+  return { connectionId: input.connectionId, ...result }
+}
+
+async function rescheduleSelfStep(connectionId: string): Promise<string> {
+  "use step"
+  const run = await start(scheduleSyncConnection, [{ connectionId }])
+  return run.runId
 }
 
 /**
@@ -377,9 +387,9 @@ export async function scheduleSyncConnection(input: { connectionId: string }) {
   const exists = await connectionExistsStep(connectionId)
   if (!exists) return { connectionId, status: "ended" as const }
 
-  await runSyncCycle(connectionId, crypto.randomUUID())
+  await runSyncCycle(connectionId)
   await sleep(SYNC_INTERVAL)
 
-  await start(scheduleSyncConnection, [{ connectionId }])
+  await rescheduleSelfStep(connectionId)
   return { connectionId, status: "rescheduled" as const }
 }
