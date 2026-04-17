@@ -10,6 +10,7 @@ import { processEmailHtml } from "../lib/email-processor"
 import { getListUnsubscribeAction } from "../lib/email-utils"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
+import { listThreadsFromStore, storeIsReady } from "../lib/email-store"
 import type { DeleteAllSpamResponse } from "../types"
 import type { Sender } from "../types"
 
@@ -93,10 +94,24 @@ export async function listThreads(
   cursor: string = "",
   labelIds: string[] = [],
 ) {
-  const { driver } = await requireActiveDriver()
+  const { connection, driver } = await requireActiveDriver()
 
   if (folder === FOLDERS.DRAFT) {
     return driver.listDrafts({ q, maxResults, pageToken: cursor })
+  }
+
+  // Prefer the local sync store for plain inbox browsing once the first
+  // sync has completed. Searches and non-inbox folders still hit the
+  // provider until those paths are covered by the sync agent.
+  if (folder === "inbox" && !q && labelIds.length === 0) {
+    if (await storeIsReady(connection.id)) {
+      return listThreadsFromStore({
+        connectionId: connection.id,
+        folder,
+        maxResults,
+        cursor: cursor || null,
+      })
+    }
   }
 
   return driver.list({
