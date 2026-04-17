@@ -1,4 +1,6 @@
 import { eq } from "drizzle-orm"
+import { start } from "workflow/api"
+import { sleep } from "workflow"
 import { createDb } from "../db"
 import {
   connection as connectionTable,
@@ -10,7 +12,7 @@ import { connectionToDriver } from "../lib/server-utils"
 import { normalizeThreadPreview } from "@/lib/thread-utils"
 import { env } from "../env"
 
-type GmailThread = {
+type ProviderThread = {
   id: string
   historyId: string | null
   $raw?: unknown
@@ -18,12 +20,13 @@ type GmailThread = {
 
 const INITIAL_BACKFILL_PAGES = 3
 const PAGE_SIZE = 50
+const DELTA_PAGE_SIZE = 50
+const SYNC_INTERVAL = "5m"
+const STALE_LOCK_MS = 10 * 60 * 1000
 
-/**
- * Loads a connection row and upserts a sync_state row. Step so it's retried
- * independently and not replayed as part of the workflow body.
- */
-async function loadConnectionStep(connectionId: string) {
+async function loadSyncStateStep(connectionId: string): Promise<{
+  historyId: string | null
+}> {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const conn = await db.query.connection.findFirst({
@@ -36,14 +39,17 @@ async function loadConnectionStep(connectionId: string) {
     .values({ connectionId, updatedAt: new Date() })
     .onConflictDoNothing({ target: syncState.connectionId })
 
-  return conn
+  const state = await db.query.syncState.findFirst({
+    where: eq(syncState.connectionId, connectionId),
+  })
+  return { historyId: state?.historyId ?? null }
 }
 
 async function claimSyncLockStep(connectionId: string, runId: string) {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const now = new Date()
-  const staleCutoff = new Date(now.getTime() - 10 * 60 * 1000)
+  const staleCutoff = new Date(now.getTime() - STALE_LOCK_MS)
 
   const rows = await db
     .update(syncState)
@@ -57,7 +63,6 @@ async function claimSyncLockStep(connectionId: string, runId: string) {
       `Sync lock held since ${previous.toISOString()} for ${connectionId}`,
     )
   }
-  return true
 }
 
 async function releaseSyncLockStep(
@@ -80,10 +85,11 @@ async function releaseSyncLockStep(
 async function fetchPageStep(
   connectionId: string,
   pageToken: string | null,
+  maxResults = PAGE_SIZE,
 ): Promise<{
-  threads: GmailThread[]
+  threads: ProviderThread[]
   nextPageToken: string | null
-  historyId: string | null
+  topHistoryId: string | null
 }> {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
@@ -95,22 +101,73 @@ async function fetchPageStep(
   const driver = connectionToDriver(conn)
   const result = await driver.list({
     folder: "inbox",
-    maxResults: PAGE_SIZE,
+    maxResults,
     pageToken: pageToken ?? undefined,
   })
 
-  const threads = (result.threads ?? []) as GmailThread[]
-  const topHistoryId = threads[0]?.historyId ?? null
+  const threads = (result.threads ?? []) as ProviderThread[]
   return {
     threads,
     nextPageToken: result.nextPageToken ?? null,
-    historyId: topHistoryId,
+    topHistoryId: threads[0]?.historyId ?? null,
+  }
+}
+
+/**
+ * Gmail-specific delta via users.history.list. Returns the unique thread IDs
+ * touched since `historyId` plus the new cursor. Non-Gmail providers return
+ * `supported: false` so the caller does a page-1 refresh instead.
+ */
+async function fetchHistoryDeltaStep(
+  connectionId: string,
+  historyId: string,
+): Promise<{
+  supported: boolean
+  changedThreadIds: string[]
+  nextHistoryId: string | null
+}> {
+  "use step"
+  const { db } = createDb(env.DATABASE_URL)
+  const conn = await db.query.connection.findFirst({
+    where: eq(connectionTable.id, connectionId),
+  })
+  if (!conn) throw new Error(`Connection ${connectionId} not found`)
+  if (conn.providerId !== "google") {
+    return { supported: false, changedThreadIds: [], nextHistoryId: null }
+  }
+
+  const driver = connectionToDriver(conn)
+  const { history, historyId: nextHistoryId } = await driver.listHistory<{
+    messagesAdded?: { message?: { threadId?: string } }[]
+    messagesDeleted?: { message?: { threadId?: string } }[]
+    labelsAdded?: { message?: { threadId?: string } }[]
+    labelsRemoved?: { message?: { threadId?: string } }[]
+  }>(historyId)
+
+  const ids = new Set<string>()
+  for (const h of history) {
+    const events = [
+      ...(h.messagesAdded ?? []),
+      ...(h.messagesDeleted ?? []),
+      ...(h.labelsAdded ?? []),
+      ...(h.labelsRemoved ?? []),
+    ]
+    for (const ev of events) {
+      const tid = ev.message?.threadId
+      if (tid) ids.add(tid)
+    }
+  }
+
+  return {
+    supported: true,
+    changedThreadIds: [...ids],
+    nextHistoryId: nextHistoryId ?? null,
   }
 }
 
 async function upsertThreadsStep(
   connectionId: string,
-  threads: GmailThread[],
+  threads: ProviderThread[],
 ): Promise<number> {
   "use step"
   if (threads.length === 0) return 0
@@ -123,9 +180,10 @@ async function upsertThreadsStep(
     const receivedAt = preview.receivedOn
       ? new Date(preview.receivedOn)
       : now
+    const threadRowId = `${connectionId}:${t.id}`
     return {
       thread: {
-        id: `${connectionId}:${t.id}`,
+        id: threadRowId,
         connectionId,
         providerThreadId: t.id,
         subject: preview.subject ?? null,
@@ -145,7 +203,7 @@ async function upsertThreadsStep(
       message: {
         id: `${connectionId}:msg:${t.id}`,
         connectionId,
-        threadId: `${connectionId}:${t.id}`,
+        threadId: threadRowId,
         providerMessageId: t.id,
         providerThreadId: t.id,
         folder: "inbox",
@@ -206,57 +264,122 @@ async function upsertThreadsStep(
 async function persistHistoryIdStep(
   connectionId: string,
   historyId: string | null,
+  markFullSync = false,
 ) {
   "use step"
   if (!historyId) return
   const { db } = createDb(env.DATABASE_URL)
+  const patch: {
+    historyId: string
+    updatedAt: Date
+    lastFullSyncAt?: Date
+  } = { historyId, updatedAt: new Date() }
+  if (markFullSync) patch.lastFullSyncAt = new Date()
   await db
     .update(syncState)
-    .set({
-      historyId,
-      lastFullSyncAt: new Date(),
-      updatedAt: new Date(),
-    })
+    .set(patch)
     .where(eq(syncState.connectionId, connectionId))
 }
 
-/**
- * Initial backfill — first N pages of the inbox, durable per-page.
- * Later phases: replace with Gmail users.history.list delta sync and
- * self-reschedule via sleep() for recurring runs.
- */
-export async function syncConnection(input: {
-  connectionId: string
-  runId?: string
-}) {
-  "use workflow"
-  const { connectionId } = input
-  const runId = input.runId ?? crypto.randomUUID()
+async function connectionExistsStep(connectionId: string): Promise<boolean> {
+  "use step"
+  const { db } = createDb(env.DATABASE_URL)
+  const row = await db.query.connection.findFirst({
+    where: eq(connectionTable.id, connectionId),
+    columns: { id: true },
+  })
+  return Boolean(row)
+}
 
-  await loadConnectionStep(connectionId)
+/**
+ * Single sync cycle. Not a workflow on its own — orchestrates durable steps
+ * so both the one-shot `syncConnection` workflow and the looping
+ * `scheduleSyncConnection` workflow can share the same logic.
+ */
+async function runSyncCycle(connectionId: string, runId: string) {
+  const { historyId } = await loadSyncStateStep(connectionId)
   await claimSyncLockStep(connectionId, runId)
 
-  let totalUpserted = 0
-  let pageToken: string | null = null
-  let latestHistoryId: string | null = null
+  let upserted = 0
+  let latestHistoryId: string | null = historyId
+  let mode: "backfill" | "delta" | "refresh" = "backfill"
 
   try {
-    for (let page = 0; page < INITIAL_BACKFILL_PAGES; page++) {
-      const result = await fetchPageStep(connectionId, pageToken)
-      if (result.threads.length === 0) break
-      latestHistoryId = result.historyId ?? latestHistoryId
-      totalUpserted += await upsertThreadsStep(connectionId, result.threads)
-      if (!result.nextPageToken) break
-      pageToken = result.nextPageToken
+    if (!historyId) {
+      let pageToken: string | null = null
+      for (let page = 0; page < INITIAL_BACKFILL_PAGES; page++) {
+        const result = await fetchPageStep(connectionId, pageToken)
+        if (result.threads.length === 0) break
+        latestHistoryId = result.topHistoryId ?? latestHistoryId
+        upserted += await upsertThreadsStep(connectionId, result.threads)
+        if (!result.nextPageToken) break
+        pageToken = result.nextPageToken
+      }
+      await persistHistoryIdStep(connectionId, latestHistoryId, true)
+    } else {
+      const delta = await fetchHistoryDeltaStep(connectionId, historyId)
+      if (delta.supported) {
+        mode = "delta"
+        if (delta.changedThreadIds.length > 0) {
+          const page = await fetchPageStep(
+            connectionId,
+            null,
+            DELTA_PAGE_SIZE,
+          )
+          latestHistoryId = page.topHistoryId ?? delta.nextHistoryId
+          upserted = await upsertThreadsStep(connectionId, page.threads)
+        } else {
+          latestHistoryId = delta.nextHistoryId ?? historyId
+        }
+        await persistHistoryIdStep(connectionId, latestHistoryId)
+      } else {
+        mode = "refresh"
+        const page = await fetchPageStep(connectionId, null, DELTA_PAGE_SIZE)
+        latestHistoryId = page.topHistoryId ?? historyId
+        upserted = await upsertThreadsStep(connectionId, page.threads)
+        await persistHistoryIdStep(connectionId, latestHistoryId)
+      }
     }
 
-    await persistHistoryIdStep(connectionId, latestHistoryId)
     await releaseSyncLockStep(connectionId)
-    return { connectionId, runId, upserted: totalUpserted, historyId: latestHistoryId }
+    return { mode, upserted, historyId: latestHistoryId }
   } catch (err) {
     await releaseSyncLockStep(connectionId, {
       error: err instanceof Error ? err.message : String(err),
     })
     throw err
   }
+}
+
+/**
+ * One-shot sync. Trigger manually (e.g. from the "refresh" button) or right
+ * after connecting a new account.
+ */
+export async function syncConnection(input: {
+  connectionId: string
+  runId?: string
+}) {
+  "use workflow"
+  const runId = input.runId ?? crypto.randomUUID()
+  const result = await runSyncCycle(input.connectionId, runId)
+  return { connectionId: input.connectionId, runId, ...result }
+}
+
+/**
+ * Long-running scheduler: one sync cycle, sleep SYNC_INTERVAL, then restart
+ * itself so the loop survives deploys and crashes. Start once per connection
+ * (at signup / first login); exits when the connection is removed.
+ */
+export async function scheduleSyncConnection(input: { connectionId: string }) {
+  "use workflow"
+  const { connectionId } = input
+
+  const exists = await connectionExistsStep(connectionId)
+  if (!exists) return { connectionId, status: "ended" as const }
+
+  await runSyncCycle(connectionId, crypto.randomUUID())
+  await sleep(SYNC_INTERVAL)
+
+  await start(scheduleSyncConnection, [{ connectionId }])
+  return { connectionId, status: "rescheduled" as const }
 }
