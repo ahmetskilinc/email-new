@@ -42,9 +42,7 @@ export function ICloudForm({
       onSuccess()
     } catch (err: unknown) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to connect iCloud Mail"
+        err instanceof Error ? err.message : "Failed to connect iCloud Mail"
       toast.error(message)
     } finally {
       setIsPending(false)
@@ -58,13 +56,13 @@ export function ICloudForm({
           <button
             type="button"
             onClick={onBack}
-            className="text-muted-foreground hover:text-foreground text-sm"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             ← Back
           </button>
         </div>
         <h3 className="text-sm font-medium">Connect iCloud Mail</h3>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Enter your iCloud email and app-specific password.
         </p>
       </div>
@@ -81,7 +79,7 @@ export function ICloudForm({
             required
             autoComplete="email"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             Supported: @icloud.com, @me.com, @mac.com
           </p>
         </div>
@@ -97,7 +95,7 @@ export function ICloudForm({
             required
             autoComplete="current-password"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             Don&apos;t use your Apple ID password.
           </p>
         </div>
@@ -112,7 +110,8 @@ export function ICloudForm({
           </CollapsibleTrigger>
           <CollapsibleContent className="overflow-hidden data-[ending-style]:animate-accordion-up data-[starting-style]:animate-accordion-down">
             <ol className="mt-2 flex flex-col gap-1.5 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground [&>li]:pl-1">
-              <li>1. Go to{" "}
+              <li>
+                1. Go to{" "}
                 <a
                   href="https://appleid.apple.com/account/manage"
                   target="_blank"
@@ -123,11 +122,33 @@ export function ICloudForm({
                 </a>{" "}
                 and sign in.
               </li>
-              <li>2. Navigate to <span className="font-medium text-foreground">Sign-In and Security</span>.</li>
-              <li>3. Click <span className="font-medium text-foreground">App-Specific Passwords</span>.</li>
-              <li>4. Click the <span className="font-medium text-foreground">+</span> button to generate a new password.</li>
-              <li>5. Name it something like &quot;Mail App&quot; and click <span className="font-medium text-foreground">Create</span>.</li>
-              <li>6. Copy the generated password (format: xxxx-xxxx-xxxx-xxxx) and paste it above.</li>
+              <li>
+                2. Navigate to{" "}
+                <span className="font-medium text-foreground">
+                  Sign-In and Security
+                </span>
+                .
+              </li>
+              <li>
+                3. Click{" "}
+                <span className="font-medium text-foreground">
+                  App-Specific Passwords
+                </span>
+                .
+              </li>
+              <li>
+                4. Click the{" "}
+                <span className="font-medium text-foreground">+</span> button to
+                generate a new password.
+              </li>
+              <li>
+                5. Name it something like &quot;Mail App&quot; and click{" "}
+                <span className="font-medium text-foreground">Create</span>.
+              </li>
+              <li>
+                6. Copy the generated password (format: xxxx-xxxx-xxxx-xxxx) and
+                paste it above.
+              </li>
             </ol>
           </CollapsibleContent>
         </Collapsible>

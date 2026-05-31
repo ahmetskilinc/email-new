@@ -22,8 +22,14 @@ interface AddConnectionDialogProps {
   onSuccess?: () => void
 }
 
-export function AddConnectionDialog({ open, onOpenChange, onSuccess }: AddConnectionDialogProps) {
-  const [appPasswordProvider, setAppPasswordProvider] = React.useState<string | null>(null)
+export function AddConnectionDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+}: AddConnectionDialogProps) {
+  const [appPasswordProvider, setAppPasswordProvider] = React.useState<
+    string | null
+  >(null)
   const [isLoading, setIsLoading] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -34,7 +40,11 @@ export function AddConnectionDialog({ open, onOpenChange, onSuccess }: AddConnec
   }, [open])
 
   const handleProviderClick = async (providerId: string) => {
-    if (providerId === "icloud" || providerId === "yahoo" || providerId === "custom") {
+    if (
+      providerId === "icloud" ||
+      providerId === "yahoo" ||
+      providerId === "custom"
+    ) {
       setAppPasswordProvider(providerId)
       return
     }
@@ -97,7 +107,9 @@ export function AddConnectionDialog({ open, onOpenChange, onSuccess }: AddConnec
                   >
                     <Icon className="size-5" />
                     <span className="text-xs font-medium">
-                      {isLoading === provider.providerId ? "Connecting..." : provider.name}
+                      {isLoading === provider.providerId
+                        ? "Connecting..."
+                        : provider.name}
                     </span>
                   </Button>
                 )

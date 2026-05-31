@@ -21,7 +21,7 @@ import type { CalendarEvent } from "@/server/lib/calendar/types"
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = React.useState(() => new Date())
   const [displayMonth, setDisplayMonth] = React.useState(() =>
-    startOfMonth(new Date()),
+    startOfMonth(new Date())
   )
   const [dialogOpen, setDialogOpen] = React.useState(false)
   const [editingEvent, setEditingEvent] = React.useState<
@@ -31,11 +31,11 @@ export default function CalendarPage() {
 
   const rangeStart = React.useMemo(
     () => startOfWeek(startOfMonth(displayMonth), { weekStartsOn: 1 }),
-    [displayMonth],
+    [displayMonth]
   )
   const rangeEnd = React.useMemo(
     () => endOfWeek(endOfMonth(displayMonth), { weekStartsOn: 1 }),
-    [displayMonth],
+    [displayMonth]
   )
 
   const { data: monthEvents } = useCalendarEvents(rangeStart, rangeEnd)

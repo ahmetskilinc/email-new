@@ -66,12 +66,9 @@ export function ContactsTable({
   return (
     <div className="divide-y">
       {contacts.map((contact) => (
-        <div
-          key={contact.id}
-          className="flex items-center gap-4 px-4 py-3"
-        >
+        <div key={contact.id} className="flex items-center gap-4 px-4 py-3">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">
-            {(contact.name?.[0] ?? contact.email[0])}
+            {contact.name?.[0] ?? contact.email[0]}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -83,7 +80,8 @@ export function ContactsTable({
                 placeholder="Name"
                 autoFocus
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") void saveEdit(contact.id).catch(() => {})
+                  if (e.key === "Enter")
+                    void saveEdit(contact.id).catch(() => {})
                   if (e.key === "Escape") cancelEdit()
                 }}
               />
@@ -141,7 +139,10 @@ export function ContactsTable({
                   onClick={() => void handleDelete(contact).catch(() => {})}
                   title="Delete"
                 >
-                  <HugeiconsIcon icon={Delete02Icon} className="size-4 text-destructive" />
+                  <HugeiconsIcon
+                    icon={Delete02Icon}
+                    className="size-4 text-destructive"
+                  />
                 </Button>
               </>
             )}

@@ -12,11 +12,7 @@ import { normalizeThreadPreview } from "@/lib/thread-utils"
 import { formatDate } from "@/lib/utils"
 import { toggleStar } from "@/server/actions/mail"
 import { VList, type VListHandle } from "virtua"
-import {
-  Sheet,
-  SheetContent,
-  SheetClose,
-} from "@workspace/ui/components/sheet"
+import { Sheet, SheetContent, SheetClose } from "@workspace/ui/components/sheet"
 import { Button } from "@workspace/ui/components/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
@@ -62,7 +58,13 @@ export default function SearchPage() {
         void loadMore()
       }
     },
-    [threads.length, query.isLoading, query.isFetchingNextPage, query.hasNextPage, loadMore],
+    [
+      threads.length,
+      query.isLoading,
+      query.isFetchingNextPage,
+      query.hasNextPage,
+      loadMore,
+    ]
   )
 
   const renderItem = useCallback(
@@ -92,7 +94,7 @@ export default function SearchPage() {
                   loading: "Updating...",
                   success: starred ? "Unstarred" : "Starred",
                   error: "Failed to toggle star",
-                },
+                }
               )
             }}
           />
@@ -104,7 +106,14 @@ export default function SearchPage() {
         </div>
       )
     },
-    [threads.length, query.isFetchingNextPage, setThreadId, threadId, queryClient, layout],
+    [
+      threads.length,
+      query.isFetchingNextPage,
+      setThreadId,
+      threadId,
+      queryClient,
+      layout,
+    ]
   )
 
   const resultsList = useMemo(() => {
@@ -169,13 +178,17 @@ export default function SearchPage() {
             showCloseButton={false}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
-              <SheetClose
-                render={<Button variant="ghost" size="icon-sm" />}
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+              <SheetClose render={<Button variant="ghost" size="icon-sm" />}>
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  strokeWidth={2}
+                  className="size-4"
+                />
                 <span className="sr-only">Back</span>
               </SheetClose>
-              <span className="truncate text-sm font-medium">Back to results</span>
+              <span className="truncate text-sm font-medium">
+                Back to results
+              </span>
             </div>
             <MailDisplay className="max-h-full" />
           </SheetContent>

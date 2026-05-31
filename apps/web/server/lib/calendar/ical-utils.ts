@@ -1,5 +1,9 @@
 import { randomUUID } from "crypto"
-import type { CreateEventInput, CalendarEvent, CalendarEventAttendee } from "./types"
+import type {
+  CreateEventInput,
+  CalendarEvent,
+  CalendarEventAttendee,
+} from "./types"
 import type { DAVObject } from "tsdav"
 
 export function buildVCalendar(input: CreateEventInput, uid?: string): string {
@@ -14,8 +18,12 @@ export function buildVCalendar(input: CreateEventInput, uid?: string): string {
   ]
 
   const isAllDay = input.allDay ?? false
-  lines.push(`DTSTART${isAllDay ? ";VALUE=DATE" : ""}:${formatIcalDate(input.start, isAllDay)}`)
-  lines.push(`DTEND${isAllDay ? ";VALUE=DATE" : ""}:${formatIcalDate(input.end, isAllDay)}`)
+  lines.push(
+    `DTSTART${isAllDay ? ";VALUE=DATE" : ""}:${formatIcalDate(input.start, isAllDay)}`
+  )
+  lines.push(
+    `DTEND${isAllDay ? ";VALUE=DATE" : ""}:${formatIcalDate(input.end, isAllDay)}`
+  )
 
   if (input.description) {
     lines.push(`DESCRIPTION:${escapeIcal(input.description)}`)
@@ -54,7 +62,10 @@ export function buildVCalendar(input: CreateEventInput, uid?: string): string {
   return lines.join("\r\n")
 }
 
-export function parseVEvent(obj: DAVObject, calendarUrl: string): CalendarEvent | null {
+export function parseVEvent(
+  obj: DAVObject,
+  calendarUrl: string
+): CalendarEvent | null {
   const data = obj.data
   if (!data || typeof data !== "string") return null
 
@@ -92,7 +103,9 @@ export function parseVEvent(obj: DAVObject, calendarUrl: string): CalendarEvent 
     start: dtstart,
     end: dtend ?? dtstart,
     status,
-    recurrence: recurrence.length ? recurrence.map((r) => `RRULE:${r}`) : undefined,
+    recurrence: recurrence.length
+      ? recurrence.map((r) => `RRULE:${r}`)
+      : undefined,
     recurringEventId,
     attendees,
     organizer,
@@ -148,20 +161,31 @@ function parseOrganizer(vevent: string): CalendarEvent["organizer"] {
 
 function mapPartStat(partstat?: string): string | undefined {
   switch (partstat?.toUpperCase()) {
-    case "ACCEPTED": return "accepted"
-    case "TENTATIVE": return "tentative"
-    case "DECLINED": return "declined"
-    case "NEEDS-ACTION": return "needsAction"
-    default: return partstat
+    case "ACCEPTED":
+      return "accepted"
+    case "TENTATIVE":
+      return "tentative"
+    case "DECLINED":
+      return "declined"
+    case "NEEDS-ACTION":
+      return "needsAction"
+    default:
+      return partstat
   }
 }
 
-function mapClassToVisibility(cls?: string | null): CalendarEvent["visibility"] {
+function mapClassToVisibility(
+  cls?: string | null
+): CalendarEvent["visibility"] {
   switch (cls?.toUpperCase()) {
-    case "PUBLIC": return "public"
-    case "PRIVATE": return "private"
-    case "CONFIDENTIAL": return "confidential"
-    default: return undefined
+    case "PUBLIC":
+      return "public"
+    case "PRIVATE":
+      return "private"
+    case "CONFIDENTIAL":
+      return "confidential"
+    default:
+      return undefined
   }
 }
 

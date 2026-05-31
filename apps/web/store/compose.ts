@@ -25,7 +25,7 @@ export function useComposeDialog() {
     (open: boolean) => {
       setState(open ? { open: true } : { open: false })
     },
-    [setState],
+    [setState]
   )
 
   return [state, setOpen] as const
@@ -38,6 +38,6 @@ export function useOpenCompose() {
     (data?: ComposeInitialData) => {
       setState({ open: true, initialData: data })
     },
-    [setState],
+    [setState]
   )
 }

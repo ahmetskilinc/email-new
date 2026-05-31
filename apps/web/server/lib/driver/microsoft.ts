@@ -5,322 +5,353 @@ import {
   fromBase64Url,
   sanitizeContext,
   StandardizedError,
-} from './utils';
+} from "./utils"
 import type {
   OutlookCategory as Category,
   MailFolder,
   Message,
   User,
-} from '@microsoft/microsoft-graph-types';
-import type { IOutgoingMessage, Label, ParsedMessage } from '../../types';
-import { sanitizeTipTapHtml } from '../sanitize-tip-tap-html';
-import { Client } from '@microsoft/microsoft-graph-client';
-import type { MailManager, ManagerConfig } from './types';
-import type { CreateDraftData } from '../schemas';
-import he from 'he';
+} from "@microsoft/microsoft-graph-types"
+import type { IOutgoingMessage, Label, ParsedMessage } from "../../types"
+import { sanitizeTipTapHtml } from "../sanitize-tip-tap-html"
+import { Client } from "@microsoft/microsoft-graph-client"
+import type { MailManager, ManagerConfig } from "./types"
+import type { CreateDraftData } from "../schemas"
+import he from "he"
 
 export class OutlookMailManager implements MailManager {
-  private graphClient: Client;
+  private graphClient: Client
 
   constructor(public config: ManagerConfig) {
     const getAccessToken = async () => {
-      if (config.auth.accessToken) return config.auth.accessToken;
-      throw new Error('No access token available for Microsoft');
-    };
+      if (config.auth.accessToken) return config.auth.accessToken
+      throw new Error("No access token available for Microsoft")
+    }
 
     this.graphClient = Client.initWithMiddleware({
       authProvider: {
         getAccessToken,
       },
-    });
+    })
   }
 
   public getScope(): string {
     return [
-      'https://graph.microsoft.com/User.Read',
-      'https://graph.microsoft.com/Mail.ReadWrite',
-      'https://graph.microsoft.com/Mail.Send',
-      'https://graph.microsoft.com/Calendars.Read',
-      'offline_access',
-    ].join(' ');
+      "https://graph.microsoft.com/User.Read",
+      "https://graph.microsoft.com/Mail.ReadWrite",
+      "https://graph.microsoft.com/Mail.Send",
+      "https://graph.microsoft.com/Calendars.Read",
+      "offline_access",
+    ].join(" ")
   }
   public getAttachment(messageId: string, attachmentId: string) {
     return this.withErrorHandler(
-      'getAttachment',
+      "getAttachment",
       async () => {
         const response = await this.graphClient
           .api(`/me/messages/${messageId}/attachments/${attachmentId}`)
-          .get();
+          .get()
 
-        const attachment = response;
+        const attachment = response
 
         if (!attachment || !attachment.contentBytes) {
-          throw new Error('Attachment data not found');
+          throw new Error("Attachment data not found")
         }
 
-        const base64 = fromBase64Url(attachment.contentBytes);
+        const base64 = fromBase64Url(attachment.contentBytes)
 
-        return base64;
+        return base64
       },
-      { messageId, attachmentId },
-    );
+      { messageId, attachmentId }
+    )
   }
   public getMessageAttachments(messageId: string) {
     return this.withErrorHandler(
-      'getMessageAttachments',
+      "getMessageAttachments",
       async () => {
         const response = await this.graphClient
           .api(`/me/messages/${messageId}/attachments`)
-          .get();
+          .get()
 
-        const items: any[] = response?.value ?? [];
+        const items: any[] = response?.value ?? []
 
         return items
-          .filter((att: any) => att['@odata.type'] === '#microsoft.graph.fileAttachment')
+          .filter(
+            (att: any) =>
+              att["@odata.type"] === "#microsoft.graph.fileAttachment"
+          )
           .map((att: any) => ({
-            filename: att.name || '',
-            mimeType: att.contentType || 'application/octet-stream',
+            filename: att.name || "",
+            mimeType: att.contentType || "application/octet-stream",
             size: att.size || 0,
-            attachmentId: att.id || '',
+            attachmentId: att.id || "",
             headers: [] as { name: string; value: string }[],
-            body: att.contentBytes || '',
-          }));
+            body: att.contentBytes || "",
+          }))
       },
-      { messageId },
-    );
+      { messageId }
+    )
   }
 
   public getEmailAliases() {
-    return this.withErrorHandler('getEmailAliases', async () => {
-      const user: User = await this.graphClient.api('/me').select('mail,userPrincipalName').get();
-      const primaryEmail = user.mail || user.userPrincipalName || '';
+    return this.withErrorHandler("getEmailAliases", async () => {
+      const user: User = await this.graphClient
+        .api("/me")
+        .select("mail,userPrincipalName")
+        .get()
+      const primaryEmail = user.mail || user.userPrincipalName || ""
 
       const aliases: { email: string; name?: string; primary?: boolean }[] = [
         { email: primaryEmail, primary: true },
-      ];
+      ]
 
-      return aliases;
-    });
+      return aliases
+    })
   }
   public markAsRead(messageIds: string[]) {
     return this.withErrorHandler(
-      'markAsRead',
+      "markAsRead",
       async () => {
-        await this.modifyMessageReadStatus(messageIds, true);
+        await this.modifyMessageReadStatus(messageIds, true)
       },
-      { messageIds },
-    );
+      { messageIds }
+    )
   }
   public markAsUnread(messageIds: string[]) {
     return this.withErrorHandler(
-      'markAsUnread',
+      "markAsUnread",
       async () => {
-        await this.modifyMessageReadStatus(messageIds, false);
+        await this.modifyMessageReadStatus(messageIds, false)
       },
-      { messageIds },
-    );
+      { messageIds }
+    )
   }
   private async modifyMessageReadStatus(messageIds: string[], isRead: boolean) {
     if (messageIds.length === 0) {
-      return;
+      return
     }
 
     const batchRequests = messageIds.map((id, index) => ({
       id: `${index}`,
-      method: 'PATCH',
+      method: "PATCH",
       url: `/me/messages/${id}`,
       body: { isRead: isRead },
-      headers: { 'Content-Type': 'application/json' },
-    }));
+      headers: { "Content-Type": "application/json" },
+    }))
 
     try {
-      await this.graphClient.api('/$batch').post({ requests: batchRequests });
+      await this.graphClient.api("/$batch").post({ requests: batchRequests })
     } catch (error) {
-      console.error('Error during batch update of message read status:', error);
-      throw error;
+      console.error("Error during batch update of message read status:", error)
+      throw error
     }
   }
   public getUserInfo() {
     return this.withErrorHandler(
-      'getUserInfo',
+      "getUserInfo",
       async () => {
         const user: User = await this.graphClient
-          .api('/me')
-          .select('id,displayName,userPrincipalName,mail')
-          .get();
+          .api("/me")
+          .select("id,displayName,userPrincipalName,mail")
+          .get()
 
-        let photoUrl = '';
+        let photoUrl = ""
         try {
           // Requires separate fetching logic
         } catch (error: unknown) {
           console.warn(
-            'Could not fetch user photo:',
-            error instanceof Error ? error.message : 'Unknown error',
-          );
+            "Could not fetch user photo:",
+            error instanceof Error ? error.message : "Unknown error"
+          )
         }
 
         const info = {
-          address: user.mail || user.userPrincipalName || '',
-          name: user.displayName || '',
+          address: user.mail || user.userPrincipalName || "",
+          name: user.displayName || "",
           photo: photoUrl,
-        };
+        }
 
-        return info;
+        return info
       },
-      {},
-    );
+      {}
+    )
   }
   public getTokens<T>(code: string) {
     return this.withErrorHandler(
-      'getTokens',
+      "getTokens",
       async () => {
         const tokens = {
           accessToken: this.config.auth?.accessToken,
           refreshToken: this.config.auth?.refreshToken,
-        };
-        return { tokens } as T;
+        }
+        return { tokens } as T
       },
-      { code },
-    );
+      { code }
+    )
   }
   public count() {
     return this.withErrorHandler(
-      'count',
+      "count",
       async () => {
-        const userLabels = await this.graphClient.api('/me/mailfolders').get();
+        const userLabels = await this.graphClient.api("/me/mailfolders").get()
 
         if (!userLabels.value) {
-          return [];
+          return []
         }
 
         const folders = await Promise.all(
           userLabels.value.map(async (folder: MailFolder) => {
             try {
-              const res = await this.graphClient.api(`/me/mailfolders/${folder.id}`).get();
+              const res = await this.graphClient
+                .api(`/me/mailfolders/${folder.id}`)
+                .get()
 
-              let normalizedLabel = res.displayName || res.id || '';
+              let normalizedLabel = res.displayName || res.id || ""
 
-              if (res.displayName === 'Inbox' || res.id?.toLowerCase() === 'inbox')
-                normalizedLabel = 'Inbox';
-              else if (res.displayName === 'Sent Items' || res.id?.toLowerCase() === 'sentitems')
-                normalizedLabel = 'Sent';
-              else if (res.displayName === 'Drafts' || res.id?.toLowerCase() === 'drafts')
-                normalizedLabel = 'Drafts';
-              else if (
-                res.displayName === 'Deleted Items' ||
-                res.id?.toLowerCase() === 'deleteditems'
+              if (
+                res.displayName === "Inbox" ||
+                res.id?.toLowerCase() === "inbox"
               )
-                normalizedLabel = 'Bin';
-              else if (res.displayName === 'Archive' || res.id?.toLowerCase() === 'archive')
-                normalizedLabel = 'Archive';
-              else if (res.displayName === 'Junk Email' || res.id?.toLowerCase() === 'junkemail')
-                normalizedLabel = 'Spam';
+                normalizedLabel = "Inbox"
+              else if (
+                res.displayName === "Sent Items" ||
+                res.id?.toLowerCase() === "sentitems"
+              )
+                normalizedLabel = "Sent"
+              else if (
+                res.displayName === "Drafts" ||
+                res.id?.toLowerCase() === "drafts"
+              )
+                normalizedLabel = "Drafts"
+              else if (
+                res.displayName === "Deleted Items" ||
+                res.id?.toLowerCase() === "deleteditems"
+              )
+                normalizedLabel = "Bin"
+              else if (
+                res.displayName === "Archive" ||
+                res.id?.toLowerCase() === "archive"
+              )
+                normalizedLabel = "Archive"
+              else if (
+                res.displayName === "Junk Email" ||
+                res.id?.toLowerCase() === "junkemail"
+              )
+                normalizedLabel = "Spam"
 
               // Use unreadItemCount only for Inbox, use totalItemCount for all other folders
               const count =
-                res.id?.toLowerCase() === 'inbox'
+                res.id?.toLowerCase() === "inbox"
                   ? Number(res.unreadItemCount)
-                  : Number(res.totalItemCount);
+                  : Number(res.totalItemCount)
 
               return {
                 label: normalizedLabel,
                 count: count ?? undefined,
-              };
+              }
             } catch (error) {
-              console.error(`Error getting counts for folder ${folder.id}:`, error);
+              console.error(
+                `Error getting counts for folder ${folder.id}:`,
+                error
+              )
               return {
-                label: folder.displayName || folder.id || '',
+                label: folder.displayName || folder.id || "",
                 count: undefined,
-              };
+              }
             }
-          }),
-        );
+          })
+        )
 
-        return folders;
+        return folders
       },
-      { email: this.config.auth?.email },
-    );
+      { email: this.config.auth?.email }
+    )
   }
   public list(params: {
-    folder: string;
-    query?: string;
-    maxResults?: number;
-    labelIds?: string[];
-    pageToken?: string;
+    folder: string
+    query?: string
+    maxResults?: number
+    labelIds?: string[]
+    pageToken?: string
   }) {
-    const { folder, query: q, maxResults = 100, pageToken } = params;
+    const { folder, query: q, maxResults = 100, pageToken } = params
 
-    let folderId = this.getOutlookFolderId(folder);
+    let folderId = this.getOutlookFolderId(folder)
     if (!folderId) {
-      folderId = folder;
+      folderId = folder
     }
 
-    let request = this.graphClient.api(`/me/mailFolders/${folderId}/messages`).top(maxResults);
+    let request = this.graphClient
+      .api(`/me/mailFolders/${folderId}/messages`)
+      .top(maxResults)
 
     if (q) {
-      request = request.search(`"${q}"`);
+      request = request.search(`"${q}"`)
     }
 
     request = request.select(
-      'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId,conversationId,bodyPreview,internetMessageHeaders',
-    );
+      "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId,conversationId,bodyPreview,internetMessageHeaders"
+    )
 
     if (maxResults > 0) {
-      request = request.top(maxResults);
+      request = request.top(maxResults)
     }
     if (pageToken) {
       console.warn(
-        'Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly.',
-      );
+        "Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly."
+      )
     }
 
     // request = request.orderby('receivedDateTime desc');
 
     return this.withErrorHandler(
-      'list',
+      "list",
       async () => {
-        const res = await request.get();
+        const res = await request.get()
 
         // console.log(JSON.stringify(res, null, 4));
 
-        const messages: Message[] = res.value;
-        const nextPageLink: string | undefined = res['@odata.nextLink'];
+        const messages: Message[] = res.value
+        const nextPageLink: string | undefined = res["@odata.nextLink"]
 
         // First parse all messages to get basic info
         const parsedMessages = await Promise.all(
-          messages.map((msg) => this.parseOutlookMessage(msg)),
-        );
+          messages.map((msg) => this.parseOutlookMessage(msg))
+        )
 
         // Then fetch full content for each message
         const fullMessages = await Promise.all(
           messages.map(async (msg, index) => {
             try {
               // Get the full message content using the get method
-              const fullMessage = await this.get(msg.id || '');
+              const fullMessage = await this.get(msg.id || "")
               return {
                 ...parsedMessages[index],
                 ...fullMessage.latest,
-                decodedBody: fullMessage.latest.decodedBody || '',
-              };
+                decodedBody: fullMessage.latest.decodedBody || "",
+              }
             } catch (error) {
-              console.error(`Failed to fetch full message for ${msg.id}:`, error);
+              console.error(
+                `Failed to fetch full message for ${msg.id}:`,
+                error
+              )
               // If get fails, fall back to basic message info
               return {
                 ...parsedMessages[index],
-                body: '',
-                processedHtml: '',
-                blobUrl: '',
-                decodedBody: '',
+                body: "",
+                processedHtml: "",
+                blobUrl: "",
+                decodedBody: "",
                 attachments: [],
-              };
+              }
             }
-          }),
-        );
+          })
+        )
 
         // Format response according to interface requirements
         return {
           threads: messages.map((msg, index) => ({
-            id: msg.id || msg.internetMessageId || '',
+            id: msg.id || msg.internetMessageId || "",
             historyId: msg.lastModifiedDateTime ?? null,
             $raw: {
               ...msg,
@@ -328,7 +359,7 @@ export class OutlookMailManager implements MailManager {
             },
           })),
           nextPageToken: nextPageLink || null,
-        };
+        }
       },
       {
         folder,
@@ -337,90 +368,98 @@ export class OutlookMailManager implements MailManager {
         _labelIds: params.labelIds,
         pageToken,
         email: this.config.auth?.email,
-      },
-    );
+      }
+    )
   }
   private getOutlookFolderId(folderName: string): string | undefined {
     switch (folderName.toLowerCase()) {
-      case 'inbox':
-        return 'inbox';
-      case 'sent':
-        return 'sentitems';
-      case 'drafts':
-        return 'drafts';
-      case 'bin':
-      case 'trash':
-        return 'deleteditems';
-      case 'archive':
-        return 'archive';
-      case 'junk':
-      case 'spam':
-        return 'junkemail';
+      case "inbox":
+        return "inbox"
+      case "sent":
+        return "sentitems"
+      case "drafts":
+        return "drafts"
+      case "bin":
+      case "trash":
+        return "deleteditems"
+      case "archive":
+        return "archive"
+      case "junk":
+      case "spam":
+        return "junkemail"
       default:
-        return undefined;
+        return undefined
     }
   }
   public get(id: string) {
     return this.withErrorHandler(
-      'get',
+      "get",
       async () => {
         const message: Message = await this.graphClient
           .api(`/me/messages/${id}`)
           .select(
-            'id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,attachments,conversationId,bodyPreview,internetMessageHeaders',
+            "id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,attachments,conversationId,bodyPreview,internetMessageHeaders"
           )
-          .get();
+          .get()
 
         if (!message) {
-          throw new Error('Message not found');
+          throw new Error("Message not found")
         }
 
-        const bodyContent = message.body?.content || '';
-        const bodyContentType = message.body?.contentType?.toLowerCase() || 'text';
+        const bodyContent = message.body?.content || ""
+        const bodyContentType =
+          message.body?.contentType?.toLowerCase() || "text"
 
-        let decodedBody = '';
-        if (bodyContentType === 'html') {
-          decodedBody = he.decode(bodyContent);
+        let decodedBody = ""
+        if (bodyContentType === "html") {
+          decodedBody = he.decode(bodyContent)
         } else {
-          decodedBody = he.decode(bodyContent).replace(/\n/g, '<br>');
+          decodedBody = he.decode(bodyContent).replace(/\n/g, "<br>")
         }
 
-        const attachmentsData = message.attachments || [];
+        const attachmentsData = message.attachments || []
 
         const attachments = await Promise.all(
           attachmentsData.map(async (att) => {
-            if (!att.id || !att.name || att.size === undefined || att.contentType === undefined) {
-              return null;
+            if (
+              !att.id ||
+              !att.name ||
+              att.size === undefined ||
+              att.contentType === undefined
+            ) {
+              return null
             }
             const attachmentContent = await this.graphClient
               .api(`/me/messages/${message.id}/attachments/${att.id}`)
-              .get();
+              .get()
 
             if (!attachmentContent.contentBytes) {
-              return null;
+              return null
             }
 
             return {
               filename: att.name,
-              mimeType: att.contentType ?? 'application/octet-stream',
+              mimeType: att.contentType ?? "application/octet-stream",
               size: att.size,
               attachmentId: att.id,
               headers: [],
               body: attachmentContent.contentBytes,
-            };
-          }),
-        ).then((attachments) => attachments.filter((a): a is NonNullable<typeof a> => a !== null));
+            }
+          })
+        ).then((attachments) =>
+          attachments.filter((a): a is NonNullable<typeof a> => a !== null)
+        )
 
-        const parsedData = this.parseOutlookMessage(message);
+        const parsedData = this.parseOutlookMessage(message)
 
         const fullEmailData = {
           ...parsedData,
-          body: '',
-          processedHtml: '',
-          blobUrl: '',
+          body: "",
+          processedHtml: "",
+          blobUrl: "",
           decodedBody: decodedBody,
           attachments,
-        };
+        }
 
         return {
           labels: parsedData.tags,
@@ -428,219 +467,232 @@ export class OutlookMailManager implements MailManager {
           latest: fullEmailData,
           hasUnread: parsedData.unread,
           totalReplies: 1,
-        };
+        }
       },
-      { id, email: this.config.auth?.email },
-    );
+      { id, email: this.config.auth?.email }
+    )
   }
   public create(data: IOutgoingMessage) {
     return this.withErrorHandler(
-      'create',
+      "create",
       async () => {
-        const messagePayload = await this.parseOutgoingOutlook(data);
+        const messagePayload = await this.parseOutgoingOutlook(data)
 
-        const res = await this.graphClient.api('/me/sendMail').post({
+        const res = await this.graphClient.api("/me/sendMail").post({
           message: messagePayload,
           saveToSentItems: true,
-        });
+        })
 
-        return res;
+        return res
       },
-      { data, email: this.config.auth?.email },
-    );
+      { data, email: this.config.auth?.email }
+    )
   }
   public delete(id: string) {
     return this.withErrorHandler(
-      'delete',
+      "delete",
       async () => {
-        await this.graphClient.api(`/me/messages/${id}`).delete();
+        await this.graphClient.api(`/me/messages/${id}`).delete()
       },
-      { id },
-    );
+      { id }
+    )
   }
   public normalizeIds(ids: string[]) {
     return this.withSyncErrorHandler(
-      'normalizeIds',
+      "normalizeIds",
       () => {
         const messageIds: string[] = ids.map((id) =>
-          id.startsWith('thread:') ? id.substring(7) : id,
-        );
-        return { threadIds: messageIds }; // Renamed from threadIds to messageIds conceptually
+          id.startsWith("thread:") ? id.substring(7) : id
+        )
+        return { threadIds: messageIds } // Renamed from threadIds to messageIds conceptually
       },
-      { ids },
-    );
+      { ids }
+    )
   }
   public modifyLabels(
     messageIds: string[],
-    options: { addLabels: string[]; removeLabels: string[] },
+    options: { addLabels: string[]; removeLabels: string[] }
   ) {
     return this.withErrorHandler(
-      'modifyLabels',
+      "modifyLabels",
       async () => {
         await this.modifyMessageLabelsOrFolders(
           messageIds,
           options.addLabels,
-          options.removeLabels,
-        );
+          options.removeLabels
+        )
       },
-      { messageIds, options },
-    );
+      { messageIds, options }
+    )
   }
   private async modifyMessageLabelsOrFolders(
     messageIds: string[],
     addItems: string[],
-    removeItems: string[],
+    removeItems: string[]
   ) {
     if (messageIds.length === 0) {
-      return;
+      return
     }
     const batchRequests = messageIds.map((id, index) => {
-      const patchBody = {};
+      const patchBody = {}
 
       if (addItems.length > 0 || removeItems.length > 0) {
         console.warn(
-          `Modifying categories (${addItems.join(',')}, ${removeItems.join(',')}) on message ${id} is not fully implemented.`,
-        );
+          `Modifying categories (${addItems.join(",")}, ${removeItems.join(",")}) on message ${id} is not fully implemented.`
+        )
       }
 
       if (!addItems[0]) {
-        console.warn('No addItems');
-        return;
+        console.warn("No addItems")
+        return
       }
 
-      let moveToFolderId: string | undefined;
+      let moveToFolderId: string | undefined
       if (addItems.length > 0 && this.getOutlookFolderId(addItems[0])) {
-        moveToFolderId = this.getOutlookFolderId(addItems[0]) || addItems[0];
+        moveToFolderId = this.getOutlookFolderId(addItems[0]) || addItems[0]
         console.warn(
-          `Attempting to move message ${id} to folder ${moveToFolderId}. This is a move operation, not adding a label.`,
-        );
+          `Attempting to move message ${id} to folder ${moveToFolderId}. This is a move operation, not adding a label.`
+        )
         return {
           id: `${index}`,
-          method: 'POST',
+          method: "POST",
           url: `/me/messages/${id}/move`,
           body: { destinationId: moveToFolderId },
-          headers: { 'Content-Type': 'application/json' },
-        };
+          headers: { "Content-Type": "application/json" },
+        }
       }
       return {
         id: `${index}`,
-        method: 'PATCH',
+        method: "PATCH",
         url: `/me/messages/${id}`,
         body: patchBody,
-        headers: { 'Content-Type': 'application/json' },
-      };
-    });
+        headers: { "Content-Type": "application/json" },
+      }
+    })
 
     const validBatchRequests = batchRequests
-      .filter((req) => typeof req !== 'undefined')
-      .filter((req) => Object.keys(req.body).length > 0 || req.method === 'POST');
+      .filter((req) => typeof req !== "undefined")
+      .filter(
+        (req) => Object.keys(req.body).length > 0 || req.method === "POST"
+      )
 
     if (validBatchRequests.length === 0) {
-      console.warn('No valid batch requests generated for modifyMessageLabelsOrFolders.');
-      return;
+      console.warn(
+        "No valid batch requests generated for modifyMessageLabelsOrFolders."
+      )
+      return
     }
 
     try {
-      await this.graphClient.api('/$batch').post({ requests: validBatchRequests });
+      await this.graphClient
+        .api("/$batch")
+        .post({ requests: validBatchRequests })
     } catch (error) {
-      console.error('Error during batch modification of messages:', error);
-      throw error;
+      console.error("Error during batch modification of messages:", error)
+      throw error
     }
   }
   public sendDraft(draftId: string, data: IOutgoingMessage) {
     return this.withErrorHandler(
-      'sendDraft',
+      "sendDraft",
       async () => {
-        await this.graphClient.api(`/me/messages/${draftId}/send`).post({});
+        await this.graphClient.api(`/me/messages/${draftId}/send`).post({})
       },
-      { draftId, data },
-    );
+      { draftId, data }
+    )
   }
   public getDraft(draftId: string) {
     return this.withErrorHandler(
-      'getDraft',
+      "getDraft",
       async () => {
         const draftMessage: Message = await this.graphClient
           .api(`/me/messages/${draftId}`) // Drafts are messages in the drafts folder
-          .select('id,subject,body,from,toRecipients,ccRecipients,bccRecipients')
-          .get();
+          .select(
+            "id,subject,body,from,toRecipients,ccRecipients,bccRecipients"
+          )
+          .get()
 
         if (!draftMessage) {
-          throw new Error('Draft not found');
+          throw new Error("Draft not found")
         }
 
-        const parsedDraft = this.parseOutlookDraft(draftMessage);
+        const parsedDraft = this.parseOutlookDraft(draftMessage)
         if (!parsedDraft) {
-          throw new Error('Failed to parse draft');
+          throw new Error("Failed to parse draft")
         }
 
-        return parsedDraft;
+        return parsedDraft
       },
-      { draftId },
-    );
+      { draftId }
+    )
   }
   public deleteDraft(draftId: string) {
     return this.withErrorHandler(
-      'deleteDraft',
+      "deleteDraft",
       async () => {
-        await this.graphClient.api(`/me/messages/${draftId}`).delete();
+        await this.graphClient.api(`/me/messages/${draftId}`).delete()
       },
-      { draftId },
-    );
+      { draftId }
+    )
   }
-  public listDrafts(params: { q?: string; maxResults?: number; pageToken?: string }) {
-    const { q, maxResults = 20, pageToken } = params;
+  public listDrafts(params: {
+    q?: string
+    maxResults?: number
+    pageToken?: string
+  }) {
+    const { q, maxResults = 20, pageToken } = params
     return this.withErrorHandler(
-      'listDrafts',
+      "listDrafts",
       async () => {
-        let request = this.graphClient.api('/me/mailfolders/drafts/messages');
+        let request = this.graphClient.api("/me/mailfolders/drafts/messages")
 
         if (q) {
-          request = request.search(`"${q}"`);
+          request = request.search(`"${q}"`)
         }
 
         request = request.select(
-          'id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,conversationId,bodyPreview,internetMessageHeaders',
-        );
+          "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,conversationId,bodyPreview,internetMessageHeaders"
+        )
         // request = request.orderby('receivedDateTime desc');
-        request = request.top(maxResults);
+        request = request.top(maxResults)
 
         if (pageToken) {
           console.warn(
-            'Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly.',
-          );
+            "Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly."
+          )
         }
 
-        const res = await request.get();
+        const res = await request.get()
 
-        const draftMessages: Message[] = res.value;
-        const nextPageLink: string | undefined = res['@odata.nextLink'];
+        const draftMessages: Message[] = res.value
+        const nextPageLink: string | undefined = res["@odata.nextLink"]
 
         const drafts = await Promise.all(
           draftMessages.map(async (message) => {
-            if (!message.id) return null;
+            if (!message.id) return null
             try {
-              const parsed = this.parseOutlookMessage(message);
+              const parsed = this.parseOutlookMessage(message)
               return {
                 ...parsed,
                 id: message.id,
                 threadId: message.conversationId || message.id,
-                receivedOn: message.receivedDateTime || new Date().toISOString(),
-              };
+                receivedOn:
+                  message.receivedDateTime || new Date().toISOString(),
+              }
             } catch (error) {
-              console.error('Error parsing draft message:', error);
-              return null;
+              console.error("Error parsing draft message:", error)
+              return null
             }
-          }),
-        );
+          })
+        )
 
         const sortedDrafts = drafts
           .filter((draft) => draft !== null)
           .sort((a, b) => {
-            const dateA = new Date(a?.receivedOn || new Date()).getTime();
-            const dateB = new Date(b?.receivedOn || new Date()).getTime();
-            return dateB - dateA;
-          });
+            const dateA = new Date(a?.receivedOn || new Date()).getTime()
+            const dateB = new Date(b?.receivedOn || new Date()).getTime()
+            return dateB - dateA
+          })
 
         return {
           threads: sortedDrafts.map((draft) => ({
@@ -649,257 +701,297 @@ export class OutlookMailManager implements MailManager {
             $raw: draft,
           })),
           nextPageToken: nextPageLink || null,
-        };
+        }
       },
-      { q, maxResults, pageToken },
-    );
+      { q, maxResults, pageToken }
+    )
   }
   public createDraft(data: CreateDraftData) {
     return this.withErrorHandler(
-      'createDraft',
+      "createDraft",
       async () => {
-        const { html: message, inlineImages } = await sanitizeTipTapHtml(data.message);
+        const { html: message, inlineImages } = await sanitizeTipTapHtml(
+          data.message
+        )
 
-        const toRecipients = Array.isArray(data.to) ? data.to : data.to.split(', ');
+        const toRecipients = Array.isArray(data.to)
+          ? data.to
+          : data.to.split(", ")
 
         const outlookMessage: Message = {
           subject: data.subject,
           body: {
-            contentType: 'html',
-            content: message || '',
+            contentType: "html",
+            content: message || "",
           },
           toRecipients: toRecipients.map((recipient) => ({
             emailAddress: {
-              address: typeof recipient === 'string' ? recipient : recipient.email,
-              name: typeof recipient === 'string' ? undefined : recipient.name || undefined,
+              address:
+                typeof recipient === "string" ? recipient : recipient.email,
+              name:
+                typeof recipient === "string"
+                  ? undefined
+                  : recipient.name || undefined,
             },
           })),
-        };
+        }
 
         if (data.cc) {
-          const ccRecipients = Array.isArray(data.cc) ? data.cc : data.cc.split(', ');
+          const ccRecipients = Array.isArray(data.cc)
+            ? data.cc
+            : data.cc.split(", ")
           outlookMessage.ccRecipients = ccRecipients.map((recipient) => ({
             emailAddress: {
-              address: typeof recipient === 'string' ? recipient : recipient.email,
-              name: typeof recipient === 'string' ? undefined : recipient.name || undefined,
+              address:
+                typeof recipient === "string" ? recipient : recipient.email,
+              name:
+                typeof recipient === "string"
+                  ? undefined
+                  : recipient.name || undefined,
             },
-          }));
+          }))
         }
 
         if (data.bcc) {
-          const bccRecipients = Array.isArray(data.bcc) ? data.bcc : data.bcc.split(', ');
+          const bccRecipients = Array.isArray(data.bcc)
+            ? data.bcc
+            : data.bcc.split(", ")
           outlookMessage.bccRecipients = bccRecipients.map((recipient) => ({
             emailAddress: {
-              address: typeof recipient === 'string' ? recipient : recipient.email,
-              name: typeof recipient === 'string' ? undefined : recipient.name || undefined,
+              address:
+                typeof recipient === "string" ? recipient : recipient.email,
+              name:
+                typeof recipient === "string"
+                  ? undefined
+                  : recipient.name || undefined,
             },
-          }));
+          }))
         }
 
-        const allAttachments = [];
+        const allAttachments = []
 
         if (inlineImages.length > 0) {
           for (const image of inlineImages) {
             allAttachments.push({
-              '@odata.type': '#microsoft.graph.fileAttachment',
+              "@odata.type": "#microsoft.graph.fileAttachment",
               name: image.cid,
               contentType: image.mimeType,
               contentBytes: image.data,
               contentId: image.cid,
               isInline: true,
-            });
+            })
           }
         }
 
         if (data.attachments && data.attachments.length > 0) {
           const regularAttachments = await Promise.all(
             data.attachments.map(async (file) => {
-              const arrayBuffer = await file.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-              const base64Content = buffer.toString('base64');
+              const arrayBuffer = await file.arrayBuffer()
+              const buffer = Buffer.from(arrayBuffer)
+              const base64Content = buffer.toString("base64")
 
               return {
-                '@odata.type': '#microsoft.graph.fileAttachment',
+                "@odata.type": "#microsoft.graph.fileAttachment",
                 name: file.name,
-                contentType: file.type || 'application/octet-stream',
+                contentType: file.type || "application/octet-stream",
                 contentBytes: base64Content,
-              };
-            }),
-          );
-          allAttachments.push(...regularAttachments);
+              }
+            })
+          )
+          allAttachments.push(...regularAttachments)
         }
 
         if (allAttachments.length > 0) {
-          outlookMessage.attachments = allAttachments;
+          outlookMessage.attachments = allAttachments
         }
 
-        let res;
+        let res
 
         if (data.id) {
           try {
             res = await this.graphClient
               .api(`/me/mailfolders/drafts/messages/${data.id}`)
-              .patch(outlookMessage);
+              .patch(outlookMessage)
           } catch (error) {
-            console.warn(`Failed to update draft ${data.id}, creating a new one`, error);
+            console.warn(
+              `Failed to update draft ${data.id}, creating a new one`,
+              error
+            )
             try {
-              await this.graphClient.api(`/me/mailfolders/drafts/messages/${data.id}`).delete();
+              await this.graphClient
+                .api(`/me/mailfolders/drafts/messages/${data.id}`)
+                .delete()
             } catch (deleteError) {
-              console.error(`Failed to delete draft ${data.id}`, deleteError);
+              console.error(`Failed to delete draft ${data.id}`, deleteError)
             }
 
             res = await this.graphClient
-              .api('/me/mailfolders/drafts/messages')
-              .post(outlookMessage);
+              .api("/me/mailfolders/drafts/messages")
+              .post(outlookMessage)
           }
         } else {
-          res = await this.graphClient.api('/me/mailfolders/drafts/messages').post(outlookMessage);
+          res = await this.graphClient
+            .api("/me/mailfolders/drafts/messages")
+            .post(outlookMessage)
         }
 
-        return res;
+        return res
       },
-      { data },
-    );
+      { data }
+    )
   }
   public async getUserLabels() {
     try {
       // Get root mail folders
-      const rootFoldersResponse = await this.graphClient.api('/me/mailfolders').get();
-      const rootFolders: MailFolder[] = rootFoldersResponse.value || [];
+      const rootFoldersResponse = await this.graphClient
+        .api("/me/mailfolders")
+        .get()
+      const rootFolders: MailFolder[] = rootFoldersResponse.value || []
 
       // System folders to identify
       const systemFolderNames = [
-        'inbox',
-        'drafts',
-        'sentitems',
-        'deleteditems',
-        'archive',
-        'outbox',
-        'junkemail',
-        'clutter',
-        'notes',
-        'journal',
-        'calendar',
-        'contacts',
-        'tasks',
-        'conversationhistory',
-      ];
+        "inbox",
+        "drafts",
+        "sentitems",
+        "deleteditems",
+        "archive",
+        "outbox",
+        "junkemail",
+        "clutter",
+        "notes",
+        "journal",
+        "calendar",
+        "contacts",
+        "tasks",
+        "conversationhistory",
+      ]
 
       const processedFolders = await this.processMailFoldersHierarchy(
         rootFolders,
-        systemFolderNames,
-      );
+        systemFolderNames
+      )
 
-      console.log('Microsoft labels with hierarchy:', processedFolders);
-      return processedFolders;
+      console.log("Microsoft labels with hierarchy:", processedFolders)
+      return processedFolders
     } catch (error) {
-      console.error('Error fetching Outlook categories or folders:', error);
+      console.error("Error fetching Outlook categories or folders:", error)
       if (error instanceof Error) {
-        console.error('Error details:', error.message, error.stack);
+        console.error("Error details:", error.message, error.stack)
       }
-      return [];
+      return []
     }
   }
   private async processMailFoldersHierarchy(
     folders: MailFolder[],
     systemFolderNames: string[],
     depth: number = 0,
-    maxDepth: number = 99,
+    maxDepth: number = 99
   ): Promise<Label[]> {
     if (depth >= maxDepth) {
-      return [];
+      return []
     }
 
-    const result: Label[] = [];
+    const result: Label[] = []
 
     for (const folder of folders) {
-      if (!folder.id) continue;
+      if (!folder.id) continue
 
       try {
-        const folderType = systemFolderNames.includes(folder.displayName?.toLowerCase() || '')
-          ? 'system'
-          : 'user';
+        const folderType = systemFolderNames.includes(
+          folder.displayName?.toLowerCase() || ""
+        )
+          ? "system"
+          : "user"
         const childFoldersResponse = await this.graphClient
           .api(`/me/mailFolders/${folder.id}/childFolders`)
-          .get();
+          .get()
 
-        const childFolders: MailFolder[] = childFoldersResponse.value || [];
+        const childFolders: MailFolder[] = childFoldersResponse.value || []
 
         const childLabels = await this.processMailFoldersHierarchy(
           childFolders,
           systemFolderNames,
           depth + 1,
-          maxDepth,
-        );
+          maxDepth
+        )
 
         const label: Label = {
           id: folder.id,
-          name: folder.displayName || '',
+          name: folder.displayName || "",
           type: folderType,
           color: {
-            backgroundColor: '',
-            textColor: '',
+            backgroundColor: "",
+            textColor: "",
           },
-        };
-
-        if (childLabels.length > 0) {
-          label.labels = childLabels;
         }
 
-        result.push(label);
+        if (childLabels.length > 0) {
+          label.labels = childLabels
+        }
+
+        result.push(label)
       } catch (error) {
-        console.error(`Error processing folder ${folder.displayName || folder.id}:`, error);
+        console.error(
+          `Error processing folder ${folder.displayName || folder.id}:`,
+          error
+        )
       }
     }
 
-    return result;
+    return result
   }
   public async getLabel(labelId: string): Promise<Label> {
-    console.warn('getLabel needs to differentiate between Category ID and Mail Folder ID.');
+    console.warn(
+      "getLabel needs to differentiate between Category ID and Mail Folder ID."
+    )
 
     try {
-      const folder: MailFolder = await this.graphClient.api(`/me/mailfolders/${labelId}`).get();
+      const folder: MailFolder = await this.graphClient
+        .api(`/me/mailfolders/${labelId}`)
+        .get()
       return {
-        id: folder.id || '',
-        name: folder.displayName || '',
-        type: 'user',
-        color: { backgroundColor: '', textColor: '' },
-      };
+        id: folder.id || "",
+        name: folder.displayName || "",
+        type: "user",
+        color: { backgroundColor: "", textColor: "" },
+      }
     } catch (folderError) {
       try {
         const category: Category = await this.graphClient
           .api(`/me/outlook/masterCategories/${labelId}`)
-          .get();
+          .get()
         return {
-          id: category.id || category.displayName || '',
-          name: category.displayName || '',
-          type: 'category',
-          color: { backgroundColor: category.color || '', textColor: '' },
-        };
+          id: category.id || category.displayName || "",
+          name: category.displayName || "",
+          type: "category",
+          color: { backgroundColor: category.color || "", textColor: "" },
+        }
       } catch (categoryError) {
         console.error(
           `Label or folder with id ${labelId} not found as Folder or Category:`,
           folderError,
-          categoryError,
-        );
-        throw new Error(`Label or folder with id ${labelId} not found`);
+          categoryError
+        )
+        throw new Error(`Label or folder with id ${labelId} not found`)
       }
     }
   }
   public async createLabel(label: {
-    name: string;
-    color?: { backgroundColor: string; textColor: string };
+    name: string
+    color?: { backgroundColor: string; textColor: string }
   }) {
     console.warn(
-      'createLabel defaults to creating a Mail Folder. Creating a Category uses a different API.',
-    );
+      "createLabel defaults to creating a Mail Folder. Creating a Category uses a different API."
+    )
 
     try {
-      const newFolder: MailFolder = await this.graphClient.api('/me/mailfolders').post({
-        displayName: label.name,
-        // parentFolderId: 'inbox', // Optional: Create under a specific parent folder
-      });
-      console.log('Mail Folder created:', newFolder);
+      const newFolder: MailFolder = await this.graphClient
+        .api("/me/mailfolders")
+        .post({
+          displayName: label.name,
+          // parentFolderId: 'inbox', // Optional: Create under a specific parent folder
+        })
+      console.log("Mail Folder created:", newFolder)
 
       // create a Category:
       // const newCategory: Category = await this.graphClient.api('/me/outlook/masterCategories').post({
@@ -908,63 +1000,65 @@ export class OutlookMailManager implements MailManager {
       // });
       // console.log('Category created:', newCategory);
     } catch (error) {
-      console.error('Error creating Outlook Mail Folder:', error);
-      throw error;
+      console.error("Error creating Outlook Mail Folder:", error)
+      throw error
     }
   }
   public async updateLabel(id: string, label: Label) {
-    console.warn('updateLabel needs to differentiate between Category and Mail Folder updates.');
+    console.warn(
+      "updateLabel needs to differentiate between Category and Mail Folder updates."
+    )
 
     try {
       await this.graphClient.api(`/me/mailfolders/${id}`).patch({
         displayName: label.name,
         // Folder colors are not updateable via Graph API
-      });
-      console.log(`Mail Folder ${id} updated.`);
+      })
+      console.log(`Mail Folder ${id} updated.`)
     } catch (folderError) {
       try {
         await this.graphClient.api(`/me/outlook/masterCategories/${id}`).patch({
           displayName: label.name,
           // color: label.color?.backgroundColor, // Requires mapping hex to Graph color enum
-        });
-        console.log(`Category ${id} updated.`);
+        })
+        console.log(`Category ${id} updated.`)
       } catch (categoryError) {
         console.error(
           `Could not update label or folder with id ${id} as Folder or Category:`,
           folderError,
-          categoryError,
-        );
-        throw new Error(`Could not update label or folder with id ${id}`);
+          categoryError
+        )
+        throw new Error(`Could not update label or folder with id ${id}`)
       }
     }
   }
   public async deleteLabel(id: string) {
-    await this.graphClient.api(`/me/mailfolders/${id}`).delete();
+    await this.graphClient.api(`/me/mailfolders/${id}`).delete()
   }
   public async revokeToken(token: string) {
-    if (!token) return false;
+    if (!token) return false
 
     try {
       console.warn(
-        'Revoking Microsoft refresh tokens requires MSAL or specific Azure AD endpoints, not a direct Graph API call. This method is a placeholder.',
-      );
-      return false;
+        "Revoking Microsoft refresh tokens requires MSAL or specific Azure AD endpoints, not a direct Graph API call. This method is a placeholder."
+      )
+      return false
     } catch (error: unknown) {
       console.error(
-        'Failed to revoke Microsoft token:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
-      return false;
+        "Failed to revoke Microsoft token:",
+        error instanceof Error ? error.message : "Unknown error"
+      )
+      return false
     }
   }
 
   public deleteAllSpam() {
-    console.warn('deleteAllSpam is not implemented for Microsoft');
+    console.warn("deleteAllSpam is not implemented for Microsoft")
     return Promise.resolve({
       success: false,
-      message: 'Not implemented',
+      message: "Not implemented",
       count: 0,
-    });
+    })
   }
 
   private normalizeSearch(folder: string, q: string) {
@@ -972,42 +1066,42 @@ export class OutlookMailManager implements MailManager {
     // For Outlook/Graph, you need to translate to OData $filter or $search syntax
     // and map folder names to Outlook folder IDs.
     console.warn(
-      'normalizeSearch is based on Gmail syntax. Needs translation to OData $filter or $search.',
-    );
+      "normalizeSearch is based on Gmail syntax. Needs translation to OData $filter or $search."
+    )
 
-    let outlookQuery = q;
-    let folderId: string | undefined;
+    let outlookQuery = q
+    let folderId: string | undefined
 
     switch (folder.toLowerCase()) {
-      case 'inbox':
-        folderId = 'inbox';
-        break;
-      case 'bin':
-      case 'trash':
-        folderId = 'deleteditems';
-        break;
-      case 'archive':
-        folderId = 'archive';
-        break;
-      case 'sent':
-        folderId = 'sentitems';
-        break;
-      case 'drafts':
-        folderId = 'drafts';
-        break;
+      case "inbox":
+        folderId = "inbox"
+        break
+      case "bin":
+      case "trash":
+        folderId = "deleteditems"
+        break
+      case "archive":
+        folderId = "archive"
+        break
+      case "sent":
+        folderId = "sentitems"
+        break
+      case "drafts":
+        folderId = "drafts"
+        break
       default:
-        folderId = folder;
-        break;
+        folderId = folder
+        break
     }
 
     // This is a very basic translation. A real implementation needs to parse Gmail queries
     // and build complex OData filter strings.
     if (q) {
       // Simple keyword search example
-      outlookQuery = `"${q}"`;
+      outlookQuery = `"${q}"`
     }
 
-    return { folder: folderId, q: outlookQuery };
+    return { folder: folderId, q: outlookQuery }
   }
   private parseOutlookMessage({
     id,
@@ -1025,72 +1119,73 @@ export class OutlookMailManager implements MailManager {
     internetMessageHeaders,
   }: Message): Omit<
     ParsedMessage,
-    'body' | 'processedHtml' | 'blobUrl' | 'totalReplies' | 'attachments'
+    "body" | "processedHtml" | "blobUrl" | "totalReplies" | "attachments"
   > {
-    const receivedOn = receivedDateTime || new Date().toISOString();
+    const receivedOn = receivedDateTime || new Date().toISOString()
     const sender = from?.emailAddress
       ? {
-          name: from.emailAddress.name || '',
-          email: from.emailAddress.address || '',
+          name: from.emailAddress.name || "",
+          email: from.emailAddress.address || "",
         }
-      : { name: 'Unknown', email: 'unknown@example.com' };
+      : { name: "Unknown", email: "unknown@example.com" }
 
     const to =
       toRecipients?.map((rec) => ({
-        name: rec.emailAddress?.name || '',
-        email: rec.emailAddress?.address || '',
-      })) || [];
+        name: rec.emailAddress?.name || "",
+        email: rec.emailAddress?.address || "",
+      })) || []
 
     const cc =
       ccRecipients?.map((rec) => ({
-        name: rec.emailAddress?.name || '',
-        email: rec.emailAddress?.address || '',
-      })) || null;
+        name: rec.emailAddress?.name || "",
+        email: rec.emailAddress?.address || "",
+      })) || null
 
     const bcc =
       bccRecipients?.map((rec) => ({
-        name: rec.emailAddress?.name || '',
-        email: rec.emailAddress?.address || '',
-      })) || [];
+        name: rec.emailAddress?.name || "",
+        email: rec.emailAddress?.address || "",
+      })) || []
 
     const tags: Label[] =
       (categories || []).map((cat) => ({
         id: cat,
         name: cat,
-        type: 'category',
+        type: "category",
         color: {
-          backgroundColor: '',
-          textColor: '',
+          backgroundColor: "",
+          textColor: "",
         },
-      })) || [];
+      })) || []
 
-    let references: string | undefined = undefined;
-    let inReplyTo: string | undefined = undefined;
-    let listUnsubscribe: string | undefined = undefined;
-    let listUnsubscribePost: string | undefined = undefined;
-    let replyTo: string | undefined = undefined;
+    let references: string | undefined = undefined
+    let inReplyTo: string | undefined = undefined
+    let listUnsubscribe: string | undefined = undefined
+    let listUnsubscribePost: string | undefined = undefined
+    let replyTo: string | undefined = undefined
 
     if (internetMessageHeaders?.length) {
       const byName = (n: string) =>
-        internetMessageHeaders.find((h) => h.name?.toLowerCase() === n)?.value || undefined;
+        internetMessageHeaders.find((h) => h.name?.toLowerCase() === n)
+          ?.value || undefined
 
-      references = byName('references');
-      inReplyTo = byName('in-reply-to');
-      listUnsubscribe = byName('list-unsubscribe');
-      listUnsubscribePost = byName('list-unsubscribe-post');
-      replyTo = byName('reply-to');
+      references = byName("references")
+      inReplyTo = byName("in-reply-to")
+      listUnsubscribe = byName("list-unsubscribe")
+      listUnsubscribePost = byName("list-unsubscribe-post")
+      replyTo = byName("reply-to")
     }
 
     // TLS status is difficult to determine reliably from typical Graph message properties.
     // You'd need to examine "Received" headers if available and parse them, similar to the Gmail logic.
     // The `wasSentWithTLS` utility would need to be adapted or rewritten for Outlook header formats.
-    const tls = false; // Placeholder - needs proper header parsing
+    const tls = false // Placeholder - needs proper header parsing
 
     return {
-      id: id || 'ERROR',
+      id: id || "ERROR",
       bcc,
-      threadId: conversationId || id || '',
-      title: bodyPreview ? he.decode(bodyPreview).trim() : 'ERROR',
+      threadId: conversationId || id || "",
+      title: bodyPreview ? he.decode(bodyPreview).trim() : "ERROR",
       tls: tls,
       tags: tags,
       listUnsubscribe,
@@ -1103,9 +1198,9 @@ export class OutlookMailManager implements MailManager {
       to,
       cc,
       receivedOn: receivedOn.toString(),
-      subject: subject ? he.decode(subject).trim() : '(no subject)',
-      messageId: internetMessageId || id || 'ERROR',
-    };
+      subject: subject ? he.decode(subject).trim() : "(no subject)",
+      messageId: internetMessageId || id || "ERROR",
+    }
   }
   private async parseOutgoingOutlook({
     to,
@@ -1117,32 +1212,34 @@ export class OutlookMailManager implements MailManager {
     bcc,
   }: IOutgoingMessage): Promise<Message> {
     // Outlook Graph API expects a Message object structure for sending/creating drafts
-    console.log(to);
-    const { html: processedMessage, inlineImages } = await sanitizeTipTapHtml(message.trim());
+    console.log(to)
+    const { html: processedMessage, inlineImages } = await sanitizeTipTapHtml(
+      message.trim()
+    )
     const outlookMessage: Message = {
       subject: subject,
       body: {
-        contentType: 'html', // Or 'text'
+        contentType: "html", // Or 'text'
         content: processedMessage,
       },
       toRecipients:
         to?.map((rec) => ({
           emailAddress: {
-            name: rec.name || '',
+            name: rec.name || "",
             address: rec.email,
           },
         })) || [],
       ccRecipients:
         cc?.map((rec) => ({
           emailAddress: {
-            name: rec.name || '',
+            name: rec.name || "",
             address: rec.email,
           },
         })) || undefined,
       bccRecipients:
         bcc?.map((rec) => ({
           emailAddress: {
-            name: rec.name || '',
+            name: rec.name || "",
             address: rec.email,
           },
         })) || undefined,
@@ -1150,102 +1247,107 @@ export class OutlookMailManager implements MailManager {
       // or require specific permissions (Send as, Send on behalf of) and different payload structure.
       // If fromEmail is provided and requires Send As/On Behalf permissions:
       // from: { emailAddress: { name: 'Sender Name', address: fromEmail } } // Requires permission
-    };
+    }
 
     if (headers) {
       outlookMessage.internetMessageHeaders = Object.entries(headers)
         .filter(([, v]) => !!v)
-        .map(([name, value]) => ({ name, value: value.toString() }));
+        .map(([name, value]) => ({ name, value: value.toString() }))
     }
 
     // Handle inline images and attachments
-    const allAttachments = [];
+    const allAttachments = []
 
     if (inlineImages.length > 0) {
       for (const image of inlineImages) {
         allAttachments.push({
-          '@odata.type': '#microsoft.graph.fileAttachment',
+          "@odata.type": "#microsoft.graph.fileAttachment",
           name: image.cid,
           contentType: image.mimeType,
           contentBytes: image.data,
           contentId: image.cid,
           isInline: true,
-        });
+        })
       }
     }
 
     if (attachments?.length > 0) {
       const regularAttachments = await Promise.all(
         attachments.map(async (file) => {
-          const arrayBuffer = await file.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const base64Content = buffer.toString('base64');
+          const arrayBuffer = await file.arrayBuffer()
+          const buffer = Buffer.from(arrayBuffer)
+          const base64Content = buffer.toString("base64")
 
           return {
-            '@odata.type': '#microsoft.graph.fileAttachment',
+            "@odata.type": "#microsoft.graph.fileAttachment",
             name: file.name,
-            contentType: file.type || 'application/octet-stream',
+            contentType: file.type || "application/octet-stream",
             contentBytes: base64Content,
-          };
-        }),
-      );
-      allAttachments.push(...regularAttachments);
+          }
+        })
+      )
+      allAttachments.push(...regularAttachments)
     }
 
     if (allAttachments.length > 0) {
-      outlookMessage.attachments = allAttachments;
+      outlookMessage.attachments = allAttachments
     }
 
-    return outlookMessage;
+    return outlookMessage
   }
   private parseOutlookDraft(draftMessage: Message) {
-    if (!draftMessage) return null;
+    if (!draftMessage) return null
 
     const to =
-      draftMessage.toRecipients?.map((rec) => rec.emailAddress?.address || '').filter(Boolean) ||
-      [];
-    const subject = draftMessage.subject;
+      draftMessage.toRecipients
+        ?.map((rec) => rec.emailAddress?.address || "")
+        .filter(Boolean) || []
+    const subject = draftMessage.subject
 
-    let content = '';
+    let content = ""
     if (draftMessage.body?.content) {
-      content = draftMessage.body.content;
-      if (draftMessage.body.contentType?.toLowerCase() === 'text') {
-        content = content.replace(/\n/g, '<br>'); // Basic text to HTML
+      content = draftMessage.body.content
+      if (draftMessage.body.contentType?.toLowerCase() === "text") {
+        content = content.replace(/\n/g, "<br>") // Basic text to HTML
       }
     }
 
     const cc =
-      draftMessage.ccRecipients?.map((rec) => rec.emailAddress?.address || '').filter(Boolean) ||
-      [];
+      draftMessage.ccRecipients
+        ?.map((rec) => rec.emailAddress?.address || "")
+        .filter(Boolean) || []
     const bcc =
-      draftMessage.bccRecipients?.map((rec) => rec.emailAddress?.address || '').filter(Boolean) ||
-      [];
+      draftMessage.bccRecipients
+        ?.map((rec) => rec.emailAddress?.address || "")
+        .filter(Boolean) || []
 
     return {
-      id: draftMessage.id || '',
+      id: draftMessage.id || "",
       to,
       cc,
       bcc,
-      subject: subject ? he.decode(subject).trim() : '',
+      subject: subject ? he.decode(subject).trim() : "",
       content,
       rawMessage: draftMessage, // Include raw Graph message
-    };
+    }
   }
   private async withErrorHandler<T>(
     operation: string,
     fn: () => Promise<T> | T,
-    context?: Record<string, unknown>,
+    context?: Record<string, unknown>
   ): Promise<T> {
     try {
-      return await Promise.resolve(fn());
+      return await Promise.resolve(fn())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       // Adapt error checking for Microsoft Graph errors
       const isFatal =
         FatalErrors.includes(error.message) ||
-        (error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 429); // Consider 4xx errors other than 429 as potentially fatal depending on the error
+        (error.statusCode >= 400 &&
+          error.statusCode < 500 &&
+          error.statusCode !== 429) // Consider 4xx errors other than 429 as potentially fatal depending on the error
       console.error(
-        `[${isFatal ? 'FATAL_ERROR' : 'ERROR'}] [Outlook Driver] Operation: ${operation}`,
+        `[${isFatal ? "FATAL_ERROR" : "ERROR"}] [Outlook Driver] Operation: ${operation}`,
         {
           error: error.message,
           code: error.code, // Graph errors might have error.code
@@ -1253,24 +1355,26 @@ export class OutlookMailManager implements MailManager {
           context: sanitizeContext(context),
           stack: error.stack,
           isFatal,
-        },
-      );
-      if (isFatal) await deleteActiveConnection();
-      throw new StandardizedError(error, operation, context);
+        }
+      )
+      if (isFatal) await deleteActiveConnection()
+      throw new StandardizedError(error, operation, context)
     }
   }
   private withSyncErrorHandler<T>(
     operation: string,
     fn: () => T,
-    context?: Record<string, unknown>,
+    context?: Record<string, unknown>
   ): T {
     try {
-      return fn();
+      return fn()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       const isFatal =
         FatalErrors.includes(error.message) ||
-        (error.statusCode >= 400 && error.statusCode < 500 && error.statusCode !== 429);
+        (error.statusCode >= 400 &&
+          error.statusCode < 500 &&
+          error.statusCode !== 429)
       console.error(`[Outlook Driver Error] Operation: ${operation}`, {
         error: error.message,
         code: error.code,
@@ -1278,12 +1382,14 @@ export class OutlookMailManager implements MailManager {
         context: sanitizeContext(context),
         stack: error.stack,
         isFatal,
-      });
-      if (isFatal) void deleteActiveConnection();
-      throw new StandardizedError(error, operation, context);
+      })
+      if (isFatal) void deleteActiveConnection()
+      throw new StandardizedError(error, operation, context)
     }
   }
-  listHistory<T>(historyId: string): Promise<{ history: T[]; historyId: string }> {
-    return Promise.resolve({ history: [], historyId });
+  listHistory<T>(
+    historyId: string
+  ): Promise<{ history: T[]; historyId: string }> {
+    return Promise.resolve({ history: [], historyId })
   }
 }

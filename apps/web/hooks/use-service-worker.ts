@@ -39,7 +39,7 @@ export function useServiceWorker() {
         new Notification(title, options)
       }
     },
-    [],
+    []
   )
 
   return { showNotification }

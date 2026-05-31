@@ -33,7 +33,7 @@ export class CalDAVCalendarProvider implements CalendarProvider {
 
   constructor(
     private config: CalendarProviderConfig,
-    private providerId: "icloud" | "yahoo",
+    private providerId: "icloud" | "yahoo"
   ) {
     this.providerOptions = CALDAV_CONFIGS[providerId]!
   }
@@ -65,7 +65,10 @@ export class CalDAVCalendarProvider implements CalendarProvider {
           readOnly: false,
         }))
     } catch (err) {
-      console.error(`[CalDAV:${this.providerId}] Failed to list calendars:`, err)
+      console.error(
+        `[CalDAV:${this.providerId}] Failed to list calendars:`,
+        err
+      )
       return []
     }
   }
@@ -94,7 +97,7 @@ export class CalDAVCalendarProvider implements CalendarProvider {
             })
 
             console.log(
-              `[CalDAV:${this.providerId}] ${cal.displayName}: ${objects.length} objects returned`,
+              `[CalDAV:${this.providerId}] ${cal.displayName}: ${objects.length} objects returned`
             )
 
             for (const obj of objects) {
@@ -102,7 +105,7 @@ export class CalDAVCalendarProvider implements CalendarProvider {
               if (!parsed && obj.data) {
                 console.log(
                   `[CalDAV:${this.providerId}] Failed to parse object:`,
-                  obj.data?.slice(0, 300),
+                  obj.data?.slice(0, 300)
                 )
               }
               if (parsed) allEvents.push(parsed)
@@ -110,14 +113,14 @@ export class CalDAVCalendarProvider implements CalendarProvider {
           } catch (err) {
             console.error(
               `[CalDAV:${this.providerId}] Failed to fetch events from ${cal.displayName}:`,
-              err,
+              err
             )
           }
-        }),
+        })
       )
 
       return allEvents.sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
       )
     } catch (err) {
       console.error(`[CalDAV:${this.providerId}] Failed to list events:`, err)
@@ -128,7 +131,9 @@ export class CalDAVCalendarProvider implements CalendarProvider {
   async createEvent(input: CreateEventInput): Promise<CalendarEvent> {
     const client = await this.createClient()
     const calendars = await client.fetchCalendars()
-    const calendar = calendars.find((c: DAVCalendar) => c.url === input.calendarId)
+    const calendar = calendars.find(
+      (c: DAVCalendar) => c.url === input.calendarId
+    )
     if (!calendar) throw new Error(`Calendar not found: ${input.calendarId}`)
 
     const uid = randomUUID()
@@ -163,7 +168,9 @@ export class CalDAVCalendarProvider implements CalendarProvider {
   async updateEvent(input: UpdateEventInput): Promise<CalendarEvent> {
     const client = await this.createClient()
     const calendars = await client.fetchCalendars()
-    const calendar = calendars.find((c: DAVCalendar) => c.url === input.calendarId)
+    const calendar = calendars.find(
+      (c: DAVCalendar) => c.url === input.calendarId
+    )
     if (!calendar) throw new Error(`Calendar not found: ${input.calendarId}`)
 
     const objects = await client.fetchCalendarObjects({ calendar })
@@ -176,7 +183,8 @@ export class CalDAVCalendarProvider implements CalendarProvider {
     if (!existing) throw new Error(`Event not found: ${input.eventId}`)
 
     const parsed = parseVEvent(existing, input.calendarId)
-    if (!parsed) throw new Error(`Failed to parse existing event: ${input.eventId}`)
+    if (!parsed)
+      throw new Error(`Failed to parse existing event: ${input.eventId}`)
 
     const merged: CreateEventInput = {
       calendarId: input.calendarId,
@@ -187,12 +195,19 @@ export class CalDAVCalendarProvider implements CalendarProvider {
       allDay: input.allDay ?? parsed.allDay,
       location: input.location ?? parsed.location,
       recurrence: input.recurrence ?? parsed.recurrence,
-      attendees: input.attendees ?? parsed.attendees?.map((a) => ({
-        email: a.email,
-        name: a.name,
-        role: a.role === "optional" ? "optional" as const : "required" as const,
-      })),
-      availability: input.availability ?? (parsed.availability === "free" ? "free" : "busy"),
+      attendees:
+        input.attendees ??
+        parsed.attendees?.map((a) => ({
+          email: a.email,
+          name: a.name,
+          role:
+            a.role === "optional"
+              ? ("optional" as const)
+              : ("required" as const),
+        })),
+      availability:
+        input.availability ??
+        (parsed.availability === "free" ? "free" : "busy"),
       visibility: input.visibility ?? parsed.visibility,
     }
 
@@ -209,7 +224,7 @@ export class CalDAVCalendarProvider implements CalendarProvider {
     return {
       ...parsed,
       ...Object.fromEntries(
-        Object.entries(input).filter(([_, v]) => v !== undefined),
+        Object.entries(input).filter(([_, v]) => v !== undefined)
       ),
       id: input.eventId,
       calendarId: input.calendarId,
@@ -223,7 +238,9 @@ export class CalDAVCalendarProvider implements CalendarProvider {
   async deleteEvent(input: DeleteEventInput): Promise<void> {
     const client = await this.createClient()
     const calendars = await client.fetchCalendars()
-    const calendar = calendars.find((c: DAVCalendar) => c.url === input.calendarId)
+    const calendar = calendars.find(
+      (c: DAVCalendar) => c.url === input.calendarId
+    )
     if (!calendar) throw new Error(`Calendar not found: ${input.calendarId}`)
 
     const objects = await client.fetchCalendarObjects({ calendar })

@@ -47,7 +47,7 @@ async function loadSyncStateStep(connectionId: string): Promise<{
 
 async function claimSyncLockStep(
   connectionId: string,
-  providedRunId?: string,
+  providedRunId?: string
 ): Promise<string> {
   "use step"
   const runId = providedRunId ?? crypto.randomUUID()
@@ -64,7 +64,7 @@ async function claimSyncLockStep(
   const previous = rows[0]?.previousLock
   if (previous && previous > staleCutoff) {
     throw new Error(
-      `Sync lock held since ${previous.toISOString()} for ${connectionId}`,
+      `Sync lock held since ${previous.toISOString()} for ${connectionId}`
     )
   }
   return runId
@@ -72,7 +72,7 @@ async function claimSyncLockStep(
 
 async function releaseSyncLockStep(
   connectionId: string,
-  result: { error?: string } = {},
+  result: { error?: string } = {}
 ) {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
@@ -90,7 +90,7 @@ async function releaseSyncLockStep(
 async function fetchPageStep(
   connectionId: string,
   pageToken: string | null,
-  maxResults = PAGE_SIZE,
+  maxResults = PAGE_SIZE
 ): Promise<{
   threads: ProviderThread[]
   nextPageToken: string | null
@@ -125,7 +125,7 @@ async function fetchPageStep(
  */
 async function fetchHistoryDeltaStep(
   connectionId: string,
-  historyId: string,
+  historyId: string
 ): Promise<{
   supported: boolean
   changedThreadIds: string[]
@@ -172,7 +172,7 @@ async function fetchHistoryDeltaStep(
 
 async function upsertThreadsStep(
   connectionId: string,
-  threads: ProviderThread[],
+  threads: ProviderThread[]
 ): Promise<number> {
   "use step"
   if (threads.length === 0) return 0
@@ -182,9 +182,7 @@ async function upsertThreadsStep(
   const rows = threads.map((t) => {
     const preview = normalizeThreadPreview(t.$raw)
     const sender = preview.sender
-    const receivedAt = preview.receivedOn
-      ? new Date(preview.receivedOn)
-      : now
+    const receivedAt = preview.receivedOn ? new Date(preview.receivedOn) : now
     const threadRowId = `${connectionId}:${t.id}`
     return {
       thread: {
@@ -269,7 +267,7 @@ async function upsertThreadsStep(
 async function persistHistoryIdStep(
   connectionId: string,
   historyId: string | null,
-  markFullSync = false,
+  markFullSync = false
 ) {
   "use step"
   if (!historyId) return
@@ -326,11 +324,7 @@ async function runSyncCycle(connectionId: string, providedRunId?: string) {
       if (delta.supported) {
         mode = "delta"
         if (delta.changedThreadIds.length > 0) {
-          const page = await fetchPageStep(
-            connectionId,
-            null,
-            DELTA_PAGE_SIZE,
-          )
+          const page = await fetchPageStep(connectionId, null, DELTA_PAGE_SIZE)
           latestHistoryId = page.topHistoryId ?? delta.nextHistoryId
           upserted = await upsertThreadsStep(connectionId, page.threads)
         } else {

@@ -37,8 +37,7 @@ export function useNewMailNotifier() {
     queryKey: ["poll-new-mail", activeConnection?.id],
     queryFn: async () => {
       const isHidden =
-        typeof document !== "undefined" &&
-        document.visibilityState === "hidden"
+        typeof document !== "undefined" && document.visibilityState === "hidden"
 
       const res = await pollNewMessages(cursorRef.current)
       cursorRef.current = res.cursor

@@ -16,7 +16,11 @@ interface RecurrencePickerProps {
   date: Date
 }
 
-export function RecurrencePicker({ value, onChange, date }: RecurrencePickerProps) {
+export function RecurrencePicker({
+  value,
+  onChange,
+  date,
+}: RecurrencePickerProps) {
   const presets = React.useMemo(() => getRecurrencePresets(date), [date])
 
   const selectedLabel = React.useMemo(() => {

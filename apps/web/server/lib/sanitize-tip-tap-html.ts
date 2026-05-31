@@ -7,7 +7,7 @@ interface InlineImage {
 }
 
 export const sanitizeTipTapHtml = async (
-  html: string,
+  html: string
 ): Promise<{ html: string; inlineImages: InlineImage[] }> => {
   const inlineImages: InlineImage[] = []
 
@@ -22,7 +22,7 @@ export const sanitizeTipTapHtml = async (
       })
 
       return match.replace(/src=["']data:[^"']+["']/i, `src="cid:${cid}"`)
-    },
+    }
   )
 
   const clean = sanitizeHtml(processedHtml, {

@@ -1,11 +1,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "bruv-ui/css";
 
 @custom-variant dark (&:is(.dark *));
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
+@source "../../../node_modules/bruv-ui/dist/**/*.js";
+@source "../../../../apps/web/node_modules/bruv-ui/dist/**/*.js";
 
 @theme inline {
   --font-heading: var(--font-sans);

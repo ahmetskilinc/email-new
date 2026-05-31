@@ -6,7 +6,7 @@ import { CalDAVCalendarProvider } from "./caldav"
 
 export function createCalendarProvider(
   providerId: EProviders | (string & {}),
-  config: CalendarProviderConfig,
+  config: CalendarProviderConfig
 ): CalendarProvider {
   switch (providerId) {
     case "google":

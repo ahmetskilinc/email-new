@@ -8,11 +8,7 @@ import { useQueryState } from "nuqs"
 import { MailDisplay } from "@/components/mail/mail-display"
 import { MailList } from "@/components/mail/mail-list"
 import { BulkActionsToolbar } from "@/components/mail/bulk-actions-toolbar"
-import {
-  Sheet,
-  SheetContent,
-  SheetClose,
-} from "@workspace/ui/components/sheet"
+import { Sheet, SheetContent, SheetClose } from "@workspace/ui/components/sheet"
 import { Button } from "@workspace/ui/components/button"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
@@ -103,15 +99,17 @@ export default function FolderPage() {
             showCloseButton={false}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
-              <SheetClose
-                render={
-                  <Button variant="ghost" size="icon-sm" />
-                }
-              >
-                <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
+              <SheetClose render={<Button variant="ghost" size="icon-sm" />}>
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  strokeWidth={2}
+                  className="size-4"
+                />
                 <span className="sr-only">Back</span>
               </SheetClose>
-              <span className="truncate text-sm font-medium">Back to inbox</span>
+              <span className="truncate text-sm font-medium">
+                Back to inbox
+              </span>
             </div>
             <MailDisplay className="max-h-full" />
           </SheetContent>

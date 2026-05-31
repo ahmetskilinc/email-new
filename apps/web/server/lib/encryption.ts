@@ -18,12 +18,12 @@ function getKey(): Buffer {
   const raw = env.ENCRYPTION_KEY
   if (!raw) {
     throw new Error(
-      "ENCRYPTION_KEY environment variable is required for iCloud password encryption. Generate one with: openssl rand -hex 32",
+      "ENCRYPTION_KEY environment variable is required for iCloud password encryption. Generate one with: openssl rand -hex 32"
     )
   }
 
   derivedKey = Buffer.from(
-    hkdfSync("sha256", raw, "zeitmail-encryption", "aes-256-gcm-key", 32),
+    hkdfSync("sha256", raw, "zeitmail-encryption", "aes-256-gcm-key", 32)
   )
   return derivedKey
 }

@@ -30,10 +30,7 @@ function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
       const evEnd = new Date(ev.end)
       return evStart <= dayEnd && evEnd >= dayStart
     })
-    .sort(
-      (a, b) =>
-        new Date(a.start).getTime() - new Date(b.start).getTime(),
-    )
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
 }
 
 export function MonthView({
@@ -56,16 +53,11 @@ export function MonthView({
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 1 })
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 1 })
 
-  const { data: events = [], isLoading } = useCalendarEvents(
-    gridStart,
-    gridEnd,
-  )
+  const { data: events = [], isLoading } = useCalendarEvents(gridStart, gridEnd)
 
   const weekdayNames = React.useMemo(() => {
     const base = startOfWeek(new Date(), { weekStartsOn: 1 })
-    return Array.from({ length: 7 }, (_, i) =>
-      format(addDays(base, i), "EEE"),
-    )
+    return Array.from({ length: 7 }, (_, i) => format(addDays(base, i), "EEE"))
   }, [])
 
   const weeks = React.useMemo(() => {
@@ -81,7 +73,7 @@ export function MonthView({
     <div
       className={cn(
         "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border",
-        className,
+        className
       )}
     >
       <div className="grid shrink-0 grid-cols-7 border-b bg-muted/30 text-center text-xs font-medium text-muted-foreground">
@@ -123,8 +115,8 @@ export function MonthView({
                       }
                     }}
                     className={cn(
-                      "flex min-h-[104px] min-w-0 flex-col border-r p-1 last:border-r-0 outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      outside && "bg-muted/30",
+                      "flex min-h-[104px] min-w-0 flex-col border-r p-1 outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-ring",
+                      outside && "bg-muted/30"
                     )}
                     onClick={() => {
                       onSelectDate(day)
@@ -138,13 +130,12 @@ export function MonthView({
                           today &&
                             !isSelected &&
                             "border border-primary bg-primary/10 text-primary",
-                          isSelected &&
-                            "bg-primary text-primary-foreground",
+                          isSelected && "bg-primary text-primary-foreground",
                           !today &&
                             !isSelected &&
                             (outside
                               ? "text-muted-foreground/60"
-                              : "text-foreground"),
+                              : "text-foreground")
                         )}
                       >
                         {day.getDate()}
@@ -157,7 +148,7 @@ export function MonthView({
                           type="button"
                           className={cn(
                             "truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-colors",
-                            "bg-primary/15 hover:bg-primary/25",
+                            "bg-primary/15 hover:bg-primary/25"
                           )}
                           onClick={(e) => {
                             e.stopPropagation()

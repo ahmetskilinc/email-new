@@ -33,7 +33,7 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
         imapHost,
         parseInt(imapPort, 10),
         smtpHost,
-        parseInt(smtpPort, 10),
+        parseInt(smtpPort, 10)
       )
       toast.success("Mail account connected successfully")
       await queryClient.invalidateQueries({ queryKey: ["activeConnection"] })
@@ -58,13 +58,13 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
           <button
             type="button"
             onClick={onBack}
-            className="text-muted-foreground hover:text-foreground text-sm"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             ← Back
           </button>
         </div>
         <h3 className="text-sm font-medium">Connect via IMAP</h3>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Connect any email provider that supports IMAP/SMTP.
         </p>
       </div>
@@ -94,8 +94,9 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
             required
             autoComplete="current-password"
           />
-          <p className="text-muted-foreground text-xs">
-            If your provider supports app passwords, use one for better security.
+          <p className="text-xs text-muted-foreground">
+            If your provider supports app passwords, use one for better
+            security.
           </p>
         </div>
 
@@ -149,8 +150,9 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
           </div>
         </div>
 
-        <p className="text-muted-foreground text-xs">
-          Folders (Sent, Drafts, Trash, etc.) will be auto-detected from your server.
+        <p className="text-xs text-muted-foreground">
+          Folders (Sent, Drafts, Trash, etc.) will be auto-detected from your
+          server.
         </p>
 
         <Button

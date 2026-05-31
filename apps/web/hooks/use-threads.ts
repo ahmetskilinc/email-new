@@ -192,18 +192,16 @@ export const useThread = (
   const markedReadRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (
-      !id ||
-      !threadQuery.data?.hasUnread ||
-      markedReadRef.current === id
-    )
+    if (!id || !threadQuery.data?.hasUnread || markedReadRef.current === id)
       return
 
     markedReadRef.current = id
-    markAsRead([id], connectionId).then(() => {
-      queryClient.invalidateQueries({ queryKey: ["threads"] })
-      queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
-    }).catch(() => {})
+    markAsRead([id], connectionId)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["threads"] })
+        queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
+      })
+      .catch(() => {})
   }, [id, threadQuery.data?.hasUnread, connectionId, queryClient])
 
   return { ...threadQuery, data: finalData, isGroupThread, latestDraft }

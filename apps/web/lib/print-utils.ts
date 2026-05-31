@@ -9,10 +9,16 @@ function escapeHtml(str: string): string {
 }
 
 function formatSenders(
-  senders: { name?: string; email: string }[] | null | undefined,
+  senders: { name?: string; email: string }[] | null | undefined
 ): string {
   if (!senders?.length) return ""
-  return senders.map((s) => (s.name ? `${escapeHtml(s.name)} &lt;${escapeHtml(s.email)}&gt;` : escapeHtml(s.email))).join(", ")
+  return senders
+    .map((s) =>
+      s.name
+        ? `${escapeHtml(s.name)} &lt;${escapeHtml(s.email)}&gt;`
+        : escapeHtml(s.email)
+    )
+    .join(", ")
 }
 
 function formatDate(dateStr: string): string {
@@ -35,12 +41,11 @@ export function buildPrintHtml(messages: ParsedMessage[]): string {
 
   const messageBlocks = messages
     .map((msg, i) => {
-      const attachmentList =
-        msg.attachments?.length
-          ? `<div class="attachments">
+      const attachmentList = msg.attachments?.length
+        ? `<div class="attachments">
               <strong>Attachments:</strong> ${msg.attachments.map((a) => `${escapeHtml(a.filename)} (${(a.size / 1024).toFixed(1)} KB)`).join(", ")}
             </div>`
-          : ""
+        : ""
 
       return `
         ${i > 0 ? '<hr class="separator">' : ""}

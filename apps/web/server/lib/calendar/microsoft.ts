@@ -75,10 +75,15 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
                 email: a.emailAddress?.address ?? "",
                 name: a.emailAddress?.name ?? undefined,
                 status: mapGraphResponseStatus(a.status?.response),
-                role: a.type === "optional" ? "optional" as const : "required" as const,
+                role:
+                  a.type === "optional"
+                    ? ("optional" as const)
+                    : ("required" as const),
               })),
               recurringEventId: e.seriesMasterId ?? undefined,
-              recurrence: e.recurrence ? [graphRecurrenceToDescription(e.recurrence)] : undefined,
+              recurrence: e.recurrence
+                ? [graphRecurrenceToDescription(e.recurrence)]
+                : undefined,
               conferenceLink: e.onlineMeeting?.joinUrl ?? undefined,
               organizer: e.organizer?.emailAddress
                 ? {
@@ -92,19 +97,26 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
             })
           }
         } catch (err) {
-          console.error(`[MicrosoftCalendar] Failed to list events for ${calId}:`, err)
+          console.error(
+            `[MicrosoftCalendar] Failed to list events for ${calId}:`,
+            err
+          )
         }
-      }),
+      })
     )
 
-    return allEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    return allEvents.sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    )
   }
 
   async createEvent(input: CreateEventInput): Promise<CalendarEvent> {
     const isAllDay = input.allDay ?? false
     const body: Record<string, any> = {
       subject: input.title,
-      body: input.description ? { contentType: "text", content: input.description } : undefined,
+      body: input.description
+        ? { contentType: "text", content: input.description }
+        : undefined,
       location: input.location ? { displayName: input.location } : undefined,
       isAllDay,
       start: isAllDay
@@ -125,7 +137,10 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     }
 
     if (input.recurrence?.length) {
-      const parsed = parseRRuleToGraphRecurrence(input.recurrence[0]!, input.start)
+      const parsed = parseRRuleToGraphRecurrence(
+        input.recurrence[0]!,
+        input.start
+      )
       if (parsed) body.recurrence = parsed
     }
 
@@ -142,13 +157,18 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     if (input.title !== undefined) body.subject = input.title
     if (input.description !== undefined)
       body.body = { contentType: "text", content: input.description }
-    if (input.location !== undefined) body.location = { displayName: input.location }
+    if (input.location !== undefined)
+      body.location = { displayName: input.location }
     if (input.availability !== undefined)
       body.showAs = input.availability === "free" ? "free" : "busy"
     if (input.visibility !== undefined)
       body.sensitivity = mapVisibilityToSensitivity(input.visibility)
 
-    if (input.start !== undefined || input.end !== undefined || input.allDay !== undefined) {
+    if (
+      input.start !== undefined ||
+      input.end !== undefined ||
+      input.allDay !== undefined
+    ) {
       const isAllDay = input.allDay ?? false
       if (input.start !== undefined) {
         body.start = isAllDay
@@ -172,7 +192,10 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
 
     if (input.recurrence?.length) {
       const startDate = input.start ?? new Date().toISOString()
-      const parsed = parseRRuleToGraphRecurrence(input.recurrence[0]!, startDate)
+      const parsed = parseRRuleToGraphRecurrence(
+        input.recurrence[0]!,
+        startDate
+      )
       if (parsed) body.recurrence = parsed
     }
 
@@ -187,7 +210,10 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     await this.graphClient.api(`/me/events/${input.eventId}`).delete()
   }
 
-  private mapGraphEventToCalendarEvent(e: any, calendarId: string): CalendarEvent {
+  private mapGraphEventToCalendarEvent(
+    e: any,
+    calendarId: string
+  ): CalendarEvent {
     const isAllDay = e.isAllDay ?? false
     return {
       id: e.id ?? "",
@@ -211,40 +237,57 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
 
 function mapGraphResponseStatus(status?: string): string | undefined {
   switch (status) {
-    case "accepted": return "accepted"
-    case "tentativelyAccepted": return "tentative"
-    case "declined": return "declined"
-    case "notResponded": return "needsAction"
-    default: return status
+    case "accepted":
+      return "accepted"
+    case "tentativelyAccepted":
+      return "tentative"
+    case "declined":
+      return "declined"
+    case "notResponded":
+      return "needsAction"
+    default:
+      return status
   }
 }
 
-function mapGraphSensitivity(sensitivity?: string): CalendarEvent["visibility"] {
+function mapGraphSensitivity(
+  sensitivity?: string
+): CalendarEvent["visibility"] {
   switch (sensitivity) {
-    case "normal": return "default"
-    case "private": return "private"
-    case "confidential": return "confidential"
-    case "personal": return "private"
-    default: return undefined
+    case "normal":
+      return "default"
+    case "private":
+      return "private"
+    case "confidential":
+      return "confidential"
+    case "personal":
+      return "private"
+    default:
+      return undefined
   }
 }
 
 function mapGraphShowAs(showAs?: string): CalendarEvent["availability"] {
   switch (showAs) {
-    case "free": return "free"
-    case "tentative": return "tentative"
+    case "free":
+      return "free"
+    case "tentative":
+      return "tentative"
     case "busy":
     case "oof":
     case "workingElsewhere":
       return "busy"
-    default: return undefined
+    default:
+      return undefined
   }
 }
 
 function mapVisibilityToSensitivity(visibility?: string): string {
   switch (visibility) {
-    case "private": return "private"
-    case "confidential": return "confidential"
+    case "private":
+      return "private"
+    case "confidential":
+      return "confidential"
     case "public":
     case "default":
     default:
@@ -255,25 +298,40 @@ function mapVisibilityToSensitivity(visibility?: string): string {
 function graphRecurrenceToDescription(recurrence: any): string {
   if (!recurrence?.pattern) return ""
   const p = recurrence.pattern
-  const parts = [`FREQ=${(p.type ?? "").replace("absolute", "").replace("relative", "").toUpperCase() || "WEEKLY"}`]
+  const parts = [
+    `FREQ=${(p.type ?? "").replace("absolute", "").replace("relative", "").toUpperCase() || "WEEKLY"}`,
+  ]
   if (p.interval && p.interval > 1) parts.push(`INTERVAL=${p.interval}`)
   if (p.daysOfWeek?.length) {
     const dayMap: Record<string, string> = {
-      sunday: "SU", monday: "MO", tuesday: "TU", wednesday: "WE",
-      thursday: "TH", friday: "FR", saturday: "SA",
+      sunday: "SU",
+      monday: "MO",
+      tuesday: "TU",
+      wednesday: "WE",
+      thursday: "TH",
+      friday: "FR",
+      saturday: "SA",
     }
-    parts.push(`BYDAY=${p.daysOfWeek.map((d: string) => dayMap[d] ?? d.slice(0, 2).toUpperCase()).join(",")}`)
+    parts.push(
+      `BYDAY=${p.daysOfWeek.map((d: string) => dayMap[d] ?? d.slice(0, 2).toUpperCase()).join(",")}`
+    )
   }
   if (recurrence.range?.type === "endDate" && recurrence.range.endDate) {
     parts.push(`UNTIL=${recurrence.range.endDate.replace(/-/g, "")}`)
   }
-  if (recurrence.range?.type === "numbered" && recurrence.range.numberOfOccurrences) {
+  if (
+    recurrence.range?.type === "numbered" &&
+    recurrence.range.numberOfOccurrences
+  ) {
     parts.push(`COUNT=${recurrence.range.numberOfOccurrences}`)
   }
   return `RRULE:${parts.join(";")}`
 }
 
-function parseRRuleToGraphRecurrence(rrule: string, startDate: string): any | null {
+function parseRRuleToGraphRecurrence(
+  rrule: string,
+  startDate: string
+): any | null {
   const ruleStr = rrule.replace(/^RRULE:/, "")
   const parts: Record<string, string> = {}
   for (const part of ruleStr.split(";")) {
@@ -285,8 +343,13 @@ function parseRRuleToGraphRecurrence(rrule: string, startDate: string): any | nu
   if (!freq) return null
 
   const dayMap: Record<string, string> = {
-    MO: "monday", TU: "tuesday", WE: "wednesday", TH: "thursday",
-    FR: "friday", SA: "saturday", SU: "sunday",
+    MO: "monday",
+    TU: "tuesday",
+    WE: "wednesday",
+    TH: "thursday",
+    FR: "friday",
+    SA: "saturday",
+    SU: "sunday",
   }
 
   const freqMap: Record<string, string> = {
@@ -302,7 +365,9 @@ function parseRRuleToGraphRecurrence(rrule: string, startDate: string): any | nu
   }
 
   if (parts["BYDAY"]) {
-    pattern.daysOfWeek = parts["BYDAY"].split(",").map((d) => dayMap[d] ?? d.toLowerCase())
+    pattern.daysOfWeek = parts["BYDAY"]
+      .split(",")
+      .map((d) => dayMap[d] ?? d.toLowerCase())
     if (freq === "MONTHLY") pattern.type = "relativeMonthly"
   }
 
@@ -317,7 +382,10 @@ function parseRRuleToGraphRecurrence(rrule: string, startDate: string): any | nu
   if (parts["UNTIL"]) {
     range.type = "endDate"
     const u = parts["UNTIL"]
-    range.endDate = u.length === 8 ? `${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}` : u.split("T")[0]
+    range.endDate =
+      u.length === 8
+        ? `${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}`
+        : u.split("T")[0]
   } else if (parts["COUNT"]) {
     range.type = "numbered"
     range.numberOfOccurrences = parseInt(parts["COUNT"])

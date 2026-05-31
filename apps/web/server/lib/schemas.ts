@@ -9,7 +9,7 @@ export const serializedFileSchema = z.object({
 })
 
 export const deserializeFiles = async (
-  serializedFiles: z.infer<typeof serializedFileSchema>[],
+  serializedFiles: z.infer<typeof serializedFileSchema>[]
 ) => {
   return await Promise.all(
     serializedFiles.map((data) => {
@@ -20,7 +20,7 @@ export const deserializeFiles = async (
         lastModified: data.lastModified,
       })
       return newFile
-    }),
+    })
   )
 }
 
@@ -43,7 +43,7 @@ export const mailCategorySchema = z.object({
     .string()
     .regex(
       /^[a-zA-Z0-9\-_ ]+$/,
-      "Category ID must contain only alphanumeric characters, hyphens, underscores, and spaces",
+      "Category ID must contain only alphanumeric characters, hyphens, underscores, and spaces"
     ),
   name: z.string(),
   searchValue: z.string(),
@@ -81,23 +81,25 @@ export const defaultMailCategories: MailCategory[] = [
   },
 ]
 
-const categoriesSchema = z.array(mailCategorySchema).superRefine((cats, ctx) => {
-  const orders = cats.map((c) => c.order)
-  if (new Set(orders).size !== orders.length) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Each mail category must have a unique order number",
-    })
-  }
+const categoriesSchema = z
+  .array(mailCategorySchema)
+  .superRefine((cats, ctx) => {
+    const orders = cats.map((c) => c.order)
+    if (new Set(orders).size !== orders.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Each mail category must have a unique order number",
+      })
+    }
 
-  const defaultCount = cats.filter((c) => c.isDefault).length
-  if (defaultCount !== 1) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Exactly one mail category must be set as default",
-    })
-  }
-})
+    const defaultCount = cats.filter((c) => c.isDefault).length
+    if (defaultCount !== 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Exactly one mail category must be set as default",
+      })
+    }
+  })
 
 export const notificationSettingsSchema = z.object({
   level: z.enum(["none", "important", "all"]).default("all"),
@@ -135,7 +137,9 @@ export const userSettingsSchema = z.object({
   autoRead: z.boolean().default(true),
   animations: z.boolean().default(false),
   mailListLayout: z.enum(["split", "centered"]).default("split"),
-  notifications: notificationSettingsSchema.default(defaultNotificationSettings),
+  notifications: notificationSettingsSchema.default(
+    defaultNotificationSettings
+  ),
 })
 
 export type UserSettings = z.infer<typeof userSettingsSchema>
@@ -155,11 +159,13 @@ export const createEventSchema = z.object({
         email: z.string().email(),
         name: z.string().optional(),
         role: z.enum(["required", "optional"]).optional(),
-      }),
+      })
     )
     .optional(),
   availability: z.enum(["busy", "free"]).optional(),
-  visibility: z.enum(["default", "public", "private", "confidential"]).optional(),
+  visibility: z
+    .enum(["default", "public", "private", "confidential"])
+    .optional(),
   color: z.string().optional(),
   conferenceLink: z.string().optional(),
 })
@@ -183,11 +189,13 @@ export const updateEventSchema = z.object({
         email: z.string().email(),
         name: z.string().optional(),
         role: z.enum(["required", "optional"]).optional(),
-      }),
+      })
     )
     .optional(),
   availability: z.enum(["busy", "free"]).optional(),
-  visibility: z.enum(["default", "public", "private", "confidential"]).optional(),
+  visibility: z
+    .enum(["default", "public", "private", "confidential"])
+    .optional(),
   color: z.string().optional(),
 })
 

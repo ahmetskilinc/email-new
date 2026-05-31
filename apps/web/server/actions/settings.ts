@@ -28,9 +28,7 @@ export async function getSettings() {
   }
 }
 
-export async function saveSettings(
-  input: Partial<UserSettings>,
-) {
+export async function saveSettings(input: Partial<UserSettings>) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)
   const existingSettings: any = await db.findUserSettings()

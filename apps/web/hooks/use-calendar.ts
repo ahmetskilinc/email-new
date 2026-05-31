@@ -9,7 +9,11 @@ import {
   deleteCalendarEvent,
 } from "@/server/actions/calendar"
 import { useActiveConnection } from "./use-connections"
-import type { CreateEventData, UpdateEventData, DeleteEventData } from "@/server/lib/schemas"
+import type {
+  CreateEventData,
+  UpdateEventData,
+  DeleteEventData,
+} from "@/server/lib/schemas"
 
 export function useCalendarEvents(timeMin: Date | null, timeMax: Date | null) {
   const { data: connection } = useActiveConnection()
@@ -49,7 +53,8 @@ export function useCreateEvent() {
   const { data: connection } = useActiveConnection()
 
   return useMutation({
-    mutationFn: (data: CreateEventData) => createCalendarEvent(data, connection?.id),
+    mutationFn: (data: CreateEventData) =>
+      createCalendarEvent(data, connection?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] })
     },
@@ -61,7 +66,8 @@ export function useUpdateEvent() {
   const { data: connection } = useActiveConnection()
 
   return useMutation({
-    mutationFn: (data: UpdateEventData) => updateCalendarEvent(data, connection?.id),
+    mutationFn: (data: UpdateEventData) =>
+      updateCalendarEvent(data, connection?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] })
     },
@@ -73,7 +79,8 @@ export function useDeleteEvent() {
   const { data: connection } = useActiveConnection()
 
   return useMutation({
-    mutationFn: (data: DeleteEventData) => deleteCalendarEvent(data, connection?.id),
+    mutationFn: (data: DeleteEventData) =>
+      deleteCalendarEvent(data, connection?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendarEvents"] })
     },

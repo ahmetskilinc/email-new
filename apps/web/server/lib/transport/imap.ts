@@ -200,8 +200,8 @@ export async function listThreads(
       searchUids = asUidList(
         await client.search(
           { or: [{ subject: q }, { from: q }, { to: q }, { body: q }] },
-          { uid: true },
-        ),
+          { uid: true }
+        )
       )
       if (searchUids.length === 0) {
         return { threads: [], nextPageToken: null }
@@ -219,7 +219,7 @@ export async function listThreads(
       const pageStart = params.pageToken ? parseInt(params.pageToken, 10) : 0
       const sliced = sorted.slice(pageStart, pageStart + fetchCount)
       if (sliced.length === 0) return { threads: [], nextPageToken: null }
-      fetchRange = sliced.join(',')
+      fetchRange = sliced.join(",")
       seqStart = pageStart + sliced.length
     } else {
       let seqEnd: number
@@ -244,12 +244,16 @@ export async function listThreads(
       from?: { name?: string; address?: string }
     }[] = []
     const fetchOptions = searchUids ? { uid: true } : undefined
-    for await (const msg of client.fetch(fetchRange, {
-      uid: true,
-      flags: true,
-      envelope: true,
-      headers: ["message-id", "references", "in-reply-to"],
-    }, fetchOptions)) {
+    for await (const msg of client.fetch(
+      fetchRange,
+      {
+        uid: true,
+        flags: true,
+        envelope: true,
+        headers: ["message-id", "references", "in-reply-to"],
+      },
+      fetchOptions
+    )) {
       const headerMessageId = msg.headers
         ? (() => {
             const parsed = Buffer.from(msg.headers).toString()
@@ -462,14 +466,11 @@ export async function deleteMessages(
     const searchUids = asUidList(
       await client.search(
         { header: { "Message-ID": `<${rootMsgId}>` } },
-        { uid: true },
-      ),
+        { uid: true }
+      )
     )
     const refsUids = asUidList(
-      await client.search(
-        { header: { References: rootMsgId } },
-        { uid: true },
-      ),
+      await client.search({ header: { References: rootMsgId } }, { uid: true })
     )
     const uids = [...new Set([...searchUids, ...refsUids])]
     if (uids.length > 0)
@@ -487,9 +488,7 @@ export async function markMessages(
   config: ImapProviderConfig
 ): Promise<void> {
   const targets = [
-    ...new Set(
-      threadIds.map((tid) => decodeThreadId(tid)).filter((r) => !!r),
-    ),
+    ...new Set(threadIds.map((tid) => decodeThreadId(tid)).filter((r) => !!r)),
   ] as string[]
   if (targets.length === 0) return
 
@@ -525,8 +524,7 @@ export async function markMessages(
           if (!uids?.length) continue
           if (read)
             await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true })
-          else
-            await client.messageFlagsRemove(uids, ["\\Seen"], { uid: true })
+          else await client.messageFlagsRemove(uids, ["\\Seen"], { uid: true })
         }
       } catch {}
     }
@@ -576,14 +574,14 @@ export async function modifyLabels(
           const byMsgId = asUidList(
             await client.search(
               { header: { "Message-ID": `<${rootMsgId}>` } },
-              { uid: true },
-            ),
+              { uid: true }
+            )
           )
           const byRefs = asUidList(
             await client.search(
               { header: { References: rootMsgId } },
-              { uid: true },
-            ),
+              { uid: true }
+            )
           )
           const uids = [...new Set([...byMsgId, ...byRefs])]
           if (uids.length === 0) continue
@@ -788,7 +786,7 @@ export async function listHistory(
     })
     const uidValidity = mailbox.uidValidity
     const newUids = asUidList(
-      await client.search({ uid: `${lastUid + 1}:*` }, { uid: true }),
+      await client.search({ uid: `${lastUid + 1}:*` }, { uid: true })
     )
     const history = newUids.map((uid) => ({ uid, type: "new" }))
     const latestUid = newUids.length > 0 ? Math.max(...newUids) : lastUid

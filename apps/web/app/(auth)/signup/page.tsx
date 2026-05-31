@@ -49,7 +49,7 @@ export default function SignupPage() {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Create your account</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="mt-2 text-sm text-muted-foreground">
             Sign up to get started with your email.
           </p>
         </div>
@@ -100,7 +100,7 @@ export default function SignupPage() {
           </Button>
         </form>
 
-        <p className="text-muted-foreground text-center text-sm">
+        <p className="text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link href="/login" className="text-foreground underline">
             Log in

@@ -1,11 +1,23 @@
 "use server"
 
 import { requireSession } from "../lib/session"
-import { getActiveConnection, getzeitmailDB, resolveAccessToken } from "../lib/server-utils"
+import {
+  getActiveConnection,
+  getzeitmailDB,
+  resolveAccessToken,
+} from "../lib/server-utils"
 import { createCalendarProvider } from "../lib/calendar"
 import type { CalendarEvent, CalendarInfo } from "../lib/calendar"
-import { createEventSchema, updateEventSchema, deleteEventSchema } from "../lib/schemas"
-import type { CreateEventData, UpdateEventData, DeleteEventData } from "../lib/schemas"
+import {
+  createEventSchema,
+  updateEventSchema,
+  deleteEventSchema,
+} from "../lib/schemas"
+import type {
+  CreateEventData,
+  UpdateEventData,
+  DeleteEventData,
+} from "../lib/schemas"
 
 async function resolveConnection(userId: string, connectionId?: string) {
   if (connectionId) {
@@ -31,7 +43,10 @@ export async function getCalendarEvents(params: {
   connectionId?: string
 }): Promise<CalendarEvent[]> {
   const session = await requireSession()
-  const connection = await resolveConnection(session.user.id, params.connectionId)
+  const connection = await resolveConnection(
+    session.user.id,
+    params.connectionId
+  )
   const provider = getProvider(connection)
 
   const events = await provider.listEvents({
@@ -40,13 +55,15 @@ export async function getCalendarEvents(params: {
   })
 
   console.log(
-    `[Calendar] ${connection.providerId}/${connection.email}: ${events.length} events fetched`,
+    `[Calendar] ${connection.providerId}/${connection.email}: ${events.length} events fetched`
   )
 
   return events
 }
 
-export async function getCalendars(connectionId?: string): Promise<CalendarInfo[]> {
+export async function getCalendars(
+  connectionId?: string
+): Promise<CalendarInfo[]> {
   const session = await requireSession()
   const connection = await resolveConnection(session.user.id, connectionId)
   const provider = getProvider(connection)
@@ -55,7 +72,7 @@ export async function getCalendars(connectionId?: string): Promise<CalendarInfo[
 
 export async function createCalendarEvent(
   data: CreateEventData,
-  connectionId?: string,
+  connectionId?: string
 ): Promise<CalendarEvent> {
   const session = await requireSession()
   const validated = createEventSchema.parse(data)
@@ -65,7 +82,7 @@ export async function createCalendarEvent(
   const event = await provider.createEvent(validated)
 
   console.log(
-    `[Calendar] ${connection.providerId}/${connection.email}: event created "${validated.title}"`,
+    `[Calendar] ${connection.providerId}/${connection.email}: event created "${validated.title}"`
   )
 
   return event
@@ -73,7 +90,7 @@ export async function createCalendarEvent(
 
 export async function updateCalendarEvent(
   data: UpdateEventData,
-  connectionId?: string,
+  connectionId?: string
 ): Promise<CalendarEvent> {
   const session = await requireSession()
   const validated = updateEventSchema.parse(data)
@@ -83,7 +100,7 @@ export async function updateCalendarEvent(
   const event = await provider.updateEvent(validated)
 
   console.log(
-    `[Calendar] ${connection.providerId}/${connection.email}: event updated "${validated.eventId}"`,
+    `[Calendar] ${connection.providerId}/${connection.email}: event updated "${validated.eventId}"`
   )
 
   return event
@@ -91,7 +108,7 @@ export async function updateCalendarEvent(
 
 export async function deleteCalendarEvent(
   data: DeleteEventData,
-  connectionId?: string,
+  connectionId?: string
 ): Promise<void> {
   const session = await requireSession()
   const validated = deleteEventSchema.parse(data)
@@ -101,6 +118,6 @@ export async function deleteCalendarEvent(
   await provider.deleteEvent(validated)
 
   console.log(
-    `[Calendar] ${connection.providerId}/${connection.email}: event deleted "${validated.eventId}"`,
+    `[Calendar] ${connection.providerId}/${connection.email}: event deleted "${validated.eventId}"`
   )
 }

@@ -25,7 +25,8 @@ export function RecurrenceScopeDialog({
   action,
   onSelect,
 }: RecurrenceScopeDialogProps) {
-  const title = action === "edit" ? "Edit recurring event" : "Delete recurring event"
+  const title =
+    action === "edit" ? "Edit recurring event" : "Delete recurring event"
   const description =
     action === "edit"
       ? "How would you like to edit this recurring event?"

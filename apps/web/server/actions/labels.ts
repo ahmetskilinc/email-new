@@ -21,7 +21,7 @@ export async function updateLabel(
     name: string
     type?: string
     color?: { backgroundColor: string; textColor: string }
-  },
+  }
 ) {
   const { driver } = await requireActiveDriver()
   return driver.updateLabel(id, label)

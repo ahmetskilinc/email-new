@@ -16,7 +16,10 @@ export class GoogleCalendarProvider implements CalendarProvider {
   private cal
 
   constructor(private config: CalendarProviderConfig) {
-    const auth = new OAuth2Client(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
+    const auth = new OAuth2Client(
+      env.GOOGLE_CLIENT_ID,
+      env.GOOGLE_CLIENT_SECRET
+    )
     auth.setCredentials({ refresh_token: config.refreshToken })
     this.cal = calendar({ version: "v3", auth })
   }
@@ -76,7 +79,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
               recurringEventId: e.recurringEventId ?? undefined,
               recurrence: e.recurrence ?? undefined,
               conferenceLink:
-                e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
+                e.conferenceData?.entryPoints?.find(
+                  (ep) => ep.entryPointType === "video"
+                )?.uri ??
                 e.hangoutLink ??
                 undefined,
               organizer: e.organizer
@@ -86,18 +91,24 @@ export class GoogleCalendarProvider implements CalendarProvider {
                     self: e.organizer.self ?? undefined,
                   }
                 : undefined,
-              visibility: (e.visibility as CalendarEvent["visibility"]) ?? undefined,
+              visibility:
+                (e.visibility as CalendarEvent["visibility"]) ?? undefined,
               availability: e.transparency === "transparent" ? "free" : "busy",
               htmlLink: e.htmlLink ?? undefined,
             })
           }
         } catch (err) {
-          console.error(`[GoogleCalendar] Failed to list events for ${calId}:`, err)
+          console.error(
+            `[GoogleCalendar] Failed to list events for ${calId}:`,
+            err
+          )
         }
-      }),
+      })
     )
 
-    return allEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+    return allEvents.sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    )
   }
 
   async createEvent(input: CreateEventInput): Promise<CalendarEvent> {
@@ -151,21 +162,33 @@ export class GoogleCalendarProvider implements CalendarProvider {
     const requestBody: Record<string, any> = {}
 
     if (input.title !== undefined) requestBody.summary = input.title
-    if (input.description !== undefined) requestBody.description = input.description
+    if (input.description !== undefined)
+      requestBody.description = input.description
     if (input.location !== undefined) requestBody.location = input.location
-    if (input.visibility !== undefined) requestBody.visibility = input.visibility
+    if (input.visibility !== undefined)
+      requestBody.visibility = input.visibility
     if (input.availability !== undefined)
-      requestBody.transparency = input.availability === "free" ? "transparent" : "opaque"
+      requestBody.transparency =
+        input.availability === "free" ? "transparent" : "opaque"
     if (input.color !== undefined) requestBody.colorId = input.color
-    if (input.recurrence !== undefined) requestBody.recurrence = input.recurrence
+    if (input.recurrence !== undefined)
+      requestBody.recurrence = input.recurrence
 
-    if (input.start !== undefined || input.end !== undefined || input.allDay !== undefined) {
+    if (
+      input.start !== undefined ||
+      input.end !== undefined ||
+      input.allDay !== undefined
+    ) {
       const isAllDay = input.allDay ?? false
       if (input.start !== undefined) {
-        requestBody.start = isAllDay ? { date: input.start } : { dateTime: input.start }
+        requestBody.start = isAllDay
+          ? { date: input.start }
+          : { dateTime: input.start }
       }
       if (input.end !== undefined) {
-        requestBody.end = isAllDay ? { date: input.end } : { dateTime: input.end }
+        requestBody.end = isAllDay
+          ? { date: input.end }
+          : { dateTime: input.end }
       }
     }
 

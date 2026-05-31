@@ -34,7 +34,10 @@ export function extractThreadDate(raw: unknown): number {
   return Number.isNaN(ts) ? 0 : ts
 }
 
-function extractSender(r: Record<string, unknown>): { name?: string; email: string } {
+function extractSender(r: Record<string, unknown>): {
+  name?: string
+  email: string
+} {
   const preview = r.preview as Record<string, unknown> | undefined
   if (preview?.sender && typeof preview.sender === "object") {
     const s = preview.sender as Record<string, unknown>
@@ -99,15 +102,17 @@ function extractStarred(r: Record<string, unknown>): boolean {
 
   // Gmail: messages[].labelIds includes "STARRED"
   if (Array.isArray(r.messages)) {
-    return (r.messages as Record<string, unknown>[]).some((m) =>
-      Array.isArray(m.labelIds) && (m.labelIds as string[]).includes("STARRED"),
+    return (r.messages as Record<string, unknown>[]).some(
+      (m) =>
+        Array.isArray(m.labelIds) &&
+        (m.labelIds as string[]).includes("STARRED")
     )
   }
 
   // IMAP thread detail: labels array contains { id: "STARRED" }
   if (Array.isArray(r.labels)) {
     return (r.labels as Record<string, unknown>[]).some(
-      (l) => l.id === "STARRED",
+      (l) => l.id === "STARRED"
     )
   }
 
@@ -120,7 +125,8 @@ function extractStarred(r: Record<string, unknown>): boolean {
   // Tags from parsed messages
   if (Array.isArray(r.tags)) {
     return (r.tags as Record<string, unknown>[]).some(
-      (t) => typeof t.name === "string" && t.name.toLowerCase().startsWith("starred"),
+      (t) =>
+        typeof t.name === "string" && t.name.toLowerCase().startsWith("starred")
     )
   }
 

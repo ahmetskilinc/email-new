@@ -42,9 +42,7 @@ export function YahooForm({
       onSuccess()
     } catch (err: unknown) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to connect Yahoo Mail"
+        err instanceof Error ? err.message : "Failed to connect Yahoo Mail"
       toast.error(message)
     } finally {
       setIsPending(false)
@@ -58,13 +56,13 @@ export function YahooForm({
           <button
             type="button"
             onClick={onBack}
-            className="text-muted-foreground hover:text-foreground text-sm"
+            className="text-sm text-muted-foreground hover:text-foreground"
           >
             ← Back
           </button>
         </div>
         <h3 className="text-sm font-medium">Connect Yahoo Mail</h3>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Enter your Yahoo email and app password.
         </p>
       </div>
@@ -81,7 +79,7 @@ export function YahooForm({
             required
             autoComplete="email"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             Supported: @yahoo.com, @ymail.com, @rocketmail.com
           </p>
         </div>
@@ -97,7 +95,7 @@ export function YahooForm({
             required
             autoComplete="current-password"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-xs text-muted-foreground">
             Don&apos;t use your Yahoo account password.
           </p>
         </div>
@@ -112,7 +110,8 @@ export function YahooForm({
           </CollapsibleTrigger>
           <CollapsibleContent className="overflow-hidden data-[ending-style]:animate-accordion-up data-[starting-style]:animate-accordion-down">
             <ol className="mt-2 flex flex-col gap-1.5 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground [&>li]:pl-1">
-              <li>1. Go to{" "}
+              <li>
+                1. Go to{" "}
                 <a
                   href="https://login.yahoo.com/account/security"
                   target="_blank"
@@ -123,14 +122,34 @@ export function YahooForm({
                 </a>{" "}
                 and sign in.
               </li>
-              <li>2. Scroll down to <span className="font-medium text-foreground">Other ways to sign in</span>.</li>
-              <li>3. Click <span className="font-medium text-foreground">Generate app password</span>.</li>
-              <li>4. Select <span className="font-medium text-foreground">Other App</span> and enter a name like &quot;Mail App&quot;.</li>
-              <li>5. Click <span className="font-medium text-foreground">Generate</span>.</li>
+              <li>
+                2. Scroll down to{" "}
+                <span className="font-medium text-foreground">
+                  Other ways to sign in
+                </span>
+                .
+              </li>
+              <li>
+                3. Click{" "}
+                <span className="font-medium text-foreground">
+                  Generate app password
+                </span>
+                .
+              </li>
+              <li>
+                4. Select{" "}
+                <span className="font-medium text-foreground">Other App</span>{" "}
+                and enter a name like &quot;Mail App&quot;.
+              </li>
+              <li>
+                5. Click{" "}
+                <span className="font-medium text-foreground">Generate</span>.
+              </li>
               <li>6. Copy the generated password and paste it above.</li>
             </ol>
             <p className="mt-2 text-[10px] text-muted-foreground/70">
-              Note: You may need to enable two-factor authentication on your Yahoo account first.
+              Note: You may need to enable two-factor authentication on your
+              Yahoo account first.
             </p>
           </CollapsibleContent>
         </Collapsible>

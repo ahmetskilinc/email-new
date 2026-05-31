@@ -257,15 +257,11 @@ export function NavUser() {
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => openSettings("general")}
-                >
+                <DropdownMenuItem onClick={() => openSettings("general")}>
                   <HugeiconsIcon icon={Settings04Icon} className="h-4 w-4" />
                   General
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => openSettings("connections")}
-                >
+                <DropdownMenuItem onClick={() => openSettings("connections")}>
                   <HugeiconsIcon icon={Link04Icon} className="h-4 w-4" />
                   Connections
                 </DropdownMenuItem>

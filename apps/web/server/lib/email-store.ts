@@ -40,7 +40,7 @@ export async function listThreadsFromStore(params: {
     where: cursorDate
       ? and(
           eq(emailThread.connectionId, connectionId),
-          lt(emailThread.lastMessageAt, cursorDate),
+          lt(emailThread.lastMessageAt, cursorDate)
         )
       : eq(emailThread.connectionId, connectionId),
     orderBy: [desc(emailThread.lastMessageAt)],

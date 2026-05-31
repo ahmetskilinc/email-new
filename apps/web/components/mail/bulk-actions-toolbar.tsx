@@ -43,14 +43,14 @@ export function BulkActionsToolbar() {
 
   const handleAction = (
     action: (ids: string[]) => Promise<unknown>,
-    messages: { loading: string; success: string; error: string },
+    messages: { loading: string; success: string; error: string }
   ) => {
     toast.promise(
       action(ids).then(() => {
         invalidate()
         clearAll()
       }),
-      messages,
+      messages
     )
   }
 

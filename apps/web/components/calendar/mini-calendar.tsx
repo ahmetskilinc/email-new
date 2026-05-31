@@ -2,7 +2,10 @@
 
 import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+} from "@hugeicons-pro/core-stroke-rounded"
 import { cn } from "@workspace/ui/lib/utils"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -37,7 +40,7 @@ export function MiniCalendar({
   onDisplayMonthChange,
 }: MiniCalendarProps) {
   const [internalMonth, setInternalMonth] = React.useState(
-    () => selectedDate ?? new Date(),
+    () => selectedDate ?? new Date()
   )
 
   const controlled =
@@ -49,7 +52,7 @@ export function MiniCalendar({
       if (controlled) onDisplayMonthChange!(next)
       else setInternalMonth(next)
     },
-    [controlled, onDisplayMonthChange],
+    [controlled, onDisplayMonthChange]
   )
 
   React.useEffect(() => {
@@ -73,7 +76,7 @@ export function MiniCalendar({
   const weekdayNames = React.useMemo(() => {
     const base = startOfWeek(new Date(), { weekStartsOn: 1 })
     return Array.from({ length: 7 }, (_, i) =>
-      format(addDays(base, i), "EEEEE"),
+      format(addDays(base, i), "EEEEE")
     )
   }, [])
 
@@ -120,11 +123,13 @@ export function MiniCalendar({
               const dateKey = format(day, "yyyy-MM-dd")
               const hasEvents = eventDates?.has(dateKey)
               const isSelected =
-                selectedDate &&
-                format(selectedDate, "yyyy-MM-dd") === dateKey
+                selectedDate && format(selectedDate, "yyyy-MM-dd") === dateKey
 
               return (
-                <div key={dateKey} className="flex size-8 items-center justify-center">
+                <div
+                  key={dateKey}
+                  className="flex size-8 items-center justify-center"
+                >
                   <button
                     type="button"
                     onClick={() => onDateSelect?.(day)}
@@ -136,8 +141,7 @@ export function MiniCalendar({
                       today &&
                         !isSelected &&
                         "border border-primary bg-primary/10 font-medium text-primary",
-                      isSelected &&
-                        "bg-primary text-primary-foreground",
+                      isSelected && "bg-primary text-primary-foreground"
                     )}
                   >
                     {day.getDate()}

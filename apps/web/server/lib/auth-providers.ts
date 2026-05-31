@@ -6,7 +6,9 @@ export interface ProviderConfig {
   required?: boolean
 }
 
-export const authProviders = (env: Record<string, string>): ProviderConfig[] => [
+export const authProviders = (
+  env: Record<string, string>
+): ProviderConfig[] => [
   {
     id: "google",
     name: "Google",
@@ -49,16 +51,16 @@ export const authProviders = (env: Record<string, string>): ProviderConfig[] => 
 
 export function isProviderEnabled(
   provider: ProviderConfig,
-  env: Record<string, string>,
+  env: Record<string, string>
 ): boolean {
   const hasEnvVars = provider.requiredEnvVars.every((envVar) => !!env[envVar])
 
   if (provider.required && !hasEnvVars) {
     console.error(
-      `Required provider "${provider.id}" is not configured properly.`,
+      `Required provider "${provider.id}" is not configured properly.`
     )
     console.error(
-      `Missing environment variables: ${provider.requiredEnvVars.filter((envVar) => !env[envVar]).join(", ")}`,
+      `Missing environment variables: ${provider.requiredEnvVars.filter((envVar) => !env[envVar]).join(", ")}`
     )
   }
 
@@ -74,12 +76,12 @@ export function getSocialProviders(env: Record<string, string>) {
         }
         if (provider.required) {
           console.warn(
-            `Required provider "${provider.id}" is not configured. OAuth login for this provider will not work.`,
+            `Required provider "${provider.id}" is not configured. OAuth login for this provider will not work.`
           )
         }
         return null
       })
-      .filter((provider) => provider !== null),
+      .filter((provider) => provider !== null)
   )
   return socialProviders
 }

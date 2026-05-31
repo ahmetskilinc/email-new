@@ -68,7 +68,10 @@ export function RecipientInput({
 
   const selectSuggestion = useCallback(
     (suggestion: Suggestion) => {
-      const parts = value.split(",").map((s) => s.trim()).filter(Boolean)
+      const parts = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
       parts.pop()
       parts.push(suggestion.email)
       onChange(parts.join(", ") + ", ")
@@ -76,7 +79,7 @@ export function RecipientInput({
       setSuggestions([])
       inputRef.current?.focus()
     },
-    [value, onChange],
+    [value, onChange]
   )
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -132,7 +135,7 @@ export function RecipientInput({
               type="button"
               className={cn(
                 "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
-                i === activeIndex && "bg-muted",
+                i === activeIndex && "bg-muted"
               )}
               onMouseDown={(e) => {
                 e.preventDefault()

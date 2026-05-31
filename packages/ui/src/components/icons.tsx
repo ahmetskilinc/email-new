@@ -1,39 +1,62 @@
 export const Apple = ({ className }: { className?: string }) => (
-  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className}>
+  <svg
+    role="img"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
     <path
       d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"
       fill="currentColor"
     />
   </svg>
-);
+)
 
 export const ICloudColor = ({ className }: { className?: string }) => (
-  <svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className}>
+  <svg
+    role="img"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
     <path
       d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"
       fill="#3D8EF0"
     />
   </svg>
-);
+)
 
 export const GmailColor = ({ className }: { className?: string }) => (
-  <svg role="img" xmlns="http://www.w3.org/2000/svg" viewBox="52 42 88 66" className={className}>
+  <svg
+    role="img"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="52 42 88 66"
+    className={className}
+  >
     <path fill="#4285f4" d="M58 108h14V74L52 59v43c0 3.32 2.69 6 6 6" />
     <path fill="#34a853" d="M120 108h14c3.32 0 6-2.69 6-6V59l-20 15" />
     <path fill="#fbbc04" d="M120 48v26l20-15v-8c0-7.42-8.47-11.65-14.4-7.2" />
     <path fill="#ea4335" d="M72 74V48l24 18 24-18v26L96 92" />
-    <path fill="#c5221f" d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2" />
+    <path
+      fill="#c5221f"
+      d="M52 51v8l20 15V48l-5.6-4.2c-5.94-4.45-14.4-.22-14.4 7.2"
+    />
   </svg>
-);
+)
 
 export const Microsoft = ({ className }: { className?: string }) => (
-  <svg role="img" viewBox="0 0 448 512" xmlns="http://www.w3.org/2000/svg" className={className}>
+  <svg
+    role="img"
+    viewBox="0 0 448 512"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
     <path
       d="M0 32h214.6v214.6H0V32zm233.4 0H448v214.6H233.4V32zM0 265.4h214.6V480H0V265.4zm233.4 0H448V480H233.4V265.4z"
       fill="var(--icon-color)"
     />
   </svg>
-);
+)
 
 export const OutlookColor = ({ className }: { className?: string }) => (
   <svg
@@ -57,7 +80,10 @@ export const OutlookColor = ({ className }: { className?: string }) => (
     />
     <path fill="#0078D4" d="M936.833,638.75h425.833V1022H936.833V638.75z" />
     <path fill="#0364B8" d="M936.833,1022h425.833v383.25H936.833V1022z" />
-    <path fill="#14447D" d="M520.453,1025.151h416.38v346.969h-416.38V1025.151z" />
+    <path
+      fill="#14447D"
+      d="M520.453,1025.151h416.38v346.969h-416.38V1025.151z"
+    />
     <path fill="#0078D4" d="M1362.667,1022h383.25v383.25h-383.25V1022z" />
     <linearGradient
       id="SVGID_1_"
@@ -68,8 +94,8 @@ export const OutlookColor = ({ className }: { className?: string }) => (
       y2="1.9982"
       gradientTransform="matrix(1 0 0 -1 0 1705.3334)"
     >
-      <stop offset="0" style={{ stopColor: '#35B8F1' }} />
-      <stop offset="1" style={{ stopColor: '#28A8EA' }} />
+      <stop offset="0" style={{ stopColor: "#35B8F1" }} />
+      <stop offset="1" style={{ stopColor: "#28A8EA" }} />
     </linearGradient>
     <path
       fill="url(#SVGID_1_)"
@@ -121,9 +147,9 @@ export const OutlookColor = ({ className }: { className?: string }) => (
       y2="324.2592"
       gradientTransform="matrix(1 0 0 -1 0 1705.3334)"
     >
-      <stop offset="0" style={{ stopColor: '#1784D9' }} />
-      <stop offset="0.5" style={{ stopColor: '#107AD5' }} />
-      <stop offset="1" style={{ stopColor: '#0A63C9' }} />
+      <stop offset="0" style={{ stopColor: "#1784D9" }} />
+      <stop offset="0.5" style={{ stopColor: "#107AD5" }} />
+      <stop offset="1" style={{ stopColor: "#0A63C9" }} />
     </linearGradient>
     <path
       fill="url(#SVGID_2_)"
@@ -135,7 +161,7 @@ export const OutlookColor = ({ className }: { className?: string }) => (
     />
     <path fill="#50D9FF" d="M1362.667,255.5h383.25v383.25h-383.25V255.5z" />
   </svg>
-);
+)
 
 export const YahooColor = ({ className }: { className?: string }) => (
   <svg
@@ -154,7 +180,7 @@ export const YahooColor = ({ className }: { className?: string }) => (
       fillRule="nonzero"
     />
   </svg>
-);
+)
 
 export const MailServerColor = ({ className }: { className?: string }) => (
   <svg
@@ -167,12 +193,41 @@ export const MailServerColor = ({ className }: { className?: string }) => (
     strokeLinejoin="round"
     className={className}
   >
-    <rect x="2" y="4" width="20" height="16" rx="2" fill="#6366f1" stroke="none" />
-    <polyline points="2,4 12,13 22,4" fill="none" stroke="#fff" strokeWidth="1.5" />
-    <line x1="2" y1="20" x2="9" y2="12" stroke="#fff" strokeWidth="1.5" opacity="0.5" />
-    <line x1="22" y1="20" x2="15" y2="12" stroke="#fff" strokeWidth="1.5" opacity="0.5" />
+    <rect
+      x="2"
+      y="4"
+      width="20"
+      height="16"
+      rx="2"
+      fill="#6366f1"
+      stroke="none"
+    />
+    <polyline
+      points="2,4 12,13 22,4"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="1.5"
+    />
+    <line
+      x1="2"
+      y1="20"
+      x2="9"
+      y2="12"
+      stroke="#fff"
+      strokeWidth="1.5"
+      opacity="0.5"
+    />
+    <line
+      x1="22"
+      y1="20"
+      x2="15"
+      y2="12"
+      stroke="#fff"
+      strokeWidth="1.5"
+      opacity="0.5"
+    />
   </svg>
-);
+)
 
 export const Google = ({ className }: { className?: string }) => (
   <svg
@@ -187,4 +242,4 @@ export const Google = ({ className }: { className?: string }) => (
       d="M11.99 13.9v-3.72h9.36c.14.63.25 1.22.25 2.05c0 5.71-3.83 9.77-9.6 9.77c-5.52 0-10-4.48-10-10S6.48 2 12 2c2.7 0 4.96.99 6.69 2.61l-2.84 2.76c-.72-.68-1.98-1.48-3.85-1.48c-3.31 0-6.01 2.75-6.01 6.12s2.7 6.12 6.01 6.12c3.83 0 5.24-2.65 5.5-4.22h-5.51z"
     ></path>
   </svg>
-);
+)

@@ -14,10 +14,7 @@ import {
   markAsRead,
   markAsUnread,
 } from "@/server/actions/mail"
-import {
-  useSelectedThreadIds,
-  useSelectionActions,
-} from "@/store/selection"
+import { useSelectedThreadIds, useSelectionActions } from "@/store/selection"
 import { toast } from "sonner"
 
 function isTyping(): boolean {
@@ -100,7 +97,12 @@ export function useKeyboardShortcuts() {
 
       // Archive (bulk-aware)
       if (key === "e") {
-        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        const targets =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : threadId
+              ? [threadId]
+              : null
         if (!targets) return
         e.preventDefault()
         if (selectedIds.size === 0 && threadId) {
@@ -109,15 +111,27 @@ export function useKeyboardShortcuts() {
           void setThreadId(next?.id ?? null)
         }
         toast.promise(
-          bulkArchive(targets).then(() => { invalidate(); clearSelection() }),
-          { loading: "Archiving...", success: "Archived", error: "Failed to archive" },
+          bulkArchive(targets).then(() => {
+            invalidate()
+            clearSelection()
+          }),
+          {
+            loading: "Archiving...",
+            success: "Archived",
+            error: "Failed to archive",
+          }
         )
         return
       }
 
       // Delete (bulk-aware)
       if (key === "#") {
-        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        const targets =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : threadId
+              ? [threadId]
+              : null
         if (!targets) return
         e.preventDefault()
         if (selectedIds.size === 0 && threadId) {
@@ -126,38 +140,76 @@ export function useKeyboardShortcuts() {
           void setThreadId(next?.id ?? null)
         }
         toast.promise(
-          bulkDelete(targets).then(() => { invalidate(); clearSelection() }),
-          { loading: "Deleting...", success: "Deleted", error: "Failed to delete" },
+          bulkDelete(targets).then(() => {
+            invalidate()
+            clearSelection()
+          }),
+          {
+            loading: "Deleting...",
+            success: "Deleted",
+            error: "Failed to delete",
+          }
         )
         return
       }
 
       // Star (bulk-aware)
       if (key === "s") {
-        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        const targets =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : threadId
+              ? [threadId]
+              : null
         if (!targets) return
         e.preventDefault()
         toast.promise(
-          toggleStar(targets).then(() => { invalidate(); clearSelection() }),
-          { loading: "Updating...", success: "Star toggled", error: "Failed to toggle star" },
+          toggleStar(targets).then(() => {
+            invalidate()
+            clearSelection()
+          }),
+          {
+            loading: "Updating...",
+            success: "Star toggled",
+            error: "Failed to toggle star",
+          }
         )
         return
       }
 
       // Toggle read/unread (bulk-aware)
       if (key === "u") {
-        const targets = selectedIds.size > 0 ? Array.from(selectedIds) : threadId ? [threadId] : null
+        const targets =
+          selectedIds.size > 0
+            ? Array.from(selectedIds)
+            : threadId
+              ? [threadId]
+              : null
         if (!targets) return
         e.preventDefault()
         if (e.shiftKey) {
           toast.promise(
-            markAsUnread(targets).then(() => { invalidate(); clearSelection() }),
-            { loading: "Updating...", success: "Marked as unread", error: "Failed to mark as unread" },
+            markAsUnread(targets).then(() => {
+              invalidate()
+              clearSelection()
+            }),
+            {
+              loading: "Updating...",
+              success: "Marked as unread",
+              error: "Failed to mark as unread",
+            }
           )
         } else {
           toast.promise(
-            markAsRead(targets).then(() => { invalidate(); clearSelection() }),
-            { loading: "Updating...", success: "Marked as read", error: "Failed to mark as read" },
+            markAsRead(targets).then(() => {
+              invalidate()
+              clearSelection()
+            }),
+            {
+              loading: "Updating...",
+              success: "Marked as read",
+              error: "Failed to mark as read",
+            }
           )
         }
         return
@@ -174,7 +226,7 @@ export function useKeyboardShortcuts() {
       if (key === "/") {
         e.preventDefault()
         const input = document.querySelector<HTMLInputElement>(
-          '[data-slot="search-input"]',
+          '[data-slot="search-input"]'
         )
         input?.focus()
         return

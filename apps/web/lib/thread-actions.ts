@@ -39,11 +39,7 @@ export async function moveThreadsTo({
     switch (destination) {
       case "inbox":
         addLabel = LABELS.INBOX
-        removeLabel = isInSpam
-          ? LABELS.SPAM
-          : isInBin
-            ? LABELS.TRASH
-            : ""
+        removeLabel = isInSpam ? LABELS.SPAM : isInBin ? LABELS.TRASH : ""
         break
       case "archive":
         addLabel = ""
@@ -57,11 +53,7 @@ export async function moveThreadsTo({
         break
       case "spam":
         addLabel = LABELS.SPAM
-        removeLabel = isInInbox
-          ? LABELS.INBOX
-          : isInBin
-            ? LABELS.TRASH
-            : ""
+        removeLabel = isInInbox ? LABELS.INBOX : isInBin ? LABELS.TRASH : ""
         break
       case "snoozed":
         addLabel = LABELS.SNOOZED
@@ -75,11 +67,7 @@ export async function moveThreadsTo({
         break
       case "bin":
         addLabel = LABELS.TRASH
-        removeLabel = isInInbox
-          ? LABELS.INBOX
-          : isInSpam
-            ? LABELS.SPAM
-            : ""
+        removeLabel = isInInbox ? LABELS.INBOX : isInSpam ? LABELS.SPAM : ""
         break
       default:
         return
@@ -90,7 +78,7 @@ export async function moveThreadsTo({
     return modifyLabels(
       threadIds,
       addLabel ? [addLabel] : [],
-      removeLabel ? [removeLabel] : [],
+      removeLabel ? [removeLabel] : []
     )
   } catch (error) {
     console.error("Error moving thread(s):", error)

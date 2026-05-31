@@ -43,7 +43,7 @@ export const session = createTable(
   (t) => [
     index("session_user_id_idx").on(t.userId),
     index("session_expires_at_idx").on(t.expiresAt),
-  ],
+  ]
 )
 
 export const account = createTable(
@@ -68,7 +68,7 @@ export const account = createTable(
   (t) => [
     index("account_user_id_idx").on(t.userId),
     index("account_provider_user_id_idx").on(t.providerId, t.userId),
-  ],
+  ]
 )
 
 export const verification = createTable(
@@ -84,7 +84,7 @@ export const verification = createTable(
   (t) => [
     index("verification_identifier_idx").on(t.identifier),
     index("verification_expires_at_idx").on(t.expiresAt),
-  ],
+  ]
 )
 
 export const connection = createTable(
@@ -112,7 +112,7 @@ export const connection = createTable(
     unique().on(t.userId, t.email),
     index("connection_user_id_idx").on(t.userId),
     index("connection_provider_id_idx").on(t.providerId),
-  ],
+  ]
 )
 
 export const signature = createTable(
@@ -134,7 +134,7 @@ export const signature = createTable(
   (t) => [
     index("signature_connection_id_idx").on(t.connectionId),
     index("signature_user_id_idx").on(t.userId),
-  ],
+  ]
 )
 
 export const userSettings = createTable("user_settings", {
@@ -167,7 +167,7 @@ export const recipient = createTable(
   (t) => [
     unique().on(t.userId, t.email),
     index("recipient_user_id_idx").on(t.userId),
-  ],
+  ]
 )
 
 export const emailThread = createTable(
@@ -180,9 +180,8 @@ export const emailThread = createTable(
     providerThreadId: text("provider_thread_id").notNull(),
     subject: text("subject"),
     snippet: text("snippet"),
-    participants: jsonb("participants").$type<
-      { name?: string | null; email: string }[]
-    >(),
+    participants:
+      jsonb("participants").$type<{ name?: string | null; email: string }[]>(),
     labels: jsonb("labels").$type<string[]>(),
     messageCount: integer("message_count").notNull().default(0),
     hasUnread: boolean("has_unread").notNull().default(false),
@@ -197,9 +196,9 @@ export const emailThread = createTable(
     index("email_thread_connection_id_idx").on(t.connectionId),
     index("email_thread_last_message_at_idx").on(
       t.connectionId,
-      t.lastMessageAt,
+      t.lastMessageAt
     ),
-  ],
+  ]
 )
 
 export const emailMessage = createTable(
@@ -217,12 +216,10 @@ export const emailMessage = createTable(
     folder: text("folder"),
     fromName: text("from_name"),
     fromEmail: text("from_email"),
-    toRecipients: jsonb("to_recipients").$type<
-      { name?: string | null; email: string }[]
-    >(),
-    ccRecipients: jsonb("cc_recipients").$type<
-      { name?: string | null; email: string }[]
-    >(),
+    toRecipients:
+      jsonb("to_recipients").$type<{ name?: string | null; email: string }[]>(),
+    ccRecipients:
+      jsonb("cc_recipients").$type<{ name?: string | null; email: string }[]>(),
     subject: text("subject"),
     snippet: text("snippet"),
     bodyRef: text("body_ref"),
@@ -242,10 +239,10 @@ export const emailMessage = createTable(
     index("email_message_connection_folder_received_idx").on(
       t.connectionId,
       t.folder,
-      t.receivedAt,
+      t.receivedAt
     ),
     index("email_message_thread_idx").on(t.threadId),
-  ],
+  ]
 )
 
 export const syncState = createTable("sync_state", {

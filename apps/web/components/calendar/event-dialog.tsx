@@ -10,7 +10,11 @@ import {
 import { EventForm } from "./event-form"
 import { EventView } from "./event-view"
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog"
-import { useCreateEvent, useUpdateEvent, useDeleteEvent } from "@/hooks/use-calendar"
+import {
+  useCreateEvent,
+  useUpdateEvent,
+  useDeleteEvent,
+} from "@/hooks/use-calendar"
 import type { CalendarEvent } from "@/server/lib/calendar/types"
 import type { RecurringEventScope } from "@/server/lib/calendar/types"
 import type { CreateEventData } from "@/server/lib/schemas"
@@ -75,8 +79,9 @@ export function EventDialog({
             toast.success("Event updated")
             onOpenChange(false)
           },
-          onError: (err) => toast.error(`Failed to update event: ${err.message}`),
-        },
+          onError: (err) =>
+            toast.error(`Failed to update event: ${err.message}`),
+        }
       )
     } else {
       createEvent.mutate(data, {
@@ -103,7 +108,7 @@ export function EventDialog({
           onOpenChange(false)
         },
         onError: (err) => toast.error(`Failed to delete event: ${err.message}`),
-      },
+      }
     )
   }
 
@@ -131,8 +136,9 @@ export function EventDialog({
             toast.success("Event updated")
             onOpenChange(false)
           },
-          onError: (err) => toast.error(`Failed to update event: ${err.message}`),
-        },
+          onError: (err) =>
+            toast.error(`Failed to update event: ${err.message}`),
+        }
       )
     } else if (scopeAction.type === "delete") {
       deleteEvent.mutate(
@@ -142,8 +148,9 @@ export function EventDialog({
             toast.success("Event deleted")
             onOpenChange(false)
           },
-          onError: (err) => toast.error(`Failed to delete event: ${err.message}`),
-        },
+          onError: (err) =>
+            toast.error(`Failed to delete event: ${err.message}`),
+        }
       )
     }
 

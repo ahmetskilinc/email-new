@@ -144,7 +144,9 @@ export function AccountTab() {
             />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="settings-confirm-password">Confirm New Password</Label>
+            <Label htmlFor="settings-confirm-password">
+              Confirm New Password
+            </Label>
             <Input
               id="settings-confirm-password"
               type="password"

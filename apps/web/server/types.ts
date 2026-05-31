@@ -31,7 +31,7 @@ export const ParsedMessageSchema = z.object({
   title: z.string(),
   subject: z.string(),
   tags: z.array(
-    z.object({ id: z.string(), name: z.string(), type: z.string() }),
+    z.object({ id: z.string(), name: z.string(), type: z.string() })
   ),
   sender: z.object({ name: z.string().optional(), email: z.string() }),
   to: z.array(z.object({ name: z.string().optional(), email: z.string() })),
@@ -67,9 +67,9 @@ export const ParsedMessageSchema = z.object({
           z.object({
             name: z.string().nullable(),
             value: z.string().nullable(),
-          }),
+          })
         ),
-      }),
+      })
     )
     .optional(),
   isDraft: z.boolean().optional(),

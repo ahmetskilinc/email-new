@@ -30,7 +30,7 @@ export function useLabels() {
         name: label.name.replace("CATEGORY_", ""),
       }))
     const cleanedSystemLabels = cleanedName.filter((label) =>
-      desiredSystemLabels.has(label.name),
+      desiredSystemLabels.has(label.name)
     )
     return {
       userLabels: labelQuery.data.filter((label) => label.type === "user"),

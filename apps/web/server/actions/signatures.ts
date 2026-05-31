@@ -44,7 +44,7 @@ export async function createSignature(input: {
 
 export async function updateSignature(
   id: string,
-  input: { name?: string; body?: string; isDefault?: boolean },
+  input: { name?: string; body?: string; isDefault?: boolean }
 ) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)

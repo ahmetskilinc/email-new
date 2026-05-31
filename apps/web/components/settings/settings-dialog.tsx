@@ -85,7 +85,7 @@ export function SettingsDialog() {
 
   const onOpenChange = React.useCallback(
     (value: boolean) => setOpen(value),
-    [setOpen],
+    [setOpen]
   )
 
   const activeTabData = tabs.find((t) => t.id === activeTab)
@@ -176,7 +176,11 @@ export function SettingsDialog() {
                   onClick={() => onOpenChange(false)}
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+                  <HugeiconsIcon
+                    icon={Cancel01Icon}
+                    className="size-4"
+                    strokeWidth={2}
+                  />
                   <span className="sr-only">Close</span>
                 </button>
               </div>
@@ -209,7 +213,11 @@ export function SettingsDialog() {
                     onClick={() => setMobileShowContent(false)}
                     className="text-muted-foreground hover:text-foreground"
                   >
-                    <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" strokeWidth={2} />
+                    <HugeiconsIcon
+                      icon={ArrowLeft01Icon}
+                      className="size-4"
+                      strokeWidth={2}
+                    />
                   </button>
                   <h2 className="text-sm font-semibold">
                     {activeTabData?.title}
@@ -220,7 +228,11 @@ export function SettingsDialog() {
                   onClick={() => onOpenChange(false)}
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" strokeWidth={2} />
+                  <HugeiconsIcon
+                    icon={Cancel01Icon}
+                    className="size-4"
+                    strokeWidth={2}
+                  />
                   <span className="sr-only">Close</span>
                 </button>
               </div>

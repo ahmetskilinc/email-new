@@ -39,9 +39,7 @@ export function BimiAvatar({ email, name }: BimiAvatarProps) {
 
   return (
     <Avatar className="size-8">
-      {bimiUrl && (
-        <AvatarImage src={bimiUrl} onError={handleError} />
-      )}
+      {bimiUrl && <AvatarImage src={bimiUrl} onError={handleError} />}
       <AvatarFallback className="text-xs">{firstLetter}</AvatarFallback>
     </Avatar>
   )

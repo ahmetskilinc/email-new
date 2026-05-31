@@ -18,7 +18,7 @@ const useSearchLabels = () => {
       }
       setData(labels.join(","))
     },
-    [setData],
+    [setData]
   )
 
   return { labels, setLabels }

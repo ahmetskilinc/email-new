@@ -18,7 +18,7 @@ export async function syncConnectionNow(connectionId?: string) {
 
   const connections = connectionId
     ? [await db.findUserConnection(connectionId)].filter(
-        (c): c is NonNullable<typeof c> => Boolean(c),
+        (c): c is NonNullable<typeof c> => Boolean(c)
       )
     : await db.findManyConnections()
 
@@ -28,7 +28,7 @@ export async function syncConnectionNow(connectionId?: string) {
       .map(async (c) => {
         const run = await start(syncConnection, [{ connectionId: c.id }])
         return { connectionId: c.id, runId: run.runId }
-      }),
+      })
   )
 
   return { started }

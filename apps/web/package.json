@@ -39,6 +39,7 @@
     "@workspace/ui": "workspace:*",
     "base64-js": "^1.5.1",
     "better-auth": "^1.5.6",
+    "bruv-ui": "^0.2.0",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.1.0",

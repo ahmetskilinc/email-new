@@ -141,7 +141,7 @@ function ToolbarButton({
         active
           ? "bg-muted text-foreground"
           : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
-        className,
+        className
       )}
     >
       {children}

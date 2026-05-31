@@ -150,9 +150,7 @@ export function SignaturesTab() {
             <Input
               id="sig-name"
               value={editing.name}
-              onChange={(e) =>
-                setEditing({ ...editing, name: e.target.value })
-              }
+              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
               placeholder="e.g. Work, Personal, Casual"
               className="max-w-xs"
             />
@@ -178,7 +176,10 @@ export function SignaturesTab() {
             </Label>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleSave} disabled={saving || !editing.name.trim()}>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !editing.name.trim()}
+            >
               {saving ? "Saving..." : "Save"}
             </Button>
             <Button variant="secondary" onClick={() => setEditing(null)}>

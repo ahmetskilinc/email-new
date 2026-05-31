@@ -1,10 +1,7 @@
 "use client"
 
 import { normalizeThreadPreview } from "@/lib/thread-utils"
-import {
-  useSelectedThreadIds,
-  useSelectionActions,
-} from "@/store/selection"
+import { useSelectedThreadIds, useSelectionActions } from "@/store/selection"
 import { toggleStar } from "@/server/actions/mail"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -21,7 +18,11 @@ function MailListSpinner() {
   )
 }
 
-export function MailList({ layout = "split" }: { layout?: "split" | "centered" }) {
+export function MailList({
+  layout = "split",
+}: {
+  layout?: "split" | "centered"
+}) {
   const [query, threads, loadMore] = useThreads()
   const [threadId, setThreadId] = useQueryState("threadId")
   const vListRef = useRef<VListHandle>(null)
@@ -87,7 +88,7 @@ export function MailList({ layout = "split" }: { layout?: "split" | "centered" }
                   loading: "Updating...",
                   success: starred ? "Unstarred" : "Starred",
                   error: "Failed to toggle star",
-                },
+                }
               )
             }}
           />
@@ -99,7 +100,16 @@ export function MailList({ layout = "split" }: { layout?: "split" | "centered" }
         </>
       )
     },
-    [threads.length, query.isFetchingNextPage, setThreadId, threadId, selectedIds, anyChecked, toggleSelection, queryClient]
+    [
+      threads.length,
+      query.isFetchingNextPage,
+      setThreadId,
+      threadId,
+      selectedIds,
+      anyChecked,
+      toggleSelection,
+      queryClient,
+    ]
   )
 
   if (query.isLoading) {

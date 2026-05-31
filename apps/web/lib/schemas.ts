@@ -27,6 +27,6 @@ export const serializeFiles = async (files: File[]) => {
         lastModified: file.lastModified,
         base64,
       }
-    }),
+    })
   )
 }

@@ -124,7 +124,12 @@ export function MailDisplay({ className }: { className?: string }) {
       .trim()
 
   return (
-    <div className={cn("flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col", className)}>
+    <div
+      className={cn(
+        "flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col",
+        className
+      )}
+    >
       {/* Pinned header — thread subject */}
       <div className="flex shrink-0 items-start justify-between gap-4 border-b p-4">
         <div className="flex items-center gap-2">
@@ -183,7 +188,7 @@ export function MailDisplay({ className }: { className?: string }) {
                 className={cn(
                   "flex items-center justify-between gap-4 bg-muted/30 px-4 py-2 text-left",
                   isMultiMessage &&
-                    "cursor-pointer transition-colors hover:bg-muted/50",
+                    "cursor-pointer transition-colors hover:bg-muted/50"
                 )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -305,7 +310,7 @@ function AttachmentCard({
     try {
       const attachments = await getMessageAttachments(messageId)
       const match = attachments.find(
-        (a) => a.attachmentId === attachment.attachmentId,
+        (a) => a.attachmentId === attachment.attachmentId
       )
       if (!match?.body) {
         toast.error("Could not load attachment")
@@ -347,8 +352,7 @@ function AttachmentCard({
   }
 
   const ext = getFileExtension(attachment.filename)
-  const isImage =
-    isPreviewableImage(attachment.mimeType) && !!resolvedBody
+  const isImage = isPreviewableImage(attachment.mimeType) && !!resolvedBody
 
   return (
     <>
@@ -461,7 +465,10 @@ function DetailsPopover({ message }: { message: ParsedMessage }) {
     rows.push({ label: "In-Reply-To", value: message.inReplyTo })
   }
   if (message.tls !== undefined) {
-    rows.push({ label: "TLS", value: message.tls ? "Encrypted" : "Not encrypted" })
+    rows.push({
+      label: "TLS",
+      value: message.tls ? "Encrypted" : "Not encrypted",
+    })
   }
   if (message.tags?.length) {
     rows.push({

@@ -11,10 +11,7 @@ import { useCommandPalette } from "@/store/command-palette"
 import { useOpenCompose } from "@/store/compose"
 import { useOpenSettings } from "@/store/settings"
 import { useConnections, useActiveConnection } from "@/hooks/use-connections"
-import {
-  navigationConfig,
-  navigationConfigTopNav,
-} from "@/config/navigation"
+import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
 import { listThreads } from "@/server/actions/mail"
 import { setDefaultConnection } from "@/server/actions/connections"
 import {
@@ -29,13 +26,7 @@ import { useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
 import { useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "next-themes"
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@workspace/ui/lib/utils"
 import { toast } from "sonner"
 
@@ -139,7 +130,7 @@ export function CommandPalette() {
                 invalidate()
                 void setThreadId(null)
               }),
-              { loading: "Archiving...", success: "Archived", error: "Failed" },
+              { loading: "Archiving...", success: "Archived", error: "Failed" }
             )
             close()
           },
@@ -155,7 +146,7 @@ export function CommandPalette() {
                 invalidate()
                 void setThreadId(null)
               }),
-              { loading: "Deleting...", success: "Deleted", error: "Failed" },
+              { loading: "Deleting...", success: "Deleted", error: "Failed" }
             )
             close()
           },
@@ -168,7 +159,11 @@ export function CommandPalette() {
           onSelect: () => {
             toast.promise(
               toggleStar([threadId]).then(() => invalidate()),
-              { loading: "Updating...", success: "Star toggled", error: "Failed" },
+              {
+                loading: "Updating...",
+                success: "Star toggled",
+                error: "Failed",
+              }
             )
             close()
           },
@@ -181,7 +176,11 @@ export function CommandPalette() {
           onSelect: () => {
             toast.promise(
               markAsRead([threadId]).then(() => invalidate()),
-              { loading: "Updating...", success: "Marked as read", error: "Failed" },
+              {
+                loading: "Updating...",
+                success: "Marked as read",
+                error: "Failed",
+              }
             )
             close()
           },
@@ -193,11 +192,15 @@ export function CommandPalette() {
           onSelect: () => {
             toast.promise(
               markAsUnread([threadId]).then(() => invalidate()),
-              { loading: "Updating...", success: "Marked as unread", error: "Failed" },
+              {
+                loading: "Updating...",
+                success: "Marked as unread",
+                error: "Failed",
+              }
             )
             close()
           },
-        },
+        }
       )
     }
 
@@ -239,7 +242,7 @@ export function CommandPalette() {
               ?.focus()
           }, 100)
         },
-      },
+      }
     )
 
     // Account switcher
@@ -294,7 +297,7 @@ export function CommandPalette() {
           setTheme("system")
           close()
         },
-      },
+      }
     )
 
     // Settings
@@ -325,7 +328,7 @@ export function CommandPalette() {
           openSettings("notifications")
           close()
         },
-      },
+      }
     )
 
     return entries
@@ -354,7 +357,7 @@ export function CommandPalette() {
       (e) =>
         e.label.toLowerCase().includes(q) ||
         e.description?.toLowerCase().includes(q) ||
-        e.group.toLowerCase().includes(q),
+        e.group.toLowerCase().includes(q)
     )
     return [...searchResults, ...matched]
   }, [staticEntries, searchResults, query])
@@ -443,7 +446,7 @@ export function CommandPalette() {
                             "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                             idx === activeIndex
                               ? "bg-muted text-foreground"
-                              : "text-foreground/80 hover:bg-muted/60",
+                              : "text-foreground/80 hover:bg-muted/60"
                           )}
                         >
                           <div className="flex min-w-0 flex-1 flex-col">

@@ -62,7 +62,7 @@ export function AccountSwitchDialog({
         { message, timestamp: Date.now() - startTimeRef.current, status },
       ])
     },
-    [],
+    []
   )
 
   const markLastDone = useCallback(() => {
@@ -129,8 +129,7 @@ export function AccountSwitchDialog({
 
   const isOpen = target !== null
   const isDone =
-    logs.length > 0 &&
-    logs[logs.length - 1]?.message === "Switch complete"
+    logs.length > 0 && logs[logs.length - 1]?.message === "Switch complete"
 
   return (
     <Dialog
@@ -174,7 +173,7 @@ export function AccountSwitchDialog({
                 {target.name || target.email}
               </p>
               {target.name && (
-                <p className="text-muted-foreground truncate text-xs">
+                <p className="truncate text-xs text-muted-foreground">
                   {target.email}
                 </p>
               )}
@@ -189,10 +188,10 @@ export function AccountSwitchDialog({
                 key={i}
                 className={cn(
                   "flex items-start gap-2 py-0.5",
-                  log.status === "error" && "text-destructive",
+                  log.status === "error" && "text-destructive"
                 )}
               >
-                <span className="text-muted-foreground w-12 shrink-0 text-right tabular-nums">
+                <span className="w-12 shrink-0 text-right text-muted-foreground tabular-nums">
                   {log.timestamp}ms
                 </span>
                 <span
@@ -200,7 +199,7 @@ export function AccountSwitchDialog({
                     "shrink-0",
                     log.status === "pending" && "text-muted-foreground",
                     log.status === "done" && "text-primary",
-                    log.status === "error" && "text-destructive",
+                    log.status === "error" && "text-destructive"
                   )}
                 >
                   {log.status === "pending"
@@ -213,7 +212,7 @@ export function AccountSwitchDialog({
               </div>
             ))}
             {logs.length === 0 && (
-              <div className="text-muted-foreground flex h-[116px] items-center justify-center">
+              <div className="flex h-[116px] items-center justify-center text-muted-foreground">
                 Initializing...
               </div>
             )}

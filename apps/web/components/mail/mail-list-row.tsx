@@ -87,7 +87,7 @@ export function MailListRow({
                 "absolute inset-0 z-10 flex items-center justify-center transition-opacity",
                 checked || anyChecked
                   ? "opacity-100"
-                  : "opacity-0 group-hover:opacity-100",
+                  : "opacity-0 group-hover:opacity-100"
               )}
               onClick={(e) => e.stopPropagation()}
             >
@@ -101,31 +101,36 @@ export function MailListRow({
             <div
               className={cn(
                 "transition-opacity",
-                checked || anyChecked
-                  ? "opacity-0"
-                  : "group-hover:opacity-0",
+                checked || anyChecked ? "opacity-0" : "group-hover:opacity-0"
               )}
             >
-              <BimiAvatar email={avatarEmail} name={avatarName || avatarEmail} />
+              <BimiAvatar
+                email={avatarEmail}
+                name={avatarName || avatarEmail}
+              />
             </div>
           </div>
 
           <div className="w-full min-w-0">
             <div className="flex w-full flex-row items-center justify-between">
-              <div className={cn(
-                "flex flex-row items-center gap-1",
-                isCentered && "shrink-0"
-              )}>
+              <div
+                className={cn(
+                  "flex flex-row items-center gap-1",
+                  isCentered && "shrink-0"
+                )}
+              >
                 <span
                   className={cn(
                     "flex items-baseline gap-1 text-sm group-hover:opacity-100",
                     unread ? "font-bold" : "font-medium"
                   )}
                 >
-                  <span className={cn(
-                    "line-clamp-1 truncate overflow-hidden",
-                    isCentered ? "w-48" : "max-w-47.5"
-                  )}>
+                  <span
+                    className={cn(
+                      "line-clamp-1 truncate overflow-hidden",
+                      isCentered ? "w-48" : "max-w-47.5"
+                    )}
+                  >
                     {title}
                   </span>
                 </span>
@@ -147,7 +152,7 @@ export function MailListRow({
                     "shrink-0 transition-colors",
                     starred
                       ? "text-amber-400 hover:text-amber-500"
-                      : "text-transparent hover:text-muted-foreground group-hover:text-muted-foreground/40",
+                      : "text-transparent group-hover:text-muted-foreground/40 hover:text-muted-foreground"
                   )}
                 >
                   <HugeiconsIcon

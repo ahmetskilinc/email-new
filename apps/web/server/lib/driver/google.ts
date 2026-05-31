@@ -412,9 +412,8 @@ export class GoogleMailManager implements MailManager {
 
                 const messages = meta.data.messages ?? []
                 const latest =
-                  messages.findLast(
-                    (m) => !m.labelIds?.includes("DRAFT")
-                  ) ?? messages[messages.length - 1]
+                  messages.findLast((m) => !m.labelIds?.includes("DRAFT")) ??
+                  messages[messages.length - 1]
                 const headers = latest?.payload?.headers ?? []
                 const fromHeader = headers.find(
                   (h) => h.name?.toLowerCase() === "from"
@@ -444,9 +443,7 @@ export class GoogleMailManager implements MailManager {
                   historyId: thread.historyId ?? null,
                   $raw: {
                     ...thread,
-                    sender: fromHeader
-                      ? parseFrom(fromHeader)
-                      : { email: "" },
+                    sender: fromHeader ? parseFrom(fromHeader) : { email: "" },
                     subject: subjectHeader
                       ? subjectHeader.replace(/"/g, "").trim()
                       : "(no subject)",

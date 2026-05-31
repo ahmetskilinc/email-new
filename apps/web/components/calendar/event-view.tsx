@@ -29,10 +29,15 @@ interface EventViewProps {
   isDeleting?: boolean
 }
 
-export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProps) {
+export function EventView({
+  event,
+  onEdit,
+  onDelete,
+  isDeleting,
+}: EventViewProps) {
   const conferenceLink = React.useMemo(
     () => detectConferenceLink(event),
-    [event],
+    [event]
   )
 
   const timeDisplay = React.useMemo(() => {
@@ -65,7 +70,7 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
           className="mt-1.5 size-2.5 shrink-0 rounded-full bg-primary"
           style={event.color ? { backgroundColor: event.color } : undefined}
         />
-        <h3 className="text-sm font-medium leading-snug">{event.title}</h3>
+        <h3 className="text-sm leading-snug font-medium">{event.title}</h3>
       </div>
 
       {/* Scrollable content */}
@@ -73,11 +78,14 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
         <div className="flex flex-col gap-3 pr-1">
           {/* Time */}
           <div className="flex items-start gap-2 text-xs text-muted-foreground">
-            <HugeiconsIcon icon={Clock01Icon} className="mt-0.5 size-3.5 shrink-0" />
+            <HugeiconsIcon
+              icon={Clock01Icon}
+              className="mt-0.5 size-3.5 shrink-0"
+            />
             <span>
               {timeDisplay}
               {event.allDay && (
-                <span className="ml-1.5 text-[10px] uppercase text-muted-foreground/70">
+                <span className="ml-1.5 text-[10px] text-muted-foreground/70 uppercase">
                   All day
                 </span>
               )}
@@ -100,16 +108,27 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-2 text-xs transition-colors hover:bg-muted/60"
             >
-              <HugeiconsIcon icon={Video01Icon} className="size-3.5 shrink-0 text-primary" />
-              <span className="flex-1 font-medium">Join {conferenceLink.name}</span>
-              <HugeiconsIcon icon={LinkSquare01Icon} className="size-3 shrink-0 text-muted-foreground" />
+              <HugeiconsIcon
+                icon={Video01Icon}
+                className="size-3.5 shrink-0 text-primary"
+              />
+              <span className="flex-1 font-medium">
+                Join {conferenceLink.name}
+              </span>
+              <HugeiconsIcon
+                icon={LinkSquare01Icon}
+                className="size-3 shrink-0 text-muted-foreground"
+              />
             </a>
           )}
 
           {/* Location */}
           {event.location && (
             <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={Location01Icon} className="mt-0.5 size-3.5 shrink-0" />
+              <HugeiconsIcon
+                icon={Location01Icon}
+                className="mt-0.5 size-3.5 shrink-0"
+              />
               <span className="break-words">{event.location}</span>
             </div>
           )}
@@ -125,18 +144,30 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
           {event.attendees && event.attendees.length > 0 && (
             <div className="space-y-1.5">
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <HugeiconsIcon icon={UserMultiple02Icon} className="size-3.5 shrink-0" />
+                <HugeiconsIcon
+                  icon={UserMultiple02Icon}
+                  className="size-3.5 shrink-0"
+                />
                 <span>
-                  {event.attendees.length} attendee{event.attendees.length !== 1 ? "s" : ""}
+                  {event.attendees.length} attendee
+                  {event.attendees.length !== 1 ? "s" : ""}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {event.attendees.map((attendee) => (
-                  <Badge key={attendee.email} variant="secondary" className="text-[10px]">
+                  <Badge
+                    key={attendee.email}
+                    variant="secondary"
+                    className="text-[10px]"
+                  >
                     {attendee.name || attendee.email}
                     {attendee.status && attendee.status !== "accepted" && (
                       <span className="ml-1 text-muted-foreground">
-                        ({attendee.status === "needsAction" ? "pending" : attendee.status})
+                        (
+                        {attendee.status === "needsAction"
+                          ? "pending"
+                          : attendee.status}
+                        )
                       </span>
                     )}
                   </Badge>
@@ -153,7 +184,8 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
           )}
 
           {/* Metadata row */}
-          {(event.visibility && event.visibility !== "default") || event.availability ? (
+          {(event.visibility && event.visibility !== "default") ||
+          event.availability ? (
             <div className="flex items-center gap-2">
               {event.visibility && event.visibility !== "default" && (
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -176,9 +208,13 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
       </div>
 
       {/* Footer — pinned */}
-      <div className="flex shrink-0 items-center gap-2 border-t border-border pt-3 mt-3">
+      <div className="mt-3 flex shrink-0 items-center gap-2 border-t border-border pt-3">
         <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-          <HugeiconsIcon icon={PencilEdit01Icon} className="size-3" data-icon="inline-start" />
+          <HugeiconsIcon
+            icon={PencilEdit01Icon}
+            className="size-3"
+            data-icon="inline-start"
+          />
           Edit
         </Button>
         <Button
@@ -187,7 +223,11 @@ export function EventView({ event, onEdit, onDelete, isDeleting }: EventViewProp
           onClick={onDelete}
           disabled={isDeleting}
         >
-          <HugeiconsIcon icon={Delete02Icon} className="size-3" data-icon="inline-start" />
+          <HugeiconsIcon
+            icon={Delete02Icon}
+            className="size-3"
+            data-icon="inline-start"
+          />
           {isDeleting ? "Deleting..." : "Delete"}
         </Button>
       </div>
@@ -204,7 +244,8 @@ function isHtml(text: string): boolean {
 function linkifyText(text: string): string {
   return text.replace(
     BARE_URL_REGEX,
-    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`,
+    (url) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
   )
 }
 
@@ -245,7 +286,20 @@ function sanitizeDescription(raw: string): string {
   if (isHtml(raw)) {
     // Input is HTML — sanitize it, keeping safe tags
     html = DOMPurify.sanitize(raw, {
-      ALLOWED_TAGS: ["a", "b", "strong", "i", "em", "br", "p", "ul", "ol", "li", "div", "span"],
+      ALLOWED_TAGS: [
+        "a",
+        "b",
+        "strong",
+        "i",
+        "em",
+        "br",
+        "p",
+        "ul",
+        "ol",
+        "li",
+        "div",
+        "span",
+      ],
       ALLOWED_ATTR: ["href", "target", "rel"],
       ADD_ATTR: ["target"],
     })
@@ -263,7 +317,7 @@ function sanitizeDescription(raw: string): string {
     (match, existingLink) => {
       if (existingLink) return existingLink
       return `<a href="${match}" target="_blank" rel="noopener noreferrer">${match}</a>`
-    },
+    }
   )
 
   return html
@@ -274,7 +328,7 @@ function EventDescription({ text }: { text: string }) {
 
   return (
     <div
-      className="event-description text-xs leading-relaxed text-muted-foreground break-words [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-primary/80 [&_a]:break-all [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:mb-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:mb-1.5 [&_li]:mb-0.5 [&_br+br]:block [&_br+br]:content-[''] [&_br+br]:mb-1.5"
+      className="event-description text-xs leading-relaxed break-words text-muted-foreground [&_a]:break-all [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-primary/80 [&_br+br]:mb-1.5 [&_br+br]:block [&_br+br]:content-[''] [&_li]:mb-0.5 [&_ol]:mb-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4"
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   )

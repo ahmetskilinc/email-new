@@ -1,9 +1,6 @@
 "use server"
 
-import {
-  requireSession,
-  requireActiveDriver,
-} from "../lib/session"
+import { requireSession, requireActiveDriver } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
 import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
@@ -14,10 +11,7 @@ import { listThreadsFromStore, storeIsReady } from "../lib/email-store"
 import type { DeleteAllSpamResponse } from "../types"
 import type { Sender } from "../types"
 
-export async function getThread(
-  id: string,
-  connectionId?: string,
-) {
+export async function getThread(id: string, connectionId?: string) {
   const { session, connection, driver } = await requireActiveDriver()
   let activeDriver = driver
 
@@ -35,7 +29,7 @@ export async function getThread(
 
 export async function listAllInboxes(
   maxResults: number = defaultPageSize,
-  cursor: string = "",
+  cursor: string = ""
 ) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)
@@ -53,22 +47,24 @@ export async function listAllInboxes(
           pageToken: cursors[conn.id] || undefined,
         })
         return { connectionId: conn.id, ...result }
-      }),
+      })
   )
 
   const allThreads = results
     .filter(
-      (r): r is PromiseFulfilledResult<{
+      (
+        r
+      ): r is PromiseFulfilledResult<{
         connectionId: string
         threads: { id: string; historyId: string | null; $raw?: unknown }[]
         nextPageToken: string | null
-      }> => r.status === "fulfilled",
+      }> => r.status === "fulfilled"
     )
     .flatMap((r) =>
       r.value.threads.map((t) => ({
         ...t,
         connectionId: r.value.connectionId,
-      })),
+      }))
     )
 
   allThreads.sort(
@@ -92,7 +88,7 @@ export async function listThreads(
   q: string = "",
   maxResults: number = defaultPageSize,
   cursor: string = "",
-  labelIds: string[] = [],
+  labelIds: string[] = []
 ) {
   const { connection, driver } = await requireActiveDriver()
 
@@ -137,7 +133,9 @@ export async function searchMail(params: {
 
   let query = params.q || ""
   if (params.from) {
-    const fromValue = params.from.includes(" ") ? `"${params.from}"` : params.from
+    const fromValue = params.from.includes(" ")
+      ? `"${params.from}"`
+      : params.from
     query += ` from:${fromValue}`
   }
   if (params.after) query += ` after:${params.after}`
@@ -186,10 +184,11 @@ export async function markAsUnread(ids: string[], connectionId?: string) {
 export async function modifyLabels(
   threadId: string[],
   addLabels: string[] = [],
-  removeLabels: string[] = [],
+  removeLabels: string[] = []
 ) {
   const { driver } = await requireActiveDriver()
-  if (!threadId.length) return { success: false, error: "No thread IDs provided" }
+  if (!threadId.length)
+    return { success: false, error: "No thread IDs provided" }
   await driver.modifyLabels(threadId, { addLabels, removeLabels })
   return { success: true }
 }
@@ -203,8 +202,8 @@ export async function toggleStar(ids: string[]) {
     (r) =>
       r.status === "fulfilled" &&
       r.value.messages.some((m) =>
-        m.tags?.some((t) => t.name.toLowerCase().startsWith("starred")),
-      ),
+        m.tags?.some((t) => t.name.toLowerCase().startsWith("starred"))
+      )
   )
 
   await driver.modifyLabels(ids, {
@@ -223,8 +222,8 @@ export async function toggleImportant(ids: string[]) {
     (r) =>
       r.status === "fulfilled" &&
       r.value.messages.some((m) =>
-        m.tags?.some((t) => t.name.toLowerCase().startsWith("important")),
-      ),
+        m.tags?.some((t) => t.name.toLowerCase().startsWith("important"))
+      )
   )
 
   await driver.modifyLabels(ids, {
@@ -293,7 +292,13 @@ export async function sendMail(input: {
   to: Sender[]
   subject: string
   message: string
-  attachments?: { name: string; type: string; size: number; lastModified: number; base64: string }[]
+  attachments?: {
+    name: string
+    type: string
+    size: number
+    lastModified: number
+    base64: string
+  }[]
   headers?: Record<string, string>
   cc?: Sender[]
   bcc?: Sender[]
@@ -321,9 +326,7 @@ export async function sendMail(input: {
   }
 
   const processedAttachments = attachments.map((att: any) =>
-    typeof att?.arrayBuffer === "function"
-      ? att
-      : toAttachmentFiles([att])[0],
+    typeof att?.arrayBuffer === "function" ? att : toAttachmentFiles([att])[0]
   )
 
   const outgoing = {
@@ -344,7 +347,7 @@ export async function sendMail(input: {
     ...(input.bcc ?? []),
   ]
   await Promise.allSettled(
-    allRecipients.map((r) => db.upsertRecipient(r.email, r.name)),
+    allRecipients.map((r) => db.upsertRecipient(r.email, r.name))
   )
 
   return { success: true }
@@ -389,7 +392,7 @@ export async function getEmailAliases() {
 export async function processEmailContent(
   html: string,
   shouldLoadImages: boolean,
-  theme: "light" | "dark",
+  theme: "light" | "dark"
 ) {
   await requireSession()
   try {

@@ -9,7 +9,7 @@ import type { EProviders } from "../../types"
 
 export const createDriver = (
   provider: EProviders | (string & {}),
-  config: ManagerConfig,
+  config: ManagerConfig
 ): MailManager => {
   if (provider === "icloud") return new ICloudMailManager(config)
   if (provider === "google") return new GoogleMailManager(config)

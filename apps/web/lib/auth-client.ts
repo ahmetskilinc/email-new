@@ -9,9 +9,10 @@ const getBaseURL = () => {
   return "http://localhost:3000"
 }
 
-export const authClient: ReturnType<typeof createAuthClient> =
-  createAuthClient({
+export const authClient: ReturnType<typeof createAuthClient> = createAuthClient(
+  {
     baseURL: getBaseURL(),
-  })
+  }
+)
 
 export const { useSession, signIn, signUp, signOut } = authClient

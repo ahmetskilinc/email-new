@@ -28,7 +28,11 @@ export default function OnboardingPage() {
   }, [session, isPending, router])
 
   const handleProviderClick = async (providerId: string) => {
-    if (providerId === "icloud" || providerId === "yahoo" || providerId === "custom") {
+    if (
+      providerId === "icloud" ||
+      providerId === "yahoo" ||
+      providerId === "custom"
+    ) {
       setAppPasswordProvider(providerId)
       return
     }

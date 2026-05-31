@@ -102,7 +102,7 @@ export function EmailComposer({
   const [showCc, setShowCc] = useState(initialCc.length > 0)
   const [showBcc, setShowBcc] = useState(initialBcc.length > 0)
   const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(
-    null,
+    null
   )
   const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false)
   const [attachments, setAttachments] = useState<File[]>(initialAttachments)
@@ -127,8 +127,10 @@ export function EmailComposer({
 
   const activeConnectionId =
     connections.find(
-      (c) => c.email.toLowerCase() === currentFromEmail?.toLowerCase(),
-    )?.id ?? connections[0]?.id ?? null
+      (c) => c.email.toLowerCase() === currentFromEmail?.toLowerCase()
+    )?.id ??
+    connections[0]?.id ??
+    null
 
   const { data: signatures } = useSignatures(activeConnectionId)
 
@@ -148,7 +150,7 @@ export function EmailComposer({
   }, [signatures])
 
   const selectedSignature = signatures?.find(
-    (s) => s.id === selectedSignatureId,
+    (s) => s.id === selectedSignatureId
   )
 
   const editor = useComposeEditor({
@@ -353,9 +355,7 @@ export function EmailComposer({
             <Select
               value={selectedSignatureId ?? "__none__"}
               onValueChange={(value) =>
-                setSelectedSignatureId(
-                  value === "__none__" ? null : value,
-                )
+                setSelectedSignatureId(value === "__none__" ? null : value)
               }
             >
               <SelectTrigger className="border-0 shadow-none focus:ring-0">

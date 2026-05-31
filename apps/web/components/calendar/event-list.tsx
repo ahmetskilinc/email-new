@@ -65,7 +65,9 @@ export function EventList({
 
   if (groupedDays.length === 0) {
     return (
-      <div className={cn("flex flex-col items-center py-8 text-center", className)}>
+      <div
+        className={cn("flex flex-col items-center py-8 text-center", className)}
+      >
         <p className="text-xs text-muted-foreground">No upcoming events</p>
       </div>
     )
@@ -75,14 +77,27 @@ export function EventList({
     <ScrollArea className={cn("", className)}>
       <div className="space-y-1 p-1">
         {groupedDays.map(({ date, events: dayEvents }) => (
-          <DayGroup key={date.toISOString()} date={date} events={dayEvents} onEventClick={onEventClick} />
+          <DayGroup
+            key={date.toISOString()}
+            date={date}
+            events={dayEvents}
+            onEventClick={onEventClick}
+          />
         ))}
       </div>
     </ScrollArea>
   )
 }
 
-function DayGroup({ date, events, onEventClick }: { date: Date; events: CalendarEvent[]; onEventClick?: (event: CalendarEvent) => void }) {
+function DayGroup({
+  date,
+  events,
+  onEventClick,
+}: {
+  date: Date
+  events: CalendarEvent[]
+  onEventClick?: (event: CalendarEvent) => void
+}) {
   const label = getDayLabel(date)
 
   return (
@@ -91,7 +106,7 @@ function DayGroup({ date, events, onEventClick }: { date: Date; events: Calendar
         <span
           className={cn(
             "text-xs font-medium text-muted-foreground",
-            isToday(date) && "text-primary font-semibold",
+            isToday(date) && "font-semibold text-primary"
           )}
         >
           {label}
@@ -106,7 +121,13 @@ function DayGroup({ date, events, onEventClick }: { date: Date; events: Calendar
   )
 }
 
-function EventItem({ event, onClick }: { event: CalendarEvent; onClick?: (event: CalendarEvent) => void }) {
+function EventItem({
+  event,
+  onClick,
+}: {
+  event: CalendarEvent
+  onClick?: (event: CalendarEvent) => void
+}) {
   const time = React.useMemo(() => {
     if (event.allDay) return "All day"
     try {

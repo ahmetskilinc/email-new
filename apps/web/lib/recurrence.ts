@@ -81,29 +81,49 @@ export function describeRRule(rrule: string): string {
 
   if (count) desc += `, ${count} times`
   if (until) {
-    const u = until.length === 8
-      ? `${until.slice(0, 4)}-${until.slice(4, 6)}-${until.slice(6, 8)}`
-      : until.split("T")[0]
+    const u =
+      until.length === 8
+        ? `${until.slice(0, 4)}-${until.slice(4, 6)}-${until.slice(6, 8)}`
+        : until.split("T")[0]
     desc += `, until ${u}`
   }
 
   return desc
 }
 
-export function getRecurrencePresets(date: Date): { label: string; value: string | null }[] {
+export function getRecurrencePresets(
+  date: Date
+): { label: string; value: string | null }[] {
   const dayAbbrev = DAY_ABBREVS[getDay(date)]!
   const dayName = DAY_NAMES[dayAbbrev]!
   const dayOfMonth = date.getDate()
   const weekNum = Math.ceil(dayOfMonth / 7)
-  const ordinal = ["first", "second", "third", "fourth", "fifth"][weekNum - 1] ?? `${weekNum}th`
+  const ordinal =
+    ["first", "second", "third", "fourth", "fifth"][weekNum - 1] ??
+    `${weekNum}th`
 
   return [
     { label: "Does not repeat", value: null },
     { label: "Daily", value: "RRULE:FREQ=DAILY" },
-    { label: `Weekly on ${dayName}`, value: `RRULE:FREQ=WEEKLY;BYDAY=${dayAbbrev}` },
-    { label: `Monthly on the ${ordinal} ${dayName}`, value: `RRULE:FREQ=MONTHLY;BYDAY=${weekNum}${dayAbbrev}` },
-    { label: `Monthly on day ${dayOfMonth}`, value: `RRULE:FREQ=MONTHLY;BYMONTHDAY=${dayOfMonth}` },
-    { label: `Annually on ${format(date, "MMMM d")}`, value: "RRULE:FREQ=YEARLY" },
-    { label: "Every weekday (Mon–Fri)", value: "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" },
+    {
+      label: `Weekly on ${dayName}`,
+      value: `RRULE:FREQ=WEEKLY;BYDAY=${dayAbbrev}`,
+    },
+    {
+      label: `Monthly on the ${ordinal} ${dayName}`,
+      value: `RRULE:FREQ=MONTHLY;BYDAY=${weekNum}${dayAbbrev}`,
+    },
+    {
+      label: `Monthly on day ${dayOfMonth}`,
+      value: `RRULE:FREQ=MONTHLY;BYMONTHDAY=${dayOfMonth}`,
+    },
+    {
+      label: `Annually on ${format(date, "MMMM d")}`,
+      value: "RRULE:FREQ=YEARLY",
+    },
+    {
+      label: "Every weekday (Mon–Fri)",
+      value: "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+    },
   ]
 }

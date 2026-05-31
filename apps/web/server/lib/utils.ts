@@ -21,7 +21,7 @@ const categorySearchValues = [
 
 export const cleanSearchValue = (q: string): string => {
   const escapedValues = categorySearchValues.map((value) =>
-    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
   )
   return q
     .replace(new RegExp(escapedValues.join("|"), "g"), "")

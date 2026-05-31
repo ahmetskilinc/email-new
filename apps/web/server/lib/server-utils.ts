@@ -1,4 +1,10 @@
-import { connection, user, userSettings, signature, recipient } from "../db/schema"
+import {
+  connection,
+  user,
+  userSettings,
+  signature,
+  recipient,
+} from "../db/schema"
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
@@ -26,7 +32,7 @@ export const getzeitmailDB = async (userId: string) => {
       db.query.connection.findFirst({
         where: and(
           eq(connection.id, connectionId),
-          eq(connection.userId, userId),
+          eq(connection.userId, userId)
         ),
       }),
 
@@ -39,10 +45,7 @@ export const getzeitmailDB = async (userId: string) => {
       db
         .delete(connection)
         .where(
-          and(
-            eq(connection.id, connectionId),
-            eq(connection.userId, userId),
-          ),
+          and(eq(connection.id, connectionId), eq(connection.userId, userId))
         ),
 
     createConnection: (
@@ -56,7 +59,7 @@ export const getzeitmailDB = async (userId: string) => {
         scope: string
         expiresAt: Date
         imapConfig?: unknown
-      },
+      }
     ) => {
       const now = new Date()
       const id = crypto.randomUUID()
@@ -96,16 +99,13 @@ export const getzeitmailDB = async (userId: string) => {
 
     updateConnection: (
       connectionId: string,
-      data: Partial<typeof connection.$inferInsert>,
+      data: Partial<typeof connection.$inferInsert>
     ) =>
       db
         .update(connection)
         .set({ ...data, updatedAt: new Date() })
         .where(
-          and(
-            eq(connection.id, connectionId),
-            eq(connection.userId, userId),
-          ),
+          and(eq(connection.id, connectionId), eq(connection.userId, userId))
         ),
 
     findUser: () => db.query.user.findFirst({ where: eq(user.id, userId) }),
@@ -144,7 +144,7 @@ export const getzeitmailDB = async (userId: string) => {
       db.query.signature.findMany({
         where: and(
           eq(signature.connectionId, connectionId),
-          eq(signature.userId, userId),
+          eq(signature.userId, userId)
         ),
         orderBy: (s, { desc }) => [desc(s.isDefault), desc(s.createdAt)],
       }),
@@ -165,7 +165,7 @@ export const getzeitmailDB = async (userId: string) => {
         where: and(
           eq(signature.connectionId, connectionId),
           eq(signature.userId, userId),
-          eq(signature.isDefault, true),
+          eq(signature.isDefault, true)
         ),
       }),
 
@@ -194,7 +194,7 @@ export const getzeitmailDB = async (userId: string) => {
 
     updateSignature: (
       id: string,
-      data: Partial<{ name: string; body: string; isDefault: boolean }>,
+      data: Partial<{ name: string; body: string; isDefault: boolean }>
     ) =>
       db
         .update(signature)
@@ -214,8 +214,8 @@ export const getzeitmailDB = async (userId: string) => {
           and(
             eq(signature.connectionId, connectionId),
             eq(signature.userId, userId),
-            eq(signature.isDefault, true),
-          ),
+            eq(signature.isDefault, true)
+          )
         ),
 
     searchRecipients: (query: string) =>
@@ -224,8 +224,8 @@ export const getzeitmailDB = async (userId: string) => {
           eq(recipient.userId, userId),
           or(
             ilike(recipient.email, `%${query}%`),
-            ilike(recipient.name, `%${query}%`),
-          ),
+            ilike(recipient.name, `%${query}%`)
+          )
         ),
         orderBy: [desc(recipient.frequency), desc(recipient.lastUsed)],
         limit: 10,
@@ -236,7 +236,15 @@ export const getzeitmailDB = async (userId: string) => {
       const now = new Date()
       return db
         .insert(recipient)
-        .values({ id, userId, email, name: name ?? null, frequency: 1, lastUsed: now, createdAt: now })
+        .values({
+          id,
+          userId,
+          email,
+          name: name ?? null,
+          frequency: 1,
+          lastUsed: now,
+          createdAt: now,
+        })
         .onConflictDoUpdate({
           target: [recipient.userId, recipient.email],
           set: {
@@ -296,7 +304,7 @@ export const getActiveConnection = async (userId: string) => {
 
   if (userData?.defaultConnectionId) {
     const activeConnection = await db.findUserConnection(
-      userData.defaultConnectionId,
+      userData.defaultConnectionId
     )
     if (activeConnection) return activeConnection
   }
@@ -326,17 +334,17 @@ export function resolveAccessToken(conn: {
 }
 
 export const connectionToDriver = (
-  activeConnection: typeof connection.$inferSelect,
+  activeConnection: typeof connection.$inferSelect
 ) => {
   const isAppPasswordProvider = APP_PASSWORD_PROVIDERS.includes(
-    activeConnection.providerId,
+    activeConnection.providerId
   )
   if (
     !activeConnection.accessToken ||
     (!isAppPasswordProvider && !activeConnection.refreshToken)
   ) {
     throw new Error(
-      `Invalid connection ${JSON.stringify(activeConnection?.id)}`,
+      `Invalid connection ${JSON.stringify(activeConnection?.id)}`
     )
   }
 
@@ -349,7 +357,8 @@ export const connectionToDriver = (
     },
     ...(activeConnection.imapConfig != null
       ? {
-          imapConfig: activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
+          imapConfig:
+            activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
         }
       : {}),
   })

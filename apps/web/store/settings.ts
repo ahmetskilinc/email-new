@@ -1,7 +1,12 @@
 import { atom, useAtom, useSetAtom } from "jotai"
 import { useCallback } from "react"
 
-export type SettingsTab = "general" | "account" | "connections" | "signatures" | "notifications"
+export type SettingsTab =
+  | "general"
+  | "account"
+  | "connections"
+  | "signatures"
+  | "notifications"
 
 interface SettingsState {
   open: boolean
@@ -17,7 +22,7 @@ export function useSettingsDialog() {
     (open: boolean) => {
       setState((prev) => (open ? prev : { ...prev, open: false }))
     },
-    [setState],
+    [setState]
   )
 
   return [state, setOpen] as const
@@ -30,6 +35,6 @@ export function useOpenSettings() {
     (tab: SettingsTab = "general") => {
       setState({ open: true, tab })
     },
-    [setState],
+    [setState]
   )
 }

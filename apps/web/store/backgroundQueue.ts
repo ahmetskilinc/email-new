@@ -7,7 +7,7 @@ export const backgroundQueueAtom = atom(
   (
     get,
     set,
-    action: { type: "add" | "delete" | "clear"; threadId?: string },
+    action: { type: "add" | "delete" | "clear"; threadId?: string }
   ) => {
     const currentQueue = get(baseBackgroundQueueAtom)
     if (
@@ -15,10 +15,7 @@ export const backgroundQueueAtom = atom(
       action.threadId &&
       !currentQueue.has(action.threadId)
     ) {
-      set(
-        baseBackgroundQueueAtom,
-        new Set([...currentQueue, action.threadId]),
-      )
+      set(baseBackgroundQueueAtom, new Set([...currentQueue, action.threadId]))
     } else if (action.type === "delete" && action.threadId) {
       const newQueue = new Set(currentQueue)
       newQueue.delete(action.threadId)
@@ -26,9 +23,9 @@ export const backgroundQueueAtom = atom(
     } else if (action.type === "clear") {
       set(baseBackgroundQueueAtom, new Set<string>())
     }
-  },
+  }
 )
 
 export const isThreadInBackgroundQueueAtom = atom(
-  (get) => (threadId: string) => get(baseBackgroundQueueAtom).has(threadId),
+  (get) => (threadId: string) => get(baseBackgroundQueueAtom).has(threadId)
 )

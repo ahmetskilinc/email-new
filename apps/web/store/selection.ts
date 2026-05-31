@@ -30,14 +30,14 @@ export function useSelectionActions() {
         return next
       })
     },
-    [setSelected],
+    [setSelected]
   )
 
   const selectAll = useCallback(
     (ids: string[]) => {
       setSelected(new Set(ids))
     },
-    [setSelected],
+    [setSelected]
   )
 
   const clearAll = useCallback(() => {
