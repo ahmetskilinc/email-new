@@ -1,11 +1,9 @@
 "use client"
 
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+import { Button, Input, Label } from "bruv-ui"
 import { signUp } from "@/lib/auth-client"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 import Link from "next/link"
 
 export default function SignupPage() {
@@ -49,7 +47,7 @@ export default function SignupPage() {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Create your account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-bruv-tertiary">
             Sign up to get started with your email.
           </p>
         </div>
@@ -95,14 +93,19 @@ export default function SignupPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            disabled={isLoading}
+          >
             {isLoading ? "Creating account..." : "Create account"}
           </Button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-bruv-tertiary">
           Already have an account?{" "}
-          <Link href="/login" className="text-foreground underline">
+          <Link href="/login" className="text-bruv-primary underline">
             Log in
           </Link>
         </p>

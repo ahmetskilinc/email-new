@@ -1,11 +1,11 @@
 "use client"
 
 import { BimiAvatar } from "@/components/bimi-avatar"
-import { Skeleton } from "@workspace/ui/components/skeleton"
-import { Checkbox } from "@workspace/ui/components/checkbox"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { FavouriteIcon as StarSolidIcon } from "@hugeicons-pro/core-solid-rounded"
-import { FavouriteIcon as StarOutlineIcon } from "@hugeicons-pro/core-stroke-rounded"
+import { Skeleton, Checkbox } from "bruv-ui"
+import {
+  StarIcon as StarSolidIcon,
+  StarIcon as StarOutlineIcon,
+} from "@heroicons/react/16/solid"
 import { cn } from "@workspace/ui/lib/utils"
 
 export interface MailListRowProps {
@@ -47,7 +47,7 @@ export function MailListRow({
   if (loading) {
     return (
       <div className="border-b select-none md:my-1 md:border-none">
-        <div className="group relative mx-1 flex cursor-pointer flex-col items-start py-2 text-left text-sm hover:bg-accent hover:opacity-100">
+        <div className="group relative mx-1 flex cursor-pointer flex-col items-start py-2 text-left text-sm hover:bg-bruv-subtle hover:opacity-100">
           <div className="flex w-full items-center justify-between gap-4 px-4">
             <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
             <div className="flex w-full flex-col gap-1 group-hover:opacity-100">
@@ -66,12 +66,12 @@ export function MailListRow({
       onClick={onClick}
     >
       {unread && (
-        <span className="absolute top-1/2 left-2 z-10 size-2 -translate-y-1/2 rounded-full bg-[#006FFE]" />
+        <span className="absolute top-1/2 left-2 z-10 size-2 -translate-y-1/2 rounded-full bg-bruv-accent" />
       )}
       <div
         className={cn(
-          "group relative mx-1 flex cursor-pointer flex-col items-start rounded-lg py-2 text-left text-sm hover:bg-accent hover:opacity-100",
-          selected && "bg-accent/50 opacity-100"
+          "group relative mx-1 flex cursor-pointer flex-col items-start rounded-bruv-lg py-2 text-left text-sm hover:bg-bruv-subtle hover:opacity-100",
+          selected && "bg-bruv-subtle/50 opacity-100"
         )}
       >
         <div
@@ -136,7 +136,7 @@ export function MailListRow({
                 </span>
               </div>
               {isCentered && (
-                <p className="mx-3 flex-1 truncate text-sm text-[#8C8C8C]">
+                <p className="mx-3 flex-1 truncate text-sm text-bruv-tertiary">
                   {subtitle}
                 </p>
               )}
@@ -151,19 +151,20 @@ export function MailListRow({
                   className={cn(
                     "shrink-0 transition-colors",
                     starred
-                      ? "text-amber-400 hover:text-amber-500"
-                      : "text-transparent group-hover:text-muted-foreground/40 hover:text-muted-foreground"
+                      ? "text-bruv-warn hover:text-bruv-warn"
+                      : "text-transparent group-hover:text-bruv-tertiary/40 hover:text-bruv-tertiary"
                   )}
                 >
-                  <HugeiconsIcon
-                    icon={starred ? StarSolidIcon : StarOutlineIcon}
-                    className="size-3.5"
-                  />
+                  {starred ? (
+                    <StarSolidIcon className="size-3.5" />
+                  ) : (
+                    <StarOutlineIcon className="size-3.5" />
+                  )}
                 </button>
                 {date && (
                   <p
                     className={cn(
-                      "text-xs font-normal text-nowrap text-muted-foreground opacity-70 transition-opacity group-hover:opacity-100 dark:text-[#8C8C8C]",
+                      "text-xs font-normal text-nowrap text-bruv-tertiary opacity-70 transition-opacity group-hover:opacity-100",
                       selected && "opacity-100"
                     )}
                   >
@@ -173,7 +174,7 @@ export function MailListRow({
               </div>
             </div>
             {!isCentered && (
-              <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-[#8C8C8C]">
+              <p className="mt-1 line-clamp-1 w-[95%] min-w-0 overflow-hidden text-sm text-bruv-tertiary">
                 {subtitle}
               </p>
             )}

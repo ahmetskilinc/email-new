@@ -1,15 +1,13 @@
 import {
-  Mail01Icon,
-  MailEdit01Icon,
-  MailSend01Icon,
-  ArchiveIcon,
-  Delete02Icon,
-  Mail02Icon,
-  Calendar03Icon,
-  UserMultiple02Icon,
-  Search01Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
-import { HugeiconsIcon } from "@hugeicons/react"
+  EnvelopeIcon,
+  PencilSquareIcon,
+  PaperAirplaneIcon,
+  ArchiveBoxIcon,
+  TrashIcon,
+  CalendarIcon,
+  UsersIcon,
+  MagnifyingGlassIcon,
+} from "@heroicons/react/16/solid"
 import React from "react"
 
 export interface NavItem {
@@ -26,31 +24,31 @@ export const navigationConfig: NavItem[] = [
     id: "inbox",
     title: "Inbox",
     href: "/mail/inbox",
-    icon: <HugeiconsIcon icon={Mail01Icon} className="h-4 w-4" />,
+    icon: <EnvelopeIcon className="h-4 w-4" />,
   },
   {
     id: "drafts",
     title: "Drafts",
     href: "/mail/draft",
-    icon: <HugeiconsIcon icon={MailEdit01Icon} className="h-4 w-4" />,
+    icon: <PencilSquareIcon className="h-4 w-4" />,
   },
   {
     id: "sent",
     title: "Sent",
     href: "/mail/sent",
-    icon: <HugeiconsIcon icon={MailSend01Icon} className="h-4 w-4" />,
+    icon: <PaperAirplaneIcon className="h-4 w-4" />,
   },
   {
     id: "archive",
     title: "Archive",
     href: "/mail/archive",
-    icon: <HugeiconsIcon icon={ArchiveIcon} className="h-4 w-4" />,
+    icon: <ArchiveBoxIcon className="h-4 w-4" />,
   },
   {
     id: "trash",
     title: "Bin",
     href: "/mail/bin",
-    icon: <HugeiconsIcon icon={Delete02Icon} className="h-4 w-4" />,
+    icon: <TrashIcon className="h-4 w-4" />,
   },
 ]
 
@@ -59,24 +57,24 @@ export const navigationConfigTopNav: NavItem[] = [
     id: "all-inboxes",
     title: "All Inboxes",
     href: "/mail/all-inboxes",
-    icon: <HugeiconsIcon icon={Mail02Icon} className="h-4 w-4" />,
+    icon: <EnvelopeIcon className="h-4 w-4" />,
   },
   {
     id: "calendar",
     title: "Calendar",
     href: "/calendar",
-    icon: <HugeiconsIcon icon={Calendar03Icon} className="h-4 w-4" />,
+    icon: <CalendarIcon className="h-4 w-4" />,
   },
   {
     id: "contacts",
     title: "Contacts",
     href: "/contacts",
-    icon: <HugeiconsIcon icon={UserMultiple02Icon} className="h-4 w-4" />,
+    icon: <UsersIcon className="h-4 w-4" />,
   },
   {
     id: "search",
     title: "Search",
     href: "/mail/search",
-    icon: <HugeiconsIcon icon={Search01Icon} className="h-4 w-4" />,
+    icon: <MagnifyingGlassIcon className="h-4 w-4" />,
   },
 ]

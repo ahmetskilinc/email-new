@@ -15,7 +15,7 @@ import {
   markAsUnread,
 } from "@/server/actions/mail"
 import { useSelectedThreadIds, useSelectionActions } from "@/store/selection"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 function isTyping(): boolean {
   const el = document.activeElement

@@ -2,18 +2,17 @@
 
 import * as React from "react"
 import { format } from "date-fns"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Button } from "@workspace/ui/components/button"
-import { Switch } from "@workspace/ui/components/switch"
-import { Textarea } from "@workspace/ui/components/textarea"
 import {
+  Input,
+  Label,
+  Button,
+  Toggle,
+  Textarea,
   Select,
+  SelectButton,
   SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
+  SelectOption,
+} from "bruv-ui"
 import { RecurrencePicker } from "./recurrence-picker"
 import { useCalendars } from "@/hooks/use-calendar"
 import type { CalendarEvent } from "@/server/lib/calendar/types"
@@ -130,10 +129,10 @@ export function EventForm({
           </div>
 
           <div className="flex items-center justify-between">
-            <Label htmlFor="all-day" className="text-xs text-muted-foreground">
+            <Label htmlFor="all-day" className="text-xs text-bruv-tertiary">
               All day
             </Label>
-            <Switch
+            <Toggle
               id="all-day"
               size="sm"
               checked={allDay}
@@ -143,7 +142,7 @@ export function EventForm({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">Start</Label>
+              <Label className="text-[10px] text-bruv-tertiary">Start</Label>
               <Input
                 type={allDay ? "date" : "datetime-local"}
                 value={start}
@@ -152,7 +151,7 @@ export function EventForm({
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">End</Label>
+              <Label className="text-[10px] text-bruv-tertiary">End</Label>
               <Input
                 type={allDay ? "date" : "datetime-local"}
                 value={end}
@@ -163,7 +162,7 @@ export function EventForm({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground">Repeat</Label>
+            <Label className="text-[10px] text-bruv-tertiary">Repeat</Label>
             <RecurrencePicker
               value={recurrence}
               onChange={setRecurrence}
@@ -172,7 +171,7 @@ export function EventForm({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground">
+            <Label className="text-[10px] text-bruv-tertiary">
               Location
             </Label>
             <Input
@@ -183,7 +182,7 @@ export function EventForm({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground">
+            <Label className="text-[10px] text-bruv-tertiary">
               Description
             </Label>
             <Textarea
@@ -197,26 +196,26 @@ export function EventForm({
 
           {calendars && calendars.length > 1 && (
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">
+              <Label className="text-[10px] text-bruv-tertiary">
                 Calendar
               </Label>
               <Select
                 value={calendarId}
                 onValueChange={(v) => v && setCalendarId(v)}
+                items={calendars.map((c) => ({ value: c.id, label: c.name }))}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {calendars.find((c) => c.id === calendarId)?.name ??
-                      "Select calendar"}
-                  </SelectValue>
-                </SelectTrigger>
+                <SelectButton
+                  size="sm"
+                  placeholder="Select calendar"
+                  className="w-full"
+                />
                 <SelectContent>
                   {calendars
                     .filter((c) => !c.readOnly)
                     .map((cal) => (
-                      <SelectItem key={cal.id} value={cal.id}>
+                      <SelectOption key={cal.id} value={cal.id}>
                         {cal.name}
-                      </SelectItem>
+                      </SelectOption>
                     ))}
                 </SelectContent>
               </Select>
@@ -225,44 +224,42 @@ export function EventForm({
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">
+              <Label className="text-[10px] text-bruv-tertiary">
                 Status
               </Label>
               <Select
                 value={availability}
                 onValueChange={(v) => v && setAvailability(v)}
+                items={[
+                  { value: "busy", label: "Busy" },
+                  { value: "free", label: "Free" },
+                ]}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {availability === "free" ? "Free" : "Busy"}
-                  </SelectValue>
-                </SelectTrigger>
+                <SelectButton size="sm" className="w-full" />
                 <SelectContent>
-                  <SelectItem value="busy">Busy</SelectItem>
-                  <SelectItem value="free">Free</SelectItem>
+                  <SelectOption value="busy">Busy</SelectOption>
+                  <SelectOption value="free">Free</SelectOption>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground">
+              <Label className="text-[10px] text-bruv-tertiary">
                 Visibility
               </Label>
               <Select
                 value={visibility}
                 onValueChange={(v) => v && setVisibility(v)}
+                items={[
+                  { value: "default", label: "Default" },
+                  { value: "public", label: "Public" },
+                  { value: "private", label: "Private" },
+                ]}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue>
-                    {visibility === "default"
-                      ? "Default"
-                      : visibility.charAt(0).toUpperCase() +
-                        visibility.slice(1)}
-                  </SelectValue>
-                </SelectTrigger>
+                <SelectButton size="sm" className="w-full" />
                 <SelectContent>
-                  <SelectItem value="default">Default</SelectItem>
-                  <SelectItem value="public">Public</SelectItem>
-                  <SelectItem value="private">Private</SelectItem>
+                  <SelectOption value="default">Default</SelectOption>
+                  <SelectOption value="public">Public</SelectOption>
+                  <SelectOption value="private">Private</SelectOption>
                 </SelectContent>
               </Select>
             </div>
@@ -271,7 +268,7 @@ export function EventForm({
       </div>
 
       {/* Pinned actions */}
-      <div className="mt-3 flex shrink-0 items-center gap-2 border-t border-border pt-3">
+      <div className="mt-3 flex shrink-0 items-center gap-2 border-t border-bruv-neutral pt-3">
         {onCancel && (
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel
@@ -279,13 +276,14 @@ export function EventForm({
         )}
         <Button
           type="submit"
+          variant="primary"
           className="flex-1"
           disabled={isSubmitting || !title.trim()}
         >
           {isSubmitting ? "Saving..." : event ? "Update" : "Create"}
         </Button>
         {event && onDelete && (
-          <Button type="button" variant="destructive" onClick={onDelete}>
+          <Button type="button" variant="danger-light" onClick={onDelete}>
             Delete
           </Button>
         )}

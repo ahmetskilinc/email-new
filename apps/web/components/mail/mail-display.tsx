@@ -10,32 +10,22 @@ import {
 import { useOpenCompose } from "@/store/compose"
 import { formatDate, formatFileSize } from "@/lib/utils"
 import { cn } from "@workspace/ui/lib/utils"
-import { Skeleton } from "@workspace/ui/components/skeleton"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
-import { Separator } from "@workspace/ui/components/separator"
-import { Button } from "@workspace/ui/components/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
+import { Skeleton, ScrollArea, Separator, Button, Popover } from "bruv-ui"
 import { useQueryState } from "nuqs"
 import { useEffect, useMemo, useState } from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  MailReply01Icon,
-  MailReplyAll01Icon,
-  Share08Icon,
-  FileDownloadIcon,
-  Loading03Icon,
-  ArrowDown01Icon,
-  ArrowUp01Icon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  ArrowDownTrayIcon,
+  ArrowPathIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   PrinterIcon,
-} from "@hugeicons-pro/core-stroke-rounded"
+} from "@heroicons/react/16/solid"
 import type { ParsedMessage } from "@/server/types"
 import { FilePreviewDialog } from "@/components/mail/file-preview-dialog"
 import { buildPrintHtml } from "@/lib/print-utils"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 export function MailDisplay({ className }: { className?: string }) {
   const [threadId] = useQueryState("threadId")
@@ -76,7 +66,7 @@ export function MailDisplay({ className }: { className?: string }) {
   if (!threadId) {
     return (
       <div className="flex h-full items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-bruv-tertiary">
           Select a message to read
         </p>
       </div>
@@ -97,7 +87,7 @@ export function MailDisplay({ className }: { className?: string }) {
   if (!data?.messages?.length) {
     return (
       <div className="flex h-full items-center justify-center p-8">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-bruv-tertiary">
           Message could not be loaded
         </p>
       </div>
@@ -138,18 +128,20 @@ export function MailDisplay({ className }: { className?: string }) {
           </span>
           <DetailsPopover message={data.messages[0]!} />
           {isMultiMessage && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-bruv-tertiary">
               {data.messages.length} messages
             </span>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs text-bruv-tertiary">
             {formatDate(data.messages[0]?.receivedOn ?? "")}
           </span>
           <Button
-            variant="ghost"
-            size="icon-sm"
+            variant="transparent"
+            size="sm"
+            iconLeft={<PrinterIcon />}
+            aria-label="Print"
             onClick={() => {
               const html = buildPrintHtml(data.messages)
               const printWindow = window.open("", "_blank")
@@ -159,9 +151,7 @@ export function MailDisplay({ className }: { className?: string }) {
               }
             }}
             title="Print"
-          >
-            <HugeiconsIcon icon={PrinterIcon} className="size-4" />
-          </Button>
+          />
         </div>
       </div>
 
@@ -186,24 +176,29 @@ export function MailDisplay({ className }: { className?: string }) {
                   }
                 }}
                 className={cn(
-                  "flex items-center justify-between gap-4 bg-muted/30 px-4 py-2 text-left",
+                  "flex items-center justify-between gap-4 bg-bruv-subtle/30 px-4 py-2 text-left",
                   isMultiMessage &&
-                    "cursor-pointer transition-colors hover:bg-muted/50"
+                    "cursor-pointer transition-colors hover:bg-bruv-subtle/50"
                 )}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {isMultiMessage && (
-                    <HugeiconsIcon
-                      icon={isExpanded ? ArrowUp01Icon : ArrowDown01Icon}
-                      className="size-3 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                  )}
+                  {isMultiMessage &&
+                    (isExpanded ? (
+                      <ChevronUpIcon
+                        className="size-3 shrink-0 text-bruv-tertiary"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <ChevronDownIcon
+                        className="size-3 shrink-0 text-bruv-tertiary"
+                        aria-hidden="true"
+                      />
+                    ))}
                   <span className="text-xs font-medium">
                     {message.sender?.name || message.sender?.email}
                   </span>
                   {!isExpanded && message.decodedBody && (
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-bruv-tertiary">
                       {stripHtml(message.decodedBody).slice(0, 100)}
                     </span>
                   )}
@@ -214,7 +209,7 @@ export function MailDisplay({ className }: { className?: string }) {
                         e.stopPropagation()
                         handleUnsubscribe(message)
                       }}
-                      className="text-xs text-muted-foreground underline hover:text-foreground"
+                      className="text-xs text-bruv-tertiary underline hover:text-bruv-primary"
                     >
                       Unsubscribe
                     </button>
@@ -222,11 +217,11 @@ export function MailDisplay({ className }: { className?: string }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {isExpanded && message.to && message.to.length > 0 && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-bruv-tertiary">
                       To: {message.to.map((t) => t.email).join(", ")}
                     </span>
                   )}
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-xs text-bruv-tertiary">
                     {formatDate(message.receivedOn)}
                   </span>
                 </div>
@@ -262,16 +257,28 @@ export function MailDisplay({ className }: { className?: string }) {
 
       {/* Pinned footer — action buttons */}
       <div className="flex shrink-0 items-center gap-2 border-t p-4">
-        <Button variant="outline" size="sm" onClick={handleReply}>
-          <HugeiconsIcon icon={MailReply01Icon} data-icon="inline-start" />
+        <Button
+          variant="outline"
+          size="sm"
+          iconLeft={<ArrowUturnLeftIcon />}
+          onClick={handleReply}
+        >
           Reply
         </Button>
-        <Button variant="outline" size="sm" onClick={handleReplyAll}>
-          <HugeiconsIcon icon={MailReplyAll01Icon} data-icon="inline-start" />
+        <Button
+          variant="outline"
+          size="sm"
+          iconLeft={<ArrowUturnLeftIcon />}
+          onClick={handleReplyAll}
+        >
           Reply All
         </Button>
-        <Button variant="outline" size="sm" onClick={handleForward}>
-          <HugeiconsIcon icon={Share08Icon} data-icon="inline-start" />
+        <Button
+          variant="outline"
+          size="sm"
+          iconLeft={<ArrowUturnRightIcon />}
+          onClick={handleForward}
+        >
           Forward
         </Button>
       </div>
@@ -377,10 +384,10 @@ function AttachmentCard({
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="group flex w-40 flex-col overflow-hidden rounded-lg border bg-muted/30 text-left transition-colors hover:bg-muted/60"
+        className="group flex w-40 flex-col overflow-hidden rounded-bruv-lg border bg-bruv-subtle/30 text-left transition-colors hover:bg-bruv-subtle/60"
       >
         {isImage ? (
-          <div className="flex h-20 items-center justify-center overflow-hidden bg-muted">
+          <div className="flex h-20 items-center justify-center overflow-hidden bg-bruv-subtle">
             <img
               src={`data:${attachment.mimeType};base64,${resolvedBody}`}
               alt={attachment.filename}
@@ -388,8 +395,8 @@ function AttachmentCard({
             />
           </div>
         ) : (
-          <div className="flex h-20 items-center justify-center bg-muted">
-            <span className="text-xs font-medium text-muted-foreground uppercase">
+          <div className="flex h-20 items-center justify-center bg-bruv-subtle">
+            <span className="text-xs font-medium text-bruv-tertiary uppercase">
               {ext}
             </span>
           </div>
@@ -399,15 +406,12 @@ function AttachmentCard({
             <span className="truncate text-xs font-medium">
               {attachment.filename}
             </span>
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-bruv-tertiary">
               {formatFileSize(attachment.size)}
             </span>
           </div>
           {loading ? (
-            <HugeiconsIcon
-              icon={Loading03Icon}
-              className="size-3.5 shrink-0 animate-spin text-muted-foreground"
-            />
+            <ArrowPathIcon className="size-3.5 shrink-0 animate-spin text-bruv-tertiary" />
           ) : (
             <button
               type="button"
@@ -418,10 +422,7 @@ function AttachmentCard({
                 void handleDownload()
               }}
             >
-              <HugeiconsIcon
-                icon={FileDownloadIcon}
-                className="size-3.5 text-muted-foreground"
-              />
+              <ArrowDownTrayIcon className="size-3.5 text-bruv-tertiary" />
             </button>
           )}
         </div>
@@ -495,31 +496,31 @@ function DetailsPopover({ message }: { message: ParsedMessage }) {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
         render={
-          <Button variant="ghost" size="sm">
+          <Button variant="transparent" size="sm">
             Details
           </Button>
         }
       />
-      <PopoverContent className="w-96">
+      <Popover.Content className="w-96">
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium">Message Details</span>
           <div className="flex flex-col gap-1.5">
             {rows.map((row) => (
               <div key={row.label} className="flex gap-2 text-xs">
-                <span className="w-20 shrink-0 font-medium text-muted-foreground">
+                <span className="w-20 shrink-0 font-medium text-bruv-tertiary">
                   {row.label}
                 </span>
-                <span className="min-w-0 break-all text-foreground">
+                <span className="min-w-0 break-all text-bruv-primary">
                   {row.value}
                 </span>
               </div>
             ))}
           </div>
         </div>
-      </PopoverContent>
-    </Popover>
+      </Popover.Content>
+    </Popover.Root>
   )
 }

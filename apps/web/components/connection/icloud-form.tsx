@@ -1,19 +1,11 @@
 "use client"
 
 import { createIcloudConnection } from "@/server/actions/connections"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@workspace/ui/components/collapsible"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowDown01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { Button, Input, Label, Collapsible } from "bruv-ui"
+import { ChevronDownIcon } from "@heroicons/react/16/solid"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 interface ICloudFormProps {
   defaultEmail?: string
@@ -56,13 +48,13 @@ export function ICloudForm({
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-bruv-tertiary hover:text-bruv-primary"
           >
             ← Back
           </button>
         </div>
         <h3 className="text-sm font-medium">Connect iCloud Mail</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-bruv-tertiary">
           Enter your iCloud email and app-specific password.
         </p>
       </div>
@@ -79,7 +71,7 @@ export function ICloudForm({
             required
             autoComplete="email"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-bruv-tertiary">
             Supported: @icloud.com, @me.com, @mac.com
           </p>
         </div>
@@ -95,28 +87,25 @@ export function ICloudForm({
             required
             autoComplete="current-password"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-bruv-tertiary">
             Don&apos;t use your Apple ID password.
           </p>
         </div>
 
-        <Collapsible>
-          <CollapsibleTrigger className="group flex w-full items-center gap-1.5 text-xs font-medium text-primary hover:underline">
-            <HugeiconsIcon
-              icon={ArrowDown01Icon}
-              className="size-3.5 transition-transform group-data-[panel-open]:rotate-180"
-            />
+        <Collapsible.Root>
+          <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-xs font-medium text-bruv-accent hover:underline">
+            <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
             How to generate an app-specific password
-          </CollapsibleTrigger>
-          <CollapsibleContent className="overflow-hidden data-[ending-style]:animate-accordion-up data-[starting-style]:animate-accordion-down">
-            <ol className="mt-2 flex flex-col gap-1.5 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground [&>li]:pl-1">
+          </Collapsible.Trigger>
+          <Collapsible.Panel className="overflow-hidden">
+            <ol className="mt-2 flex flex-col gap-1.5 rounded-bruv-lg border bg-bruv-subtle/30 p-3 text-xs text-bruv-tertiary [&>li]:pl-1">
               <li>
                 1. Go to{" "}
                 <a
                   href="https://appleid.apple.com/account/manage"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary underline underline-offset-2"
+                  className="text-bruv-accent underline underline-offset-2"
                 >
                   appleid.apple.com
                 </a>{" "}
@@ -124,37 +113,38 @@ export function ICloudForm({
               </li>
               <li>
                 2. Navigate to{" "}
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-bruv-primary">
                   Sign-In and Security
                 </span>
                 .
               </li>
               <li>
                 3. Click{" "}
-                <span className="font-medium text-foreground">
+                <span className="font-medium text-bruv-primary">
                   App-Specific Passwords
                 </span>
                 .
               </li>
               <li>
                 4. Click the{" "}
-                <span className="font-medium text-foreground">+</span> button to
+                <span className="font-medium text-bruv-primary">+</span> button to
                 generate a new password.
               </li>
               <li>
                 5. Name it something like &quot;Mail App&quot; and click{" "}
-                <span className="font-medium text-foreground">Create</span>.
+                <span className="font-medium text-bruv-primary">Create</span>.
               </li>
               <li>
                 6. Copy the generated password (format: xxxx-xxxx-xxxx-xxxx) and
                 paste it above.
               </li>
             </ol>
-          </CollapsibleContent>
-        </Collapsible>
+          </Collapsible.Panel>
+        </Collapsible.Root>
 
         <Button
           type="submit"
+          variant="primary"
           className="w-full"
           disabled={isPending || !email || !password}
         >

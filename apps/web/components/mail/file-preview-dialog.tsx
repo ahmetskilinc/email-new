@@ -1,13 +1,6 @@
 "use client"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
-import { Button } from "@workspace/ui/components/button"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
+import { Dialog, Button, ScrollArea } from "bruv-ui"
 import { formatFileSize } from "@/lib/utils"
 import { useMemo } from "react"
 
@@ -67,21 +60,21 @@ export function FilePreviewDialog({
   }, [open, previewType, attachment.body])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[80vh] max-h-[80vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <DialogHeader className="flex shrink-0 flex-row items-center justify-between gap-4 border-b px-6 py-4">
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content className="flex h-[80vh] max-h-[80vh] w-[90vw] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+        <div className="flex shrink-0 flex-row items-center justify-between gap-4 border-b border-bruv-neutral px-6 py-4">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <DialogTitle className="truncate text-sm font-medium">
+            <Dialog.Title className="truncate border-none p-0 text-sm font-medium">
               {attachment.filename}
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
+            </Dialog.Title>
+            <p className="text-xs text-bruv-tertiary">
               {formatFileSize(attachment.size)}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={onDownload}>
             Download
           </Button>
-        </DialogHeader>
+        </div>
 
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
           {previewType === "image" && (
@@ -110,7 +103,7 @@ export function FilePreviewDialog({
 
           {previewType === "unsupported" && (
             <div className="flex flex-col items-center gap-3 p-8 text-center">
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-bruv-tertiary">
                 Preview not available for this file type
               </p>
               <Button variant="outline" size="sm" onClick={onDownload}>
@@ -119,7 +112,7 @@ export function FilePreviewDialog({
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </Dialog.Content>
+    </Dialog.Root>
   )
 }

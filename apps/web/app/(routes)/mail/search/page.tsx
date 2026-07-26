@@ -13,10 +13,9 @@ import { formatDate } from "@/lib/utils"
 import { toggleStar } from "@/server/actions/mail"
 import { VList, type VListHandle } from "virtua"
 import { Sheet, SheetContent, SheetClose } from "@workspace/ui/components/sheet"
-import { Button } from "@workspace/ui/components/button"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
-import { toast } from "sonner"
+import { Button } from "bruv-ui"
+import { ArrowLeftIcon } from "@heroicons/react/16/solid"
+import { toast } from "bruv-ui"
 import { useRef } from "react"
 
 export default function SearchPage() {
@@ -100,7 +99,7 @@ export default function SearchPage() {
           />
           {index === threads.length - 1 && query.isFetchingNextPage && (
             <div className="flex w-full justify-center py-4">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-900 border-t-transparent dark:border-white dark:border-t-transparent" />
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-bruv-neutral-strong border-t-transparent" />
             </div>
           )}
         </div>
@@ -130,7 +129,7 @@ export default function SearchPage() {
     if (!hasSearched) {
       return (
         <div className="flex h-full items-center justify-center p-8 text-center">
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-bruv-tertiary">
             Enter a search query to find emails
           </p>
         </div>
@@ -140,7 +139,7 @@ export default function SearchPage() {
     if (threads.length === 0) {
       return (
         <div className="flex h-full items-center justify-center p-8 text-center">
-          <p className="text-sm text-muted-foreground">No results found</p>
+          <p className="text-sm text-bruv-tertiary">No results found</p>
         </div>
       )
     }
@@ -178,12 +177,8 @@ export default function SearchPage() {
             showCloseButton={false}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
-              <SheetClose render={<Button variant="ghost" size="icon-sm" />}>
-                <HugeiconsIcon
-                  icon={ArrowLeft01Icon}
-                  strokeWidth={2}
-                  className="size-4"
-                />
+              <SheetClose render={<Button variant="transparent" size="sm" />}>
+              <ArrowLeftIcon className="size-4" />
                 <span className="sr-only">Back</span>
               </SheetClose>
               <span className="truncate text-sm font-medium">

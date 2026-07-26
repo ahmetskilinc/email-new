@@ -1,20 +1,13 @@
 "use client"
 
 import * as React from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
-import { Button } from "@workspace/ui/components/button"
+import { Dialog, Button } from "bruv-ui"
 import { CustomImapForm } from "@/components/connection/custom-imap-form"
 import { ICloudForm } from "@/components/connection/icloud-form"
 import { YahooForm } from "@/components/connection/yahoo-form"
 import { authClient } from "@/lib/auth-client"
 import { emailProviders } from "@/lib/constants"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 interface AddConnectionDialogProps {
   open: boolean
@@ -67,8 +60,8 @@ export function AddConnectionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
         {appPasswordProvider === "icloud" ? (
           <ICloudForm
             defaultEmail=""
@@ -88,12 +81,14 @@ export function AddConnectionDialog({
           />
         ) : (
           <>
-            <DialogHeader>
-              <DialogTitle>Add Connection</DialogTitle>
-              <DialogDescription>
+            <div className="flex flex-col gap-2">
+              <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
+                Add Connection
+              </Dialog.Title>
+              <p className="text-sm text-bruv-tertiary">
                 Connect an email account to start receiving mail.
-              </DialogDescription>
-            </DialogHeader>
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               {emailProviders.map((provider) => {
                 const Icon = provider.icon
@@ -117,7 +112,7 @@ export function AddConnectionDialog({
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </Dialog.Content>
+    </Dialog.Root>
   )
 }

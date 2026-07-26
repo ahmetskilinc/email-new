@@ -1,15 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Checkbox } from "@workspace/ui/components/checkbox"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { Button, Input, Label, Checkbox } from "bruv-ui"
 import {
-  Search01Icon,
-  Settings04Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
+  MagnifyingGlassIcon,
+  Cog6ToothIcon,
+} from "@heroicons/react/16/solid"
 import type { SearchParams } from "@/hooks/use-search"
 
 const FOLDER_OPTIONS = [
@@ -52,10 +48,7 @@ export function SearchFilters({
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-b p-4">
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
-          <HugeiconsIcon
-            icon={Search01Icon}
-            className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-          />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-bruv-tertiary" />
           <Input
             placeholder="Search emails..."
             value={q}
@@ -63,22 +56,27 @@ export function SearchFilters({
             className="h-9 pl-9 text-sm"
           />
         </div>
-        <Button type="submit" size="sm" disabled={isLoading}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={isLoading}
+        >
           Search
         </Button>
         <Button
           type="button"
-          variant="ghost"
-          size="icon-sm"
+          variant="transparent"
+          size="sm"
           onClick={() => setShowFilters((v) => !v)}
           title="Toggle filters"
-        >
-          <HugeiconsIcon icon={Settings04Icon} className="size-4" />
-        </Button>
+          iconLeft={<Cog6ToothIcon />}
+          aria-label="Toggle filters"
+        />
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-2 gap-3 rounded-md border bg-muted/30 p-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 rounded-bruv-md border bg-bruv-subtle/30 p-3 md:grid-cols-4">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs">From</Label>
             <Input
@@ -111,7 +109,7 @@ export function SearchFilters({
             <select
               value={folder}
               onChange={(e) => setFolder(e.target.value)}
-              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+              className="h-8 rounded-bruv-lg border border-bruv-neutral bg-transparent px-2.5 text-sm outline-none focus-visible:border-bruv-neutral-strong focus-visible:ring-3 focus-visible:ring-bruv-focus/50 dark:bg-bruv-subtle/30"
             >
               {FOLDER_OPTIONS.map((f) => (
                 <option key={f.value} value={f.value}>

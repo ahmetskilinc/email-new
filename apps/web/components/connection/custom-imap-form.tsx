@@ -1,12 +1,10 @@
 "use client"
 
 import { createCustomConnection } from "@/server/actions/connections"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+import { Button, Input, Label } from "bruv-ui"
 import { useQueryClient } from "@tanstack/react-query"
 import { useState } from "react"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 interface CustomImapFormProps {
   onSuccess: () => void
@@ -58,13 +56,13 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-bruv-tertiary hover:text-bruv-primary"
           >
             ← Back
           </button>
         </div>
         <h3 className="text-sm font-medium">Connect via IMAP</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-bruv-tertiary">
           Connect any email provider that supports IMAP/SMTP.
         </p>
       </div>
@@ -94,7 +92,7 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
             required
             autoComplete="current-password"
           />
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-bruv-tertiary">
             If your provider supports app passwords, use one for better
             security.
           </p>
@@ -150,13 +148,14 @@ export function CustomImapForm({ onSuccess, onBack }: CustomImapFormProps) {
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-bruv-tertiary">
           Folders (Sent, Drafts, Trash, etc.) will be auto-detected from your
           server.
         </p>
 
         <Button
           type="submit"
+          variant="primary"
           className="w-full"
           disabled={isPending || !isValid}
         >
