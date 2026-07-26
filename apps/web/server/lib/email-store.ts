@@ -1,7 +1,6 @@
 import { and, desc, eq, lt } from "drizzle-orm"
 import { emailThread, syncState } from "../db/schema"
-import { createDb } from "../db"
-import { env } from "../env"
+import { getSharedDb } from "../db"
 
 export type StoredThreadListItem = {
   id: string
@@ -33,7 +32,9 @@ export async function listThreadsFromStore(params: {
   const { connectionId, folder = "inbox", maxResults, cursor } = params
   if (folder !== "inbox") return { threads: [], nextPageToken: null }
 
-  const { db } = createDb(env.DATABASE_URL)
+  // Shared pool — a per-call createDb() leaked a connection pool on every
+  // thread-list read.
+  const { db } = getSharedDb()
   const cursorDate = cursor ? new Date(cursor) : null
 
   const rows = await db.query.emailThread.findMany({
@@ -81,7 +82,7 @@ export async function listThreadsFromStore(params: {
  */
 export async function storeIsReady(connectionId: string): Promise<boolean> {
   if (process.env.EMAIL_SYNC_READ_FROM_DB !== "true") return false
-  const { db } = createDb(env.DATABASE_URL)
+  const { db } = getSharedDb()
   const state = await db.query.syncState.findFirst({
     where: eq(syncState.connectionId, connectionId),
     columns: { historyId: true, lastFullSyncAt: true },

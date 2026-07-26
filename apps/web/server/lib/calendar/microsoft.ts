@@ -10,6 +10,22 @@ import type {
   DeleteEventInput,
 } from "./types"
 
+// Graph ids are base64url-ish; nothing outside that alphabet is a real id.
+const GRAPH_ID_PATTERN = /^[A-Za-z0-9_=-]{1,512}$/
+
+/**
+ * Ids arrive from the client and are spliced straight into a Graph request
+ * path, so a value like "../mailFolders/inbox" would address a completely
+ * different resource under the user's token. Reject anything that is not
+ * id-shaped, and escape what is left so path separators can never survive.
+ */
+function graphId(value: string, label: string): string {
+  if (!GRAPH_ID_PATTERN.test(value)) {
+    throw new Error(`Invalid ${label}`)
+  }
+  return encodeURIComponent(value)
+}
+
 export class MicrosoftCalendarProvider implements CalendarProvider {
   private graphClient: Client
 
@@ -43,7 +59,7 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
       calendarIds.map(async (calId) => {
         try {
           const res = await this.graphClient
-            .api(`/me/calendars/${calId}/calendarView`)
+            .api(`/me/calendars/${graphId(calId, "calendarId")}/calendarView`)
             .query({
               startDateTime: options.timeMin.toISOString(),
               endDateTime: options.timeMax.toISOString(),
@@ -145,7 +161,7 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     }
 
     const res = await this.graphClient
-      .api(`/me/calendars/${input.calendarId}/events`)
+      .api(`/me/calendars/${graphId(input.calendarId, "calendarId")}/events`)
       .post(body)
 
     return this.mapGraphEventToCalendarEvent(res, input.calendarId)
@@ -200,14 +216,16 @@ export class MicrosoftCalendarProvider implements CalendarProvider {
     }
 
     const res = await this.graphClient
-      .api(`/me/events/${input.eventId}`)
+      .api(`/me/events/${graphId(input.eventId, "eventId")}`)
       .patch(body)
 
     return this.mapGraphEventToCalendarEvent(res, input.calendarId)
   }
 
   async deleteEvent(input: DeleteEventInput): Promise<void> {
-    await this.graphClient.api(`/me/events/${input.eventId}`).delete()
+    await this.graphClient
+      .api(`/me/events/${graphId(input.eventId, "eventId")}`)
+      .delete()
   }
 
   private mapGraphEventToCalendarEvent(

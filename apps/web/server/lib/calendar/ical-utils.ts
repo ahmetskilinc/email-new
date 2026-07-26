@@ -42,7 +42,13 @@ export function buildVCalendar(input: CreateEventInput, uid?: string): string {
 
   if (input.recurrence?.length) {
     for (const rule of input.recurrence) {
-      lines.push(rule.startsWith("RRULE:") ? rule : `RRULE:${rule}`)
+      // Recurrence rules are the one field pushed in unescaped. A line break
+      // inside one would end the RRULE content line and let the caller forge
+      // arbitrary calendar properties in an invite that goes out to third-party
+      // attendees, so line breaks are stripped before the value is emitted.
+      const safeRule = stripLineBreaks(rule)
+      if (!safeRule) continue
+      lines.push(safeRule.startsWith("RRULE:") ? safeRule : `RRULE:${safeRule}`)
     }
   }
 
@@ -236,12 +242,20 @@ export function formatIcalDate(isoDate: string, allDay: boolean): string {
   return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`
 }
 
+function stripLineBreaks(str: string): string {
+  return str.replace(/[\r\n]+/g, " ").trim()
+}
+
 function escapeIcal(str: string): string {
-  return str
-    .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\\;")
-    .replace(/,/g, "\\,")
-    .replace(/\n/g, "\\n")
+  return (
+    str
+      .replace(/\\/g, "\\\\")
+      .replace(/;/g, "\\;")
+      .replace(/,/g, "\\,")
+      // A bare CR ends a content line just as CRLF does, so escaping only LF
+      // still lets a crafted title or location inject its own properties.
+      .replace(/\r\n|\r|\n/g, "\\n")
+  )
 }
 
 function unescapeIcal(str: string): string {

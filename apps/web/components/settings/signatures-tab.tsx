@@ -25,6 +25,17 @@ import { Switch } from "@workspace/ui/components/switch"
 import { Separator } from "@workspace/ui/components/separator"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { toast } from "sonner"
+import DOMPurify from "dompurify"
+
+// Signature bodies are sanitized when they are saved, but rows already in the
+// database predate that, so the preview cleans them again on the way out.
+const sanitizeSignature = (html: string) => {
+  try {
+    return DOMPurify.sanitize(html)
+  } catch {
+    return ""
+  }
+}
 
 type EditingSignature = {
   id?: string
@@ -230,7 +241,9 @@ export function SignaturesTab() {
                     {sig.body ? (
                       <div
                         className="prose-xs line-clamp-2 text-xs text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: sig.body }}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeSignature(sig.body),
+                        }}
                       />
                     ) : (
                       <p className="text-xs text-muted-foreground">(empty)</p>

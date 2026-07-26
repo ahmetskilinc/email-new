@@ -19,6 +19,37 @@ import type { MailManager, ManagerConfig } from "./types"
 import type { CreateDraftData } from "../schemas"
 import he from "he"
 
+// Graph mail folder ids are base64url blobs. Anything outside that alphabet in
+// a caller-supplied folder is not an id, it's an attempt to steer the request
+// path somewhere else in Graph on the user's token.
+const GRAPH_FOLDER_ID = /^[A-Za-z0-9_=-]{1,512}$/
+
+// A list page is a fan-out of one Graph round trip per message, each pulling
+// every attachment's bytes. Cap the page and the number in flight so a single
+// request can't be turned into hundreds of concurrent downloads.
+const MAX_LIST_RESULTS = 100
+const LIST_CONCURRENCY = 5
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let cursor = 0
+  const workers = Array.from(
+    { length: Math.max(1, Math.min(limit, items.length)) },
+    async () => {
+      while (cursor < items.length) {
+        const index = cursor++
+        results[index] = await fn(items[index]!, index)
+      }
+    }
+  )
+  await Promise.all(workers)
+  return results
+}
+
 export class OutlookMailManager implements MailManager {
   private graphClient: Client
 
@@ -274,15 +305,13 @@ export class OutlookMailManager implements MailManager {
     labelIds?: string[]
     pageToken?: string
   }) {
-    const { folder, query: q, maxResults = 100, pageToken } = params
+    const { folder, query: q, pageToken } = params
+    const maxResults = Math.min(params.maxResults ?? 100, MAX_LIST_RESULTS)
 
-    let folderId = this.getOutlookFolderId(folder)
-    if (!folderId) {
-      folderId = folder
-    }
+    const folderId = this.resolveFolderId(folder)
 
     let request = this.graphClient
-      .api(`/me/mailFolders/${folderId}/messages`)
+      .api(`/me/mailFolders/${encodeURIComponent(folderId)}/messages`)
       .top(maxResults)
 
     if (q) {
@@ -319,9 +348,11 @@ export class OutlookMailManager implements MailManager {
           messages.map((msg) => this.parseOutlookMessage(msg))
         )
 
-        // Then fetch full content for each message
-        const fullMessages = await Promise.all(
-          messages.map(async (msg, index) => {
+        // Then fetch full content for each message, a few at a time
+        const fullMessages = await mapWithConcurrency(
+          messages,
+          LIST_CONCURRENCY,
+          async (msg, index) => {
             try {
               // Get the full message content using the get method
               const fullMessage = await this.get(msg.id || "")
@@ -345,7 +376,7 @@ export class OutlookMailManager implements MailManager {
                 attachments: [],
               }
             }
-          })
+          }
         )
 
         // Format response according to interface requirements
@@ -390,6 +421,20 @@ export class OutlookMailManager implements MailManager {
       default:
         return undefined
     }
+  }
+  /**
+   * Maps a caller-supplied folder onto a Graph folder id. Unknown names used
+   * to fall through verbatim into the request path, which let a caller reach
+   * arbitrary Graph endpoints under the user's own scopes; now anything that
+   * isn't a well-known folder has to at least look like a Graph id.
+   */
+  private resolveFolderId(folder: string): string {
+    const wellKnown = this.getOutlookFolderId(folder)
+    if (wellKnown) return wellKnown
+    if (!GRAPH_FOLDER_ID.test(folder)) {
+      throw new Error(`Invalid folder: ${folder}`)
+    }
+    return folder
   }
   public get(id: string) {
     return this.withErrorHandler(
@@ -871,7 +916,7 @@ export class OutlookMailManager implements MailManager {
         systemFolderNames
       )
 
-      console.log("Microsoft labels with hierarchy:", processedFolders)
+      // No log of the folder tree here — it is a map of the user's mailbox.
       return processedFolders
     } catch (error) {
       console.error("Error fetching Outlook categories or folders:", error)
@@ -985,13 +1030,10 @@ export class OutlookMailManager implements MailManager {
     )
 
     try {
-      const newFolder: MailFolder = await this.graphClient
-        .api("/me/mailfolders")
-        .post({
-          displayName: label.name,
-          // parentFolderId: 'inbox', // Optional: Create under a specific parent folder
-        })
-      console.log("Mail Folder created:", newFolder)
+      await this.graphClient.api("/me/mailfolders").post({
+        displayName: label.name,
+        // parentFolderId: 'inbox', // Optional: Create under a specific parent folder
+      })
 
       // create a Category:
       // const newCategory: Category = await this.graphClient.api('/me/outlook/masterCategories').post({
@@ -1212,7 +1254,8 @@ export class OutlookMailManager implements MailManager {
     bcc,
   }: IOutgoingMessage): Promise<Message> {
     // Outlook Graph API expects a Message object structure for sending/creating drafts
-    console.log(to)
+    // (the recipient list used to be logged here — every send dumped the full
+    // To: line into stdout, where it outlives the request in log storage)
     const { html: processedMessage, inlineImages } = await sanitizeTipTapHtml(
       message.trim()
     )
@@ -1340,12 +1383,14 @@ export class OutlookMailManager implements MailManager {
       return await Promise.resolve(fn())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      // Adapt error checking for Microsoft Graph errors
+      // "Fatal" here means the connection gets torn down, so it must mean the
+      // credential is actually dead — a 401 or invalid_grant. Treating every
+      // 4xx that way let a bad message id or a permissions blip take out the
+      // user's whole connection.
       const isFatal =
         FatalErrors.includes(error.message) ||
-        (error.statusCode >= 400 &&
-          error.statusCode < 500 &&
-          error.statusCode !== 429) // Consider 4xx errors other than 429 as potentially fatal depending on the error
+        FatalErrors.includes(error.code) ||
+        error.statusCode === 401
       console.error(
         `[${isFatal ? "FATAL_ERROR" : "ERROR"}] [Outlook Driver] Operation: ${operation}`,
         {
@@ -1370,11 +1415,11 @@ export class OutlookMailManager implements MailManager {
       return fn()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
+      // Same narrowing as withErrorHandler: only a dead credential is fatal.
       const isFatal =
         FatalErrors.includes(error.message) ||
-        (error.statusCode >= 400 &&
-          error.statusCode < 500 &&
-          error.statusCode !== 429)
+        FatalErrors.includes(error.code) ||
+        error.statusCode === 401
       console.error(`[Outlook Driver Error] Operation: ${operation}`, {
         error: error.message,
         code: error.code,

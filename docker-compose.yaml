@@ -4,12 +4,15 @@ services:
     image: postgres:17
     restart: always
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: zeitmail
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-zeitmail}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - 5432:5432
+      # Loopback only. Published on 0.0.0.0 with the default credentials, this
+      # port hands anyone who can reach the host the whole database — and with
+      # it every user's mail, sidestepping all per-user query scoping.
+      - 127.0.0.1:${POSTGRES_PORT:-5432}:5432
     volumes:
       - postgres-data:/var/lib/postgresql/data
 

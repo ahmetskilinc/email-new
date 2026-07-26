@@ -65,16 +65,26 @@ export class StandardizedError extends Error {
 export function sanitizeContext(context?: Record<string, unknown>) {
   if (!context) return undefined
   const sanitized = { ...context }
+  // This context ends up in error logs, so anything that could carry a
+  // credential has to be named here — the list previously stopped at
+  // refresh_token and let access tokens, passwords and auth headers through.
+  const normalize = (key: string) => key.toLowerCase().replace(/[_-]/g, "")
   const sensitive = [
     "tokens",
+    "token",
+    "access_token",
     "refresh_token",
+    "id_token",
+    "password",
+    "authorization",
+    "cookie",
     "code",
     "message",
     "raw",
     "data",
-  ]
-  for (const key of sensitive) {
-    if (key in sanitized) {
+  ].map(normalize)
+  for (const key of Object.keys(sanitized)) {
+    if (sensitive.includes(normalize(key))) {
       sanitized[key] = "[REDACTED]"
     }
   }
