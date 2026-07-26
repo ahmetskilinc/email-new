@@ -5,7 +5,10 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      # No default. A literal fallback here is a credential committed to the
+      # repository, and "postgres/postgres" is the first pair anything scanning
+      # for exposed databases tries. Set it in .env (compose reads that file).
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-zeitmail}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
