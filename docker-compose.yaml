@@ -5,10 +5,12 @@ services:
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      # No default. A literal fallback here is a credential committed to the
-      # repository, and "postgres/postgres" is the first pair anything scanning
-      # for exposed databases tries. Set it in .env (compose reads that file).
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Supplied from .env, which compose reads automatically — see .env.example.
+      # Deliberately no inline fallback: any literal here is a credential
+      # committed to the repository, and postgres/postgres is the first pair
+      # anything scanning for exposed databases tries. The postgres image
+      # refuses to initialise if this is unset.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-zeitmail}
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
