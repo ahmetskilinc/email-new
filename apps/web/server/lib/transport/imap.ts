@@ -138,7 +138,11 @@ function parsedMailToMessage(
     receivedOn: (parsed.date ?? new Date()).toISOString(),
     unread: isUnread,
     body: htmlBody || textBody,
-    processedHtml: htmlBody,
+    // Deliberately empty, matching the Gmail and Graph drivers. `processedHtml`
+    // denotes sanitized output; this is raw mailparser HTML straight off the
+    // wire. Assigning it here made every consumer that trusts the field — the
+    // print path in particular — render attacker HTML unsanitized.
+    processedHtml: "",
     blobUrl: "",
     decodedBody: htmlBody || textBody,
     references: parsed.references

@@ -303,24 +303,86 @@ function sanitizeDescription(raw: string): string {
       ALLOWED_ATTR: ["href", "target", "rel"],
       ADD_ATTR: ["target"],
     })
-    // Ensure all links open in new tab
-    html = html.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ')
   } else {
     // Input is plain text — escape, linkify, convert newlines
     const escaped = DOMPurify.sanitize(raw, { ALLOWED_TAGS: [] })
     html = linkifyText(escaped).replace(/\n/g, "<br />")
   }
 
-  // Auto-link any bare URLs that aren't already inside <a> tags
-  html = html.replace(
-    /(<a\b[^>]*>[\s\S]*?<\/a>)|(?<![="'])https?:\/\/[^\s<>"'{}|\\^`[\]]+/gi,
-    (match, existingLink) => {
-      if (existingLink) return existingLink
-      return `<a href="${match}" target="_blank" rel="noopener noreferrer">${match}</a>`
-    }
-  )
+  // Link rewriting happens on the DOM, never by string surgery on serialized
+  // HTML. The previous implementation spliced attributes in with
+  // `html.replace(/<a /g, ...)` and rebuilt anchors via a template literal
+  // *after* DOMPurify had run, reintroducing quote characters into attribute
+  // values that sanitization had already settled. Anchors are built with
+  // createElement/textContent here, so nothing user-supplied is ever parsed as
+  // markup, and a final sanitize pass runs over the result regardless.
+  const doc = new DOMParser().parseFromString(html, "text/html")
+  linkifyTextNodes(doc.body)
+  doc.body.querySelectorAll("a").forEach((anchor) => {
+    anchor.setAttribute("target", "_blank")
+    anchor.setAttribute("rel", "noopener noreferrer")
+  })
 
-  return html
+  return DOMPurify.sanitize(doc.body.innerHTML, {
+    ALLOWED_TAGS: [
+      "a",
+      "b",
+      "strong",
+      "i",
+      "em",
+      "br",
+      "p",
+      "ul",
+      "ol",
+      "li",
+      "div",
+      "span",
+    ],
+    ALLOWED_ATTR: ["href", "target", "rel"],
+    ADD_ATTR: ["target"],
+  })
+}
+
+const BARE_URL = /https?:\/\/[^\s<>"'{}|\\^`[\]]+/gi
+
+/** Wraps bare URLs in text nodes with anchors, skipping existing links. */
+function linkifyTextNodes(root: HTMLElement): void {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  const targets: Text[] = []
+
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const text = n as Text
+    if (text.parentElement?.closest("a")) continue
+    if (text.data && BARE_URL.test(text.data)) targets.push(text)
+    BARE_URL.lastIndex = 0
+  }
+
+  for (const node of targets) {
+    const frag = node.ownerDocument.createDocumentFragment()
+    let last = 0
+    const data = node.data
+    BARE_URL.lastIndex = 0
+
+    for (let m = BARE_URL.exec(data); m; m = BARE_URL.exec(data)) {
+      if (m.index > last) {
+        frag.appendChild(
+          node.ownerDocument.createTextNode(data.slice(last, m.index))
+        )
+      }
+      const anchor = node.ownerDocument.createElement("a")
+      anchor.setAttribute("href", m[0])
+      anchor.setAttribute("target", "_blank")
+      anchor.setAttribute("rel", "noopener noreferrer")
+      anchor.textContent = m[0]
+      frag.appendChild(anchor)
+      last = m.index + m[0].length
+    }
+
+    if (last < data.length) {
+      frag.appendChild(node.ownerDocument.createTextNode(data.slice(last)))
+    }
+    node.replaceWith(frag)
+  }
 }
 
 function EventDescription({ text }: { text: string }) {

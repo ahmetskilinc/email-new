@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { CssSanitizer } from "@barkleapp/css-sanitizer"
 import sanitizeHtml from "sanitize-html"
 import * as cheerio from "cheerio"
@@ -83,80 +82,76 @@ interface ProcessEmailOptions {
   theme: "light" | "dark"
 }
 
+const sanitizeConfig: sanitizeHtml.IOptions = {
+  // `style` is required for HTML email to render at all, and sanitize-html
+  // demands this acknowledgement to allow it. It is safe here only because
+  // the result renders inside a sandboxed, opaque-origin iframe whose CSP is
+  // `default-src 'none'` with a nonce'd script-src (see mail-content.tsx):
+  // attacker CSS cannot execute script, load external stylesheets, or reach
+  // outside the frame. Do NOT reuse this config anywhere uncontained.
+  allowVulnerableTags: true,
+  allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+    "img",
+    "title",
+    "details",
+    "summary",
+    "style",
+  ]),
+
+  allowedAttributes: {
+    "*": [
+      "class",
+      "style",
+      "align",
+      "valign",
+      "width",
+      "height",
+      "cellpadding",
+      "cellspacing",
+      "border",
+      "bgcolor",
+      "colspan",
+      "rowspan",
+    ],
+    a: ["href", "name", "target", "rel", "class", "style"],
+    img: ["src", "alt", "width", "height", "class", "style"],
+  },
+
+  // Allow only safe schemes - no blob for security
+  allowedSchemes: ["http", "https", "mailto", "tel", "data", "cid"],
+  allowedSchemesByTag: {
+    img: ["http", "https", "data", "cid"],
+  },
+
+  transformTags: {
+    a: (tagName, attribs) => {
+      return {
+        tagName,
+        attribs: {
+          ...attribs,
+          target: attribs.target || "_blank",
+          rel: "noopener noreferrer",
+        },
+      }
+    },
+  },
+}
+
 // Server-side: Heavy lifting, preference-independent processing
 function preprocessEmailHtml(html: string): string {
-  const sanitizeConfig: sanitizeHtml.IOptions = {
-    allowVulnerableTags: true,
-    allowedTags: sanitizeHtml.defaults.allowedTags.concat([
-      "img",
-      "title",
-      "details",
-      "summary",
-      "style",
-      "link",
-    ]),
-
-    allowedAttributes: {
-      "*": [
-        "class",
-        "style",
-        "align",
-        "valign",
-        "width",
-        "height",
-        "cellpadding",
-        "cellspacing",
-        "border",
-        "bgcolor",
-        "colspan",
-        "rowspan",
-      ],
-      a: ["href", "name", "target", "rel", "class", "style"],
-      img: ["src", "alt", "width", "height", "class", "style"],
-      link: ["rel", "href", "type"],
-    },
-
-    // Allow only safe schemes - no blob for security
-    allowedSchemes: ["http", "https", "mailto", "tel", "data", "cid"],
-    allowedSchemesByTag: {
-      img: ["http", "https", "data", "cid"],
-    },
-
-    transformTags: {
-      a: (tagName, attribs) => {
-        return {
-          tagName,
-          attribs: {
-            ...attribs,
-            target: attribs.target || "_blank",
-            rel: "noopener noreferrer",
-          },
-        }
-      },
-      link: (tagName, attribs) => {
-        // Only allow stylesheet links (for web fonts)
-        if (
-          attribs.rel === "stylesheet" &&
-          attribs.href &&
-          (attribs.href.startsWith("https://fonts.googleapis.com/") ||
-            attribs.href.startsWith("https://fonts.gstatic.com/") ||
-            attribs.href.startsWith("https://use.typekit.net/"))
-        ) {
-          return { tagName, attribs }
-        }
-        // Strip non-stylesheet or untrusted link tags
-        return { tagName: "", attribs: {} }
-      },
-    },
-  }
-
   const sanitized = sanitizeHtml(html, sanitizeConfig)
   const $ = cheerio.load(sanitized)
 
   $("style").each((_, el) => {
     const css = $(el).html() || ""
-    const safe = sanitizer.sanitizeCss(css)
-    $(el).html(safe)
+    // Defence in depth only — the real containment is the sandboxed frame and
+    // its CSP. @barkleapp/css-sanitizer merges its own permissive defaults into
+    // the allowlist above rather than replacing them, and emits the body of
+    // at-rules verbatim, so it must not be treated as a security boundary.
+    // @import is stripped explicitly because it is the one construct that can
+    // pull in a remote stylesheet.
+    const safe = sanitizer.sanitizeCss(css).replace(/@import[^;]*;?/gi, "")
+    $(el).text(safe)
   })
 
   // Collapse quoted text (structure only, no theme colors)
@@ -230,8 +225,14 @@ function applyEmailPreferences(
       // Allow CID images (inline attachments)
       if (src && !src.startsWith("cid:")) {
         hasBlockedImages = true
+        // Built through the DOM API, never by templating `src` into markup:
+        // cheerio's replaceWith() parses its string argument as HTML, so an
+        // attacker-supplied src containing "-->" used to break out of the
+        // comment and inject live elements after sanitization had already run.
         $img.replaceWith(
-          `<span style="display:none;"><!-- blocked image: ${src} --></span>`
+          $("<span></span>")
+            .attr("style", "display:none")
+            .attr("data-blocked-src", src)
         )
       }
     })
@@ -242,7 +243,7 @@ function applyEmailPreferences(
   // Apply theme-specific styles
   const themeStyles = `
     <style type="text/css">
-      :host {
+      html, body {
         display: block;
         line-height: 1.5;
         background-color: ${isDarkTheme ? "#1A1A1A" : "#ffffff"};
@@ -297,7 +298,12 @@ function applyEmailPreferences(
     </style>
   `
 
-  const finalHtml = `${themeStyles}${html}`
+  // Re-sanitize after all post-processing. preprocessEmailHtml() already
+  // sanitized, but everything above re-parses and re-serializes through cheerio,
+  // and mutation after sanitization is exactly how the blocked-image injection
+  // arose. This makes any future post-processing step non-exploitable by
+  // construction rather than by review.
+  const finalHtml = sanitizeHtml(`${themeStyles}${html}`, sanitizeConfig)
 
   return {
     processedHtml: finalHtml,

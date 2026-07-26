@@ -1,4 +1,20 @@
+import DOMPurify from "dompurify"
 import type { ParsedMessage } from "@/server/types"
+
+/**
+ * The print window is opened via `window.open("")`, whose about:blank document
+ * inherits this origin, and `document.write` *executes* script (unlike
+ * innerHTML). Message HTML must therefore never reach it unsanitized — the IMAP
+ * transports previously handed raw mailparser output through `processedHtml`,
+ * making the print button a one-click same-origin XSS.
+ */
+function sanitizeForPrint(html: string): string {
+  return DOMPurify.sanitize(html, {
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "base", "form"],
+    FORBID_ATTR: ["srcdoc", "formaction"],
+    ALLOW_DATA_ATTR: false,
+  })
+}
 
 function escapeHtml(str: string): string {
   return str
@@ -56,7 +72,7 @@ export function buildPrintHtml(messages: ParsedMessage[]): string {
             ${msg.cc?.length ? `<tr><td class="label">Cc:</td><td>${formatSenders(msg.cc)}</td></tr>` : ""}
             <tr><td class="label">Date:</td><td>${formatDate(msg.receivedOn)}</td></tr>
           </table>
-          <div class="body">${msg.processedHtml || escapeHtml(msg.body)}</div>
+          <div class="body">${msg.processedHtml ? sanitizeForPrint(msg.processedHtml) : escapeHtml(msg.body)}</div>
           ${attachmentList}
         </div>`
     })
