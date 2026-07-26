@@ -1,12 +1,9 @@
 "use client"
 
 import { authClient, useSession } from "@/lib/auth-client"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Separator } from "@workspace/ui/components/separator"
+import { Button, Input, Label, Separator } from "bruv-ui"
 import { useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 export function AccountTab() {
   const { data: session, isPending } = useSession()
@@ -82,7 +79,7 @@ export function AccountTab() {
       <div className="flex flex-col gap-4">
         <div>
           <Label>Email</Label>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-bruv-tertiary">
             {session?.user?.email}
           </p>
         </div>
@@ -100,7 +97,12 @@ export function AccountTab() {
             />
           </div>
           <div>
-            <Button type="submit" size="sm" disabled={isSavingName}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isSavingName}
+            >
               {isSavingName ? "Saving..." : "Update Name"}
             </Button>
           </div>
@@ -112,7 +114,7 @@ export function AccountTab() {
       <div className="flex flex-col gap-4">
         <div>
           <h3 className="text-sm font-medium">Change Password</h3>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-bruv-tertiary">
             Update the password you use to log in.
           </p>
         </div>
@@ -159,7 +161,12 @@ export function AccountTab() {
             />
           </div>
           <div>
-            <Button type="submit" size="sm" disabled={isChangingPassword}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isChangingPassword}
+            >
               {isChangingPassword ? "Changing..." : "Change Password"}
             </Button>
           </div>

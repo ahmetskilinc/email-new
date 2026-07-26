@@ -3,21 +3,19 @@
 import * as React from "react"
 import { format, isSameDay } from "date-fns"
 import { cn } from "@workspace/ui/lib/utils"
-import { Button } from "@workspace/ui/components/button"
-import { Badge } from "@workspace/ui/components/badge"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { Button, Badge } from "bruv-ui"
 import {
-  Location01Icon,
-  Clock01Icon,
-  RepeatIcon,
-  Video01Icon,
-  LinkSquare01Icon,
-  UserMultiple02Icon,
-  PencilEdit01Icon,
-  Delete02Icon,
-  ViewIcon,
-  ViewOffIcon,
-} from "@hugeicons-pro/core-stroke-rounded"
+  MapPinIcon,
+  ClockIcon,
+  ArrowPathRoundedSquareIcon,
+  VideoCameraIcon,
+  ArrowTopRightOnSquareIcon,
+  UsersIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from "@heroicons/react/16/solid"
 import { detectConferenceLink } from "@/lib/meeting-links"
 import { describeRRule } from "@/lib/recurrence"
 import type { CalendarEvent } from "@/server/lib/calendar/types"
@@ -67,7 +65,7 @@ export function EventView({
       {/* Header — pinned */}
       <div className="flex shrink-0 items-start gap-2 pb-3">
         <div
-          className="mt-1.5 size-2.5 shrink-0 rounded-full bg-primary"
+          className="mt-1.5 size-2.5 shrink-0 rounded-full bg-bruv-accent"
           style={event.color ? { backgroundColor: event.color } : undefined}
         />
         <h3 className="text-sm leading-snug font-medium">{event.title}</h3>
@@ -77,15 +75,12 @@ export function EventView({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3 pr-1">
           {/* Time */}
-          <div className="flex items-start gap-2 text-xs text-muted-foreground">
-            <HugeiconsIcon
-              icon={Clock01Icon}
-              className="mt-0.5 size-3.5 shrink-0"
-            />
+          <div className="flex items-start gap-2 text-xs text-bruv-tertiary">
+            <ClockIcon className="mt-0.5 size-3.5 shrink-0" />
             <span>
               {timeDisplay}
               {event.allDay && (
-                <span className="ml-1.5 text-[10px] text-muted-foreground/70 uppercase">
+                <span className="ml-1.5 text-[10px] text-bruv-tertiary/70 uppercase">
                   All day
                 </span>
               )}
@@ -94,8 +89,8 @@ export function EventView({
 
           {/* Recurrence */}
           {recurrenceLabel && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <HugeiconsIcon icon={RepeatIcon} className="size-3.5 shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-bruv-tertiary">
+              <ArrowPathRoundedSquareIcon className="size-3.5 shrink-0" />
               <span>{recurrenceLabel}</span>
             </div>
           )}
@@ -106,36 +101,27 @@ export function EventView({
               href={conferenceLink.joinUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-2 text-xs transition-colors hover:bg-muted/60"
+              className="flex items-center gap-2 rounded-bruv-md border border-bruv-neutral bg-bruv-subtle/30 px-2.5 py-2 text-xs transition-colors hover:bg-bruv-subtle/60"
             >
-              <HugeiconsIcon
-                icon={Video01Icon}
-                className="size-3.5 shrink-0 text-primary"
-              />
+              <VideoCameraIcon className="size-3.5 shrink-0 text-bruv-accent" />
               <span className="flex-1 font-medium">
                 Join {conferenceLink.name}
               </span>
-              <HugeiconsIcon
-                icon={LinkSquare01Icon}
-                className="size-3 shrink-0 text-muted-foreground"
-              />
+              <ArrowTopRightOnSquareIcon className="size-3 shrink-0 text-bruv-tertiary" />
             </a>
           )}
 
           {/* Location */}
           {event.location && (
-            <div className="flex items-start gap-2 text-xs text-muted-foreground">
-              <HugeiconsIcon
-                icon={Location01Icon}
-                className="mt-0.5 size-3.5 shrink-0"
-              />
+            <div className="flex items-start gap-2 text-xs text-bruv-tertiary">
+              <MapPinIcon className="mt-0.5 size-3.5 shrink-0" />
               <span className="break-words">{event.location}</span>
             </div>
           )}
 
           {/* Description */}
           {event.description && (
-            <div className="rounded-md border border-border bg-muted/20 p-2.5">
+            <div className="rounded-bruv-md border border-bruv-neutral bg-bruv-subtle/20 p-2.5">
               <EventDescription text={event.description} />
             </div>
           )}
@@ -143,11 +129,8 @@ export function EventView({
           {/* Attendees */}
           {event.attendees && event.attendees.length > 0 && (
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <HugeiconsIcon
-                  icon={UserMultiple02Icon}
-                  className="size-3.5 shrink-0"
-                />
+              <div className="flex items-center gap-2 text-xs text-bruv-tertiary">
+                <UsersIcon className="size-3.5 shrink-0" />
                 <span>
                   {event.attendees.length} attendee
                   {event.attendees.length !== 1 ? "s" : ""}
@@ -157,12 +140,12 @@ export function EventView({
                 {event.attendees.map((attendee) => (
                   <Badge
                     key={attendee.email}
-                    variant="secondary"
+                    variant="neutral"
                     className="text-[10px]"
                   >
                     {attendee.name || attendee.email}
                     {attendee.status && attendee.status !== "accepted" && (
-                      <span className="ml-1 text-muted-foreground">
+                      <span className="ml-1 text-bruv-tertiary">
                         (
                         {attendee.status === "needsAction"
                           ? "pending"
@@ -178,7 +161,7 @@ export function EventView({
 
           {/* Organizer */}
           {event.organizer && !event.organizer.self && (
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-bruv-tertiary">
               Organized by {event.organizer.name || event.organizer.email}
             </div>
           )}
@@ -188,17 +171,17 @@ export function EventView({
           event.availability ? (
             <div className="flex items-center gap-2">
               {event.visibility && event.visibility !== "default" && (
-                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <div className="flex items-center gap-1 text-[10px] text-bruv-tertiary">
                   {event.visibility === "private" ? (
-                    <HugeiconsIcon icon={ViewOffIcon} className="size-3" />
+                    <EyeSlashIcon className="size-3" />
                   ) : (
-                    <HugeiconsIcon icon={ViewIcon} className="size-3" />
+                    <EyeIcon className="size-3" />
                   )}
                   <span className="capitalize">{event.visibility}</span>
                 </div>
               )}
               {event.availability && (
-                <div className="text-[10px] text-muted-foreground capitalize">
+                <div className="text-[10px] text-bruv-tertiary capitalize">
                   {event.availability}
                 </div>
               )}
@@ -208,26 +191,23 @@ export function EventView({
       </div>
 
       {/* Footer — pinned */}
-      <div className="mt-3 flex shrink-0 items-center gap-2 border-t border-border pt-3">
-        <Button variant="outline" size="sm" className="flex-1" onClick={onEdit}>
-          <HugeiconsIcon
-            icon={PencilEdit01Icon}
-            className="size-3"
-            data-icon="inline-start"
-          />
+      <div className="mt-3 flex shrink-0 items-center gap-2 border-t border-bruv-neutral pt-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          iconLeft={<PencilIcon />}
+          onClick={onEdit}
+        >
           Edit
         </Button>
         <Button
-          variant="destructive"
+          variant="danger-light"
           size="sm"
+          iconLeft={<TrashIcon />}
           onClick={onDelete}
           disabled={isDeleting}
         >
-          <HugeiconsIcon
-            icon={Delete02Icon}
-            className="size-3"
-            data-icon="inline-start"
-          />
           {isDeleting ? "Deleting..." : "Delete"}
         </Button>
       </div>
@@ -328,7 +308,7 @@ function EventDescription({ text }: { text: string }) {
 
   return (
     <div
-      className="event-description text-xs leading-relaxed break-words text-muted-foreground [&_a]:break-all [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-primary/80 [&_br+br]:mb-1.5 [&_br+br]:block [&_br+br]:content-[''] [&_li]:mb-0.5 [&_ol]:mb-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4"
+      className="event-description text-xs leading-relaxed break-words text-bruv-tertiary [&_a]:break-all [&_a]:text-bruv-accent [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-bruv-accent/80 [&_br+br]:mb-1.5 [&_br+br]:block [&_br+br]:content-[''] [&_li]:mb-0.5 [&_ol]:mb-1.5 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-1.5 [&_p:last-child]:mb-0 [&_ul]:mb-1.5 [&_ul]:list-disc [&_ul]:pl-4"
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   )

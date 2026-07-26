@@ -1,18 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { Dialog, Button, Input, Label } from "bruv-ui"
+import { PlusIcon } from "@heroicons/react/16/solid"
 
 export function AddContactDialog({
   onAdd,
@@ -37,20 +27,19 @@ export function AddContactDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Trigger
         render={
-          <Button variant="secondary" size="sm">
-            <HugeiconsIcon icon={Add01Icon} className="mr-1.5 size-4" />
+          <Button variant="secondary" size="sm" iconLeft={<PlusIcon />}>
             Add Contact
           </Button>
         }
       />
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add Contact</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
+      <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
+        <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
+          Add Contact
+        </Dialog.Title>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="contact-email">Email</Label>
             <Input
@@ -74,17 +63,21 @@ export function AddContactDialog({
           <div className="flex justify-end gap-2">
             <Button
               type="button"
-              variant="ghost"
+              variant="transparent"
               onClick={() => setOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isAdding || !email.trim()}>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isAdding || !email.trim()}
+            >
               {isAdding ? "Adding..." : "Add"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </Dialog.Content>
+    </Dialog.Root>
   )
 }

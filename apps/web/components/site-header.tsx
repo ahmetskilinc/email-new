@@ -2,12 +2,10 @@
 
 import { DualSidebarTrigger } from "@workspace/ui/components/dual-sidebar"
 import { useSearchValue } from "@/hooks/use-search-value"
-import { Separator } from "@workspace/ui/components/separator"
-import { Input } from "@workspace/ui/components/input"
+import { Separator, Input } from "bruv-ui"
 import { useParams } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Search01Icon, Cancel01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/16/solid"
 
 export function SiteHeader() {
   const params = useParams<{ folder?: string }>()
@@ -57,10 +55,7 @@ export function SiteHeader() {
       <Separator orientation="vertical" className="mr-2" />
       <h1 className="shrink-0 text-sm font-medium">{title}</h1>
       <div className="relative ml-auto w-full max-w-xs">
-        <HugeiconsIcon
-          icon={Search01Icon}
-          className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
-        />
+        <MagnifyingGlassIcon className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-bruv-tertiary" />
         <Input
           ref={inputRef}
           data-slot="search-input"
@@ -74,9 +69,9 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={handleClear}
-            className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute top-1/2 right-2 -translate-y-1/2 text-bruv-tertiary hover:text-bruv-primary"
           >
-            <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+            <XMarkIcon className="size-3.5" />
           </button>
         )}
       </div>

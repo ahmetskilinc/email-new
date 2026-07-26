@@ -6,7 +6,7 @@ import { ICloudForm } from "@/components/connection/icloud-form"
 import { YahooForm } from "@/components/connection/yahoo-form"
 import { useConnections } from "@/hooks/use-connections"
 import { emailProviders } from "@/lib/constants"
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "bruv-ui"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
@@ -54,7 +54,7 @@ export default function OnboardingPage() {
       <div className="flex w-full max-w-md flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Connect your email</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-bruv-tertiary">
             {hasConnections
               ? "Your account is connected. Add more or head to your inbox."
               : "Connect an email account to start using your inbox."}
@@ -62,7 +62,7 @@ export default function OnboardingPage() {
         </div>
 
         {appPasswordProvider === "icloud" ? (
-          <div className="rounded-lg border p-6">
+          <div className="rounded-bruv-lg border p-6">
             <ICloudForm
               defaultEmail=""
               onSuccess={handleAppPasswordSuccess}
@@ -70,7 +70,7 @@ export default function OnboardingPage() {
             />
           </div>
         ) : appPasswordProvider === "yahoo" ? (
-          <div className="rounded-lg border p-6">
+          <div className="rounded-bruv-lg border p-6">
             <YahooForm
               defaultEmail=""
               onSuccess={handleAppPasswordSuccess}
@@ -78,7 +78,7 @@ export default function OnboardingPage() {
             />
           </div>
         ) : appPasswordProvider === "custom" ? (
-          <div className="rounded-lg border p-6">
+          <div className="rounded-bruv-lg border p-6">
             <CustomImapForm
               onSuccess={handleAppPasswordSuccess}
               onBack={() => setAppPasswordProvider(null)}
@@ -105,6 +105,7 @@ export default function OnboardingPage() {
 
         {hasConnections && (
           <Button
+            variant="primary"
             className="w-full"
             onClick={() => {
               window.location.href = "/mail/inbox"

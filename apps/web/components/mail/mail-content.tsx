@@ -120,7 +120,7 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
   return (
     <>
       {cspViolation && !isTrustedSender && !data?.settings?.externalImages && (
-        <div className="flex items-center justify-start bg-amber-600/20 px-2 py-1 text-sm text-amber-600">
+        <div className="flex items-center justify-start bg-bruv-warn-subtle px-2 py-1 text-sm text-bruv-warn">
           <p>Images are hidden by default for security reasons.</p>
           <button
             onClick={() => setTemporaryImagesEnabled(!temporaryImagesEnabled)}

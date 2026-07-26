@@ -32,7 +32,7 @@ export function SignatureEditor({
       TiptapUnderline,
       TiptapLink.configure({
         openOnClick: false,
-        HTMLAttributes: { class: "text-primary underline" },
+        HTMLAttributes: { class: "text-bruv-accent underline" },
       }),
       TextStyle,
       Color,
@@ -59,7 +59,7 @@ export function SignatureEditor({
   if (!editor) return null
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-bruv-md border">
       <div className="flex flex-wrap gap-0.5 border-b px-1 py-1">
         <ToolbarButton
           active={editor.isActive("bold")}
@@ -81,7 +81,7 @@ export function SignatureEditor({
         >
           U
         </ToolbarButton>
-        <div className="mx-1 w-px bg-border" />
+        <div className="mx-1 w-px bg-bruv-neutral" />
         <ToolbarButton
           active={editor.isActive("bulletList")}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -139,8 +139,8 @@ function ToolbarButton({
       className={cn(
         "rounded px-2 py-1 text-xs font-medium transition-colors",
         active
-          ? "bg-muted text-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+          ? "bg-bruv-subtle text-bruv-primary"
+          : "text-bruv-tertiary hover:bg-bruv-subtle/60 hover:text-bruv-primary",
         className
       )}
     >

@@ -2,19 +2,13 @@
 
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
-import {
   Select,
+  SelectButton,
   SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
+  SelectOption,
+  Button,
+  Input,
+} from "bruv-ui"
 import {
   Field,
   FieldError,
@@ -29,8 +23,6 @@ import useComposeEditor from "@/hooks/use-compose-editor"
 import { RecipientInput } from "@/components/create/recipient-input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useSettings } from "@/hooks/use-settings"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
 import { serializeFiles } from "@/lib/schemas"
 import { createDraft } from "@/server/actions/drafts"
 import { formatFileSize } from "@/lib/utils"
@@ -38,11 +30,10 @@ import { AnimatePresence, motion } from "motion/react"
 import { EditorContent } from "@tiptap/react"
 import { useForm } from "react-hook-form"
 import { useQueryState } from "nuqs"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 import { cn } from "@workspace/ui/lib/utils"
 import { z } from "zod"
-import { X } from "@hugeicons-pro/core-stroke-rounded"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { XMarkIcon } from "@heroicons/react/16/solid"
 
 const composeSchema = z.object({
   to: z.string().min(1, "Recipient is required"),
@@ -249,7 +240,7 @@ export function EmailComposer({
           data-invalid={!!errors.to || undefined}
           className="pr-8"
         >
-          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
             To:
           </FieldLabel>
           <RecipientInput
@@ -262,14 +253,14 @@ export function EmailComposer({
           <div className="flex shrink-0 gap-4">
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-bruv-tertiary hover:text-bruv-primary"
               onClick={() => setShowCc(!showCc)}
             >
               Cc
             </button>
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-bruv-tertiary hover:text-bruv-primary"
               onClick={() => setShowBcc(!showBcc)}
             >
               Bcc
@@ -280,7 +271,7 @@ export function EmailComposer({
 
         {showCc && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
               Cc:
             </FieldLabel>
             <RecipientInput
@@ -294,7 +285,7 @@ export function EmailComposer({
 
         {showBcc && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
               Bcc:
             </FieldLabel>
             <RecipientInput
@@ -310,7 +301,7 @@ export function EmailComposer({
           orientation="horizontal"
           data-invalid={!!errors.subject || undefined}
         >
-          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
             Sub:
           </FieldLabel>
           <Input
@@ -324,23 +315,31 @@ export function EmailComposer({
 
         {aliases && aliases.length > 1 && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
               From:
             </FieldLabel>
             <Select
               value={currentFromEmail}
               onValueChange={(value) => setValue("fromEmail", value ?? "")}
+              items={aliases.map((alias: any) => ({
+                value: alias.email,
+                label: alias.name
+                  ? `${alias.name} <${alias.email}>`
+                  : alias.email,
+              }))}
             >
-              <SelectTrigger className="border-0 shadow-none focus:ring-0">
-                <SelectValue placeholder="Select email" />
-              </SelectTrigger>
+              <SelectButton
+                size="sm"
+                placeholder="Select email"
+                className="border-0 shadow-none focus:ring-0"
+              />
               <SelectContent>
                 {aliases.map((alias: any) => (
-                  <SelectItem key={alias.email} value={alias.email}>
+                  <SelectOption key={alias.email} value={alias.email}>
                     {alias.name
                       ? `${alias.name} <${alias.email}>`
                       : alias.email}
-                  </SelectItem>
+                  </SelectOption>
                 ))}
               </SelectContent>
             </Select>
@@ -349,7 +348,7 @@ export function EmailComposer({
 
         {signatures && signatures.length > 0 && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-bruv-tertiary">
               Sig:
             </FieldLabel>
             <Select
@@ -357,16 +356,22 @@ export function EmailComposer({
               onValueChange={(value) =>
                 setSelectedSignatureId(value === "__none__" ? null : value)
               }
+              items={[
+                { value: "__none__", label: "None" },
+                ...signatures.map((sig) => ({ value: sig.id, label: sig.name })),
+              ]}
             >
-              <SelectTrigger className="border-0 shadow-none focus:ring-0">
-                <SelectValue placeholder="No signature" />
-              </SelectTrigger>
+              <SelectButton
+                size="sm"
+                placeholder="No signature"
+                className="border-0 shadow-none focus:ring-0"
+              />
               <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
+                <SelectOption value="__none__">None</SelectOption>
                 {signatures.map((sig) => (
-                  <SelectItem key={sig.id} value={sig.id}>
+                  <SelectOption key={sig.id} value={sig.id}>
                     {sig.name}
-                  </SelectItem>
+                  </SelectOption>
                 ))}
               </SelectContent>
             </Select>
@@ -385,7 +390,7 @@ export function EmailComposer({
           />
         )}
         {selectedSignature && (
-          <div className="mt-4 border-t border-dashed pt-3 text-xs text-muted-foreground">
+          <div className="mt-4 border-t border-dashed pt-3 text-xs text-bruv-tertiary">
             <p>--</p>
             <div
               className="prose prose-sm dark:prose-invert max-w-none opacity-60"
@@ -428,7 +433,7 @@ export function EmailComposer({
       </AnimatePresence>
 
       <div className="flex items-center gap-2 border-t p-3">
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" variant="primary" disabled={isSubmitting}>
           {isSubmitting ? "Sending..." : "Send"}
         </Button>
         <Button
@@ -455,18 +460,20 @@ export function EmailComposer({
         />
       </div>
 
-      <Dialog
+      <Dialog.Root
         open={showLeaveConfirmation}
         onOpenChange={setShowLeaveConfirmation}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Discard message?</DialogTitle>
-            <DialogDescription>
+        <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
+          <div className="flex flex-col gap-2">
+            <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
+              Discard message?
+            </Dialog.Title>
+            <p className="text-sm text-bruv-tertiary">
               You have unsaved changes. Are you sure you want to leave?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
             <Button
               type="button"
               variant="secondary"
@@ -476,7 +483,7 @@ export function EmailComposer({
             </Button>
             <Button
               type="button"
-              variant="destructive"
+              variant="danger-light"
               onClick={() => {
                 setShowLeaveConfirmation(false)
                 onClose?.()
@@ -484,9 +491,9 @@ export function EmailComposer({
             >
               Discard
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
     </form>
   )
 }
@@ -509,9 +516,9 @@ function AttachmentPreview({
   }, [file, isImage])
 
   return (
-    <div className="group relative flex w-32 flex-col overflow-hidden rounded-lg border bg-muted/30">
+    <div className="group relative flex w-32 flex-col overflow-hidden rounded-bruv-lg border bg-bruv-subtle/30">
       {previewUrl ? (
-        <div className="flex h-36 items-center justify-center overflow-hidden bg-muted">
+        <div className="flex h-36 items-center justify-center overflow-hidden bg-bruv-subtle">
           <img
             src={previewUrl}
             alt={file.name}
@@ -519,24 +526,24 @@ function AttachmentPreview({
           />
         </div>
       ) : (
-        <div className="flex h-20 items-center justify-center bg-muted">
-          <span className="text-xs font-medium text-muted-foreground uppercase">
+        <div className="flex h-20 items-center justify-center bg-bruv-subtle">
+          <span className="text-xs font-medium text-bruv-tertiary uppercase">
             {file.name.split(".").pop()}
           </span>
         </div>
       )}
       <div className="flex flex-col gap-0.5 p-2">
         <span className="truncate text-xs font-medium">{file.name}</span>
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-bruv-tertiary">
           {formatFileSize(file.size)}
         </span>
       </div>
       <button
         type="button"
         onClick={onRemove}
-        className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-background/80 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+        className="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-bruv-base-0/80 text-xs text-bruv-tertiary opacity-0 transition-opacity group-hover:opacity-100 hover:text-bruv-danger"
       >
-        <HugeiconsIcon icon={X} data-icon="inline-start" className="size-3" />
+        <XMarkIcon className="size-3" />
       </button>
     </div>
   )

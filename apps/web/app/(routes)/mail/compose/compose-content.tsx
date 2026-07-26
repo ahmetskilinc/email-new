@@ -5,7 +5,7 @@ import { sendMail } from "@/server/actions/mail"
 import { useSearchParams, useRouter } from "next/navigation"
 import { serializeFiles } from "@/lib/schemas"
 import { useQueryState } from "nuqs"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 
 export function ComposeContent() {
   const searchParams = useSearchParams()

@@ -1,25 +1,18 @@
 "use client"
 
 import * as React from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
+import { Dialog } from "bruv-ui"
 import { cn } from "@workspace/ui/lib/utils"
-import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Settings04Icon,
-  Link04Icon,
-  Notification03Icon,
-  UserAccountIcon,
-  PaintBoardIcon,
-  QuillWrite01Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
-import {
-  ArrowLeft01Icon,
-  Cancel01Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
+  Cog6ToothIcon,
+  LinkIcon,
+  BellIcon,
+  UserCircleIcon,
+  PaintBrushIcon,
+  PencilSquareIcon,
+  ArrowLeftIcon,
+  XMarkIcon,
+} from "@heroicons/react/16/solid"
 import { GeneralTab } from "./general-tab"
 import { AccountTab } from "./account-tab"
 import { ConnectionsTab } from "./connections-tab"
@@ -37,35 +30,35 @@ const tabs: {
   {
     id: "general",
     label: "General",
-    icon: PaintBoardIcon,
+    icon: PaintBrushIcon,
     title: "General",
     description: "Customize the look and behavior of the app.",
   },
   {
     id: "account",
     label: "Account",
-    icon: UserAccountIcon,
+    icon: UserCircleIcon,
     title: "Account",
     description: "Manage your account details.",
   },
   {
     id: "connections",
     label: "Connections",
-    icon: Link04Icon,
+    icon: LinkIcon,
     title: "Email Accounts",
     description: "Manage your connected email accounts.",
   },
   {
     id: "signatures",
     label: "Signatures",
-    icon: QuillWrite01Icon,
+    icon: PencilSquareIcon,
     title: "Signatures",
     description: "Manage email signatures for your accounts.",
   },
   {
     id: "notifications",
     label: "Notifications",
-    icon: Notification03Icon,
+    icon: BellIcon,
     title: "Notifications",
     description: "Choose what notifications you want to receive.",
   },
@@ -103,53 +96,50 @@ export function SettingsDialog() {
   const sidebarNav = (
     <>
       <div className="mb-2 flex items-center gap-2 px-2 py-1">
-        <HugeiconsIcon
-          icon={Settings04Icon}
-          className="size-4 text-muted-foreground"
-        />
+        <Cog6ToothIcon className="size-4 text-bruv-tertiary" />
         <span className="text-sm font-semibold">Settings</span>
       </div>
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          onClick={() => {
-            setActiveTab(tab.id)
-            setMobileShowContent(true)
-          }}
-          className={cn(
-            "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-            activeTab === tab.id
-              ? "bg-muted font-medium text-foreground"
-              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          )}
-        >
-          <HugeiconsIcon icon={tab.icon} className="size-3.5" />
-          {tab.label}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const TabIcon = tab.icon
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              setActiveTab(tab.id)
+              setMobileShowContent(true)
+            }}
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-bruv-md px-2 py-1.5 text-left text-sm transition-colors",
+              activeTab === tab.id
+                ? "bg-bruv-subtle font-medium text-bruv-primary"
+                : "text-bruv-tertiary hover:bg-bruv-subtle/60 hover:text-bruv-primary"
+            )}
+          >
+            <TabIcon className="size-3.5" />
+            {tab.label}
+          </button>
+        )
+      })}
     </>
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="h-[min(36rem,85vh)] w-full overflow-hidden p-0 sm:max-w-3xl"
-        showCloseButton={false}
-      >
-        <DialogTitle className="sr-only">Settings</DialogTitle>
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Content className="h-[min(36rem,85vh)] w-[90vw] max-w-3xl overflow-hidden p-0">
+        <Dialog.Title className="sr-only border-none p-0">Settings</Dialog.Title>
 
         {/* Desktop: side-by-side */}
         <div className="hidden h-full min-h-0 sm:flex">
-          <div className="flex w-48 shrink-0 flex-col gap-1 border-r border-border bg-muted/30 p-3">
+          <div className="flex w-48 shrink-0 flex-col gap-1 border-r border-bruv-neutral bg-bruv-subtle/30 p-3">
             {sidebarNav}
           </div>
           <div className="flex min-h-0 flex-1 flex-col">
-            <div className="shrink-0 border-b border-border px-6 pt-6 pb-4">
+            <div className="shrink-0 border-b border-bruv-neutral px-6 pt-6 pb-4">
               <h2 className="text-base font-semibold">
                 {activeTabData?.title}
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-bruv-tertiary">
                 {activeTabData?.description}
               </p>
             </div>
@@ -165,59 +155,51 @@ export function SettingsDialog() {
             <div className="flex flex-1 flex-col gap-1 p-3">
               <div className="mb-2 flex items-center justify-between px-2 py-1">
                 <div className="flex items-center gap-2">
-                  <HugeiconsIcon
-                    icon={Settings04Icon}
-                    className="size-4 text-muted-foreground"
-                  />
+                  <Cog6ToothIcon className="size-4 text-bruv-tertiary" />
                   <span className="text-sm font-semibold">Settings</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-bruv-tertiary hover:text-bruv-primary"
                 >
-                  <HugeiconsIcon
-                    icon={Cancel01Icon}
-                    className="size-4"
-                    strokeWidth={2}
-                  />
+                  <XMarkIcon className="size-4" />
                   <span className="sr-only">Close</span>
                 </button>
               </div>
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab.id)
-                    setMobileShowContent(true)
-                  }}
-                  className={cn(
-                    "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
-                    activeTab === tab.id
-                      ? "bg-muted font-medium text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  )}
-                >
-                  <HugeiconsIcon icon={tab.icon} className="size-3.5" />
-                  {tab.label}
-                </button>
-              ))}
+              {tabs.map((tab) => {
+                const TabIcon = tab.icon
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id)
+                      setMobileShowContent(true)
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-2.5 rounded-bruv-md px-2 py-1.5 text-left text-sm transition-colors",
+                      activeTab === tab.id
+                        ? "bg-bruv-subtle font-medium text-bruv-primary"
+                        : "text-bruv-tertiary hover:bg-bruv-subtle/60 hover:text-bruv-primary"
+                    )}
+                  >
+                    <TabIcon className="size-3.5" />
+                    {tab.label}
+                  </button>
+                )
+              })}
             </div>
           ) : (
             <>
-              <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-3">
+              <div className="flex shrink-0 items-center justify-between border-b border-bruv-neutral px-3 py-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setMobileShowContent(false)}
-                    className="text-muted-foreground hover:text-foreground"
+                    className="text-bruv-tertiary hover:text-bruv-primary"
                   >
-                    <HugeiconsIcon
-                      icon={ArrowLeft01Icon}
-                      className="size-4"
-                      strokeWidth={2}
-                    />
+                    <ArrowLeftIcon className="size-4" />
                   </button>
                   <h2 className="text-sm font-semibold">
                     {activeTabData?.title}
@@ -226,13 +208,9 @@ export function SettingsDialog() {
                 <button
                   type="button"
                   onClick={() => onOpenChange(false)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-bruv-tertiary hover:text-bruv-primary"
                 >
-                  <HugeiconsIcon
-                    icon={Cancel01Icon}
-                    className="size-4"
-                    strokeWidth={2}
-                  />
+                  <XMarkIcon className="size-4" />
                   <span className="sr-only">Close</span>
                 </button>
               </div>
@@ -242,7 +220,7 @@ export function SettingsDialog() {
             </>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </Dialog.Content>
+    </Dialog.Root>
   )
 }

@@ -1,21 +1,16 @@
 "use client"
 
+import { DropdownMenu, Avatar, Button } from "bruv-ui"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import {
-  MoreHorizontalCircle01Icon,
-  Logout01Icon,
-  AddCircleIcon,
-  Sun01Icon,
-  Moon01Icon,
-  MonitorStopIcon,
-} from "@hugeicons-pro/core-stroke-rounded"
+  EllipsisHorizontalIcon,
+  ArrowRightStartOnRectangleIcon,
+  PlusCircleIcon,
+  SunIcon,
+  MoonIcon,
+  ComputerDesktopIcon,
+  Cog6ToothIcon,
+  LinkIcon,
+} from "@heroicons/react/16/solid"
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -27,21 +22,13 @@ import {
   type SwitchTarget,
 } from "./connection/account-switch-dialog"
 import { useActiveConnection, useConnections } from "@/hooks/use-connections"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
 import { emailProviders } from "@/lib/constants"
-import { Button } from "@workspace/ui/components/button"
 import { useSession } from "@/lib/auth-client"
 import { signOut } from "@/lib/auth-client"
 import { useTheme } from "next-themes"
 import { cn } from "@workspace/ui/lib/utils"
 import { useEffect, useState } from "react"
-import { toast } from "sonner"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Settings04Icon, Link04Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { toast } from "bruv-ui"
 import { useOpenSettings } from "@/store/settings"
 import { AddConnectionDialog } from "./settings/add-connection-dialog"
 
@@ -49,17 +36,17 @@ const themeOptions = [
   {
     label: "Light",
     value: "light",
-    Icon: <HugeiconsIcon icon={Sun01Icon} className="h-4 w-4" />,
+    Icon: <SunIcon />,
   },
   {
     label: "Dark",
     value: "dark",
-    Icon: <HugeiconsIcon icon={Moon01Icon} className="h-4 w-4" />,
+    Icon: <MoonIcon />,
   },
   {
     label: "System",
     value: "system",
-    Icon: <HugeiconsIcon icon={MonitorStopIcon} className="h-4 w-4" />,
+    Icon: <ComputerDesktopIcon />,
   },
 ] as const
 
@@ -116,30 +103,27 @@ export function NavUser() {
     <>
       <SidebarMenu>
         <SidebarMenuItem>
-          <DropdownMenu>
-            <DropdownMenuTrigger
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger
               render={
                 <SidebarMenuButton
                   size="lg"
-                  className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  className="data-[state=open]:bg-bruv-subtle data-[state=open]:text-bruv-primary"
                 >
                   {conn?.picture ? (
-                    <Avatar className="size-8">
-                      <AvatarImage
-                        src={conn.picture}
-                        alt={conn.name || conn.email}
-                      />
-                      <AvatarFallback className="text-[10px]">
-                        {(conn.name || conn.email)
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                          .slice(0, 2)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Avatar
+                      size="md"
+                      src={conn.picture}
+                      alt={conn.name || conn.email}
+                      initials={(conn.name || conn.email)
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    />
                   ) : (
-                    <div className="flex size-8 items-center justify-center rounded-full border bg-sidebar-accent">
+                    <div className="flex size-8 items-center justify-center rounded-full border bg-bruv-subtle">
                       {ActiveConnectionIcon && (
                         <ActiveConnectionIcon className="size-4" />
                       )}
@@ -147,43 +131,38 @@ export function NavUser() {
                   )}
                   <div className="grid flex-1 text-left text-sm leading-tight group-data-[state=collapsed]:hidden">
                     <span className="truncate font-medium">{conn?.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-bruv-tertiary">
                       {conn?.email}
                     </span>
                   </div>
-                  <HugeiconsIcon
-                    icon={MoreHorizontalCircle01Icon}
-                    className="ml-auto grid size-4 group-data-[state=collapsed]:hidden"
-                  />
+                  <EllipsisHorizontalIcon className="ml-auto grid size-4 group-data-[state=collapsed]:hidden" />
                 </SidebarMenuButton>
               }
             />
-            <DropdownMenuContent
-              className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg bg-card"
+            <DropdownMenu.Content
+              minWidth="min-w-56"
+              className="rounded-bruv-lg"
               side={isMobile ? "bottom" : "right"}
               align="end"
               sideOffset={4}
             >
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
+              <DropdownMenu.Group>
+                <DropdownMenu.Item>
                   <div className="flex items-center gap-2 text-left text-sm">
                     {conn?.picture ? (
-                      <Avatar className="size-8">
-                        <AvatarImage
-                          src={conn.picture}
-                          alt={conn.name || conn.email}
-                        />
-                        <AvatarFallback className="text-[10px]">
-                          {(conn.name || conn.email)
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")
-                            .toUpperCase()
-                            .slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <Avatar
+                        size="md"
+                        src={conn.picture}
+                        alt={conn.name || conn.email}
+                        initials={(conn.name || conn.email)
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      />
                     ) : (
-                      <div className="flex size-8 items-center justify-center rounded-full border bg-sidebar-accent">
+                      <div className="flex size-8 items-center justify-center rounded-full border bg-bruv-subtle">
                         {ActiveConnectionIcon && (
                           <ActiveConnectionIcon className="size-4" />
                         )}
@@ -191,44 +170,41 @@ export function NavUser() {
                     )}
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="flex items-center gap-px truncate font-medium">
-                        <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-green-500 duration-2000" />
+                        <span className="mr-1 inline-block size-1.5 animate-pulse rounded-full bg-bruv-success duration-2000" />
                         {conn?.name}
                       </span>
-                      <span className="truncate text-xs text-muted-foreground">
+                      <span className="truncate text-xs text-bruv-tertiary">
                         {conn?.email}
                       </span>
                     </div>
                   </div>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuGroup>
+                </DropdownMenu.Item>
+              </DropdownMenu.Group>
+              <DropdownMenu.Group>
                 {otherConnections &&
                   otherConnections.map((connection) => {
                     const Icon = emailProviders.find(
                       (p) => p.providerId === connection.providerId
                     )?.icon
                     return (
-                      <DropdownMenuItem
+                      <DropdownMenu.Item
                         key={connection.id}
                         onClick={handleAccountSwitch(connection)}
                       >
                         {connection.picture ? (
-                          <Avatar className="size-7">
-                            <AvatarImage
-                              src={connection.picture}
-                              alt={connection.name || connection.email}
-                            />
-                            <AvatarFallback className="text-[10px]">
-                              {(connection.name || connection.email)
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2)}
-                            </AvatarFallback>
-                          </Avatar>
+                          <Avatar
+                            size="sm"
+                            src={connection.picture}
+                            alt={connection.name || connection.email}
+                            initials={(connection.name || connection.email)
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          />
                         ) : (
-                          <div className="flex size-8 items-center justify-center rounded-full border bg-sidebar-accent">
+                          <div className="flex size-8 items-center justify-center rounded-full border bg-bruv-subtle">
                             {Icon && <Icon className="size-4" />}
                           </div>
                         )}
@@ -237,70 +213,78 @@ export function NavUser() {
                             {connection.name || connection.email}
                           </p>
                           {connection.name && (
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-[11px] text-bruv-tertiary">
                               {connection.email.length > 25
                                 ? `${connection.email.slice(0, 25)}...`
                                 : connection.email}
                             </p>
                           )}
                         </div>
-                      </DropdownMenuItem>
+                      </DropdownMenu.Item>
                     )
                   })}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setAddConnectionOpen(true)}>
-                  <HugeiconsIcon icon={AddCircleIcon} className="h-4 w-4" />
+              </DropdownMenu.Group>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Group>
+                <DropdownMenu.Item
+                  icon={<PlusCircleIcon />}
+                  onClick={() => setAddConnectionOpen(true)}
+                >
                   Add Connection
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => openSettings("general")}>
-                  <HugeiconsIcon icon={Settings04Icon} className="h-4 w-4" />
+                </DropdownMenu.Item>
+              </DropdownMenu.Group>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Group>
+                <DropdownMenu.Item
+                  icon={<Cog6ToothIcon />}
+                  onClick={() => openSettings("general")}
+                >
                   General
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openSettings("connections")}>
-                  <HugeiconsIcon icon={Link04Icon} className="h-4 w-4" />
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  icon={<LinkIcon />}
+                  onClick={() => openSettings("connections")}
+                >
                   Connections
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
+                </DropdownMenu.Item>
+              </DropdownMenu.Group>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Group>
                 <div className="flex items-center justify-between pl-2">
                   <span className="text-[13px] font-medium">Appearance</span>
                   <div className="flex items-center">
                     {themeOptions.map((option, i) => (
                       <Button
                         key={option.value}
-                        variant="ghost"
-                        size="icon"
+                        variant="transparent"
+                        size="sm"
                         className={cn(
-                          "flex items-center justify-center p-1.5 text-accent-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                          "flex items-center justify-center p-1.5 text-bruv-primary transition-colors hover:bg-bruv-subtle hover:text-bruv-primary",
                           activeTheme === option.value &&
-                            "bg-muted text-accent-foreground"
+                            "bg-bruv-subtle text-bruv-primary"
                         )}
                         onClick={() => {
                           setTheme(option.value)
                         }}
                         type="button"
-                      >
-                        {option.Icon}
-                      </Button>
+                        iconLeft={option.Icon}
+                        aria-label={`${option.label} theme`}
+                      />
                     ))}
                   </div>
                 </div>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={handleLogout}>
-                  <HugeiconsIcon icon={Logout01Icon} className="h-4 w-4" />
+              </DropdownMenu.Group>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Group>
+                <DropdownMenu.Item
+                  icon={<ArrowRightStartOnRectangleIcon />}
+                  onClick={handleLogout}
+                >
                   Log out
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                </DropdownMenu.Item>
+              </DropdownMenu.Group>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         </SidebarMenuItem>
       </SidebarMenu>
       <AccountSwitchDialog

@@ -14,16 +14,12 @@ import {
 } from "@workspace/ui/components/dual-sidebar"
 import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
 import { useOpenCompose } from "@/store/compose"
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "bruv-ui"
 import { usePathname } from "next/navigation"
 import { useEffect } from "react"
 import Link from "next/link"
 import { NavUser } from "./nav-user"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Mail02Icon,
-  PencilEdit02Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
+import { EnvelopeIcon, PencilSquareIcon } from "@heroicons/react/16/solid"
 
 export function AppSidebar() {
   const pathname = usePathname()
@@ -40,7 +36,7 @@ export function AppSidebar() {
     <DualSidebar side="left" variant="inset" collapsible="icon">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={Mail02Icon} className="size-4" />
+          <EnvelopeIcon className="size-4" />
           <span className="block text-sm font-semibold group-data-[state=collapsed]:hidden">
             Mail
           </span>
@@ -50,10 +46,12 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <Button
-              className="mt-2 w-full gap-2 group-data-[state=collapsed]:size-8 group-data-[state=collapsed]:p-0"
+              variant="primary"
+              iconLeft={<PencilSquareIcon />}
+              aria-label="Compose"
+              className="mt-2 w-full group-data-[state=collapsed]:size-8 group-data-[state=collapsed]:p-0"
               onClick={() => openCompose()}
             >
-              <HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />
               <span className="group-data-[state=collapsed]:hidden">
                 Compose
               </span>

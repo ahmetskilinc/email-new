@@ -1,11 +1,9 @@
 "use client"
 
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
+import { Button, Input, Label } from "bruv-ui"
 import { useState } from "react"
 import { signIn } from "@/lib/auth-client"
-import { toast } from "sonner"
+import { toast } from "bruv-ui"
 import Link from "next/link"
 
 export default function LoginPage() {
@@ -42,7 +40,11 @@ export default function LoginPage() {
         provider: providerId,
         callbackURL: `${window.location.origin}/mail/inbox`,
       }),
-      { error: "Login redirect failed" }
+      {
+        loading: "Redirecting…",
+        success: "Redirecting…",
+        error: "Login redirect failed",
+      }
     )
   }
 
@@ -51,7 +53,7 @@ export default function LoginPage() {
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="text-center">
           <h1 className="text-2xl font-semibold">Welcome back</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 text-sm text-bruv-tertiary">
             Log in to your account.
           </p>
         </div>
@@ -83,17 +85,22 @@ export default function LoginPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            disabled={isLoading}
+          >
             {isLoading ? "Logging in..." : "Log in"}
           </Button>
         </form>
 
         <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border" />
-          <span className="text-xs text-muted-foreground">
+          <div className="h-px flex-1 bg-bruv-neutral" />
+          <span className="text-xs text-bruv-tertiary">
             Or continue with
           </span>
-          <div className="h-px flex-1 bg-border" />
+          <div className="h-px flex-1 bg-bruv-neutral" />
         </div>
 
         <div className="flex flex-col gap-2">
@@ -113,9 +120,9 @@ export default function LoginPage() {
           </Button>
         </div>
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-sm text-bruv-tertiary">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-foreground underline">
+          <Link href="/signup" className="text-bruv-primary underline">
             Sign up
           </Link>
         </p>

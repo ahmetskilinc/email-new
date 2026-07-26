@@ -1,11 +1,6 @@
 "use client"
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
+import { Dialog } from "bruv-ui"
 import { useComposeDialog } from "@/store/compose"
 import { EmailComposer } from "./email-composer"
 import { sendMail } from "@/server/actions/mail"
@@ -45,11 +40,9 @@ export function ComposeDialog() {
   const title = initialData?.threadId ? "Reply" : "New Message"
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-h-[90dvh] overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="sr-only">
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Content className="max-h-[90dvh] w-[90vw] max-w-2xl overflow-hidden p-0">
+        <Dialog.Title className="sr-only border-none p-0">{title}</Dialog.Title>
         <EmailComposer
           key={open ? JSON.stringify(initialData) : "closed"}
           initialTo={initialData?.to}
@@ -61,7 +54,7 @@ export function ComposeDialog() {
           onClose={() => setOpen(false)}
           autofocus
         />
-      </DialogContent>
-    </Dialog>
+      </Dialog.Content>
+    </Dialog.Root>
   )
 }

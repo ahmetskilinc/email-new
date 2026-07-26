@@ -1,13 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-} from "@hugeicons-pro/core-stroke-rounded"
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/16/solid"
 import { cn } from "@workspace/ui/lib/utils"
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "bruv-ui"
 import {
   startOfMonth,
   startOfWeek,
@@ -84,24 +80,24 @@ export function MiniCalendar({
     <div className={cn("w-full", className)}>
       <div className="relative flex h-8 items-center justify-center">
         <Button
-          variant="ghost"
-          size="icon-xs"
+          variant="transparent"
+          size="xs"
           className="absolute left-0"
+          aria-label="Previous month"
+          iconLeft={<ArrowLeftIcon />}
           onClick={() => setViewMonth(subMonths(viewMonth, 1))}
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" />
-        </Button>
+        />
         <span className="text-sm font-medium">
           {format(viewMonth, "MMMM yyyy")}
         </span>
         <Button
-          variant="ghost"
-          size="icon-xs"
+          variant="transparent"
+          size="xs"
           className="absolute right-0"
+          aria-label="Next month"
+          iconLeft={<ArrowRightIcon />}
           onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-        >
-          <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
-        </Button>
+        />
       </div>
 
       <div className="mt-2">
@@ -109,7 +105,7 @@ export function MiniCalendar({
           {weekdayNames.map((name, i) => (
             <div
               key={i}
-              className="flex size-8 items-center justify-center text-xs text-muted-foreground"
+              className="flex size-8 items-center justify-center text-xs text-bruv-tertiary"
             >
               {name}
             </div>
@@ -135,18 +131,18 @@ export function MiniCalendar({
                     onClick={() => onDateSelect?.(day)}
                     onDoubleClick={() => onDateDoubleClick?.(day)}
                     className={cn(
-                      "relative flex size-7 items-center justify-center rounded-md text-xs transition-colors",
-                      outside && "text-muted-foreground/40",
-                      !outside && !today && !isSelected && "hover:bg-muted",
+                      "relative flex size-7 items-center justify-center rounded-bruv-md text-xs transition-colors",
+                      outside && "text-bruv-tertiary/40",
+                      !outside && !today && !isSelected && "hover:bg-bruv-subtle",
                       today &&
                         !isSelected &&
-                        "border border-primary bg-primary/10 font-medium text-primary",
-                      isSelected && "bg-primary text-primary-foreground"
+                        "border border-bruv-accent bg-bruv-accent/10 font-medium text-bruv-accent",
+                      isSelected && "bg-bruv-accent text-bruv-accent-on"
                     )}
                   >
                     {day.getDate()}
                     {hasEvents && !isSelected && (
-                      <span className="absolute bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-primary" />
+                      <span className="absolute bottom-0.5 left-1/2 size-1 -translate-x-1/2 rounded-full bg-bruv-accent" />
                     )}
                   </button>
                 </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Input } from "@workspace/ui/components/input"
+import { Input } from "bruv-ui"
 import { searchRecipients } from "@/server/actions/contacts"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -128,14 +128,14 @@ export function RecipientInput({
         aria-invalid={ariaInvalid}
       />
       {showSuggestions && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+        <div className="absolute top-full left-0 z-50 mt-1 w-full rounded-bruv-md border bg-bruv-base-1 shadow-md">
           {suggestions.map((s, i) => (
             <button
               key={s.email}
               type="button"
               className={cn(
-                "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-muted",
-                i === activeIndex && "bg-muted"
+                "flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm transition-colors hover:bg-bruv-subtle",
+                i === activeIndex && "bg-bruv-subtle"
               )}
               onMouseDown={(e) => {
                 e.preventDefault()
@@ -145,7 +145,7 @@ export function RecipientInput({
               {s.name ? (
                 <>
                   <span className="text-sm">{s.name}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-bruv-tertiary">
                     {s.email}
                   </span>
                 </>

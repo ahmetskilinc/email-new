@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "bruv-ui"
 
 export function ErrorBoundaryFallback({
   error,
@@ -22,13 +22,13 @@ export function ErrorBoundaryFallback({
       <div className="flex flex-col items-center gap-4">
         <h1
           aria-hidden="true"
-          className="text-[120px] leading-none font-bold text-muted-foreground/20 select-none"
+          className="text-[120px] leading-none font-bold text-bruv-tertiary/20 select-none"
         >
           !
         </h1>
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-semibold">{title}</h2>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <p className="text-sm text-bruv-tertiary">{description}</p>
         </div>
         <Button variant="secondary" onClick={reset}>
           Try again
