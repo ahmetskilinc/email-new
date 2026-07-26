@@ -55,7 +55,14 @@ export class GoogleMailManager implements MailManager {
         scope: this.getScope(),
       })
 
-    this.gmail = gmail({ version: "v1", auth: this.auth })
+    // Each @googleapis/* package bundles its own copy of google-auth-library's
+    // types; when the tree resolves more than one version of it the OAuth2Client
+    // declarations clash over a private field and the build fails type checking,
+    // despite being the same class at runtime.
+    this.gmail = gmail({
+      version: "v1",
+      auth: this.auth as unknown as Parameters<typeof gmail>[0]["auth"],
+    })
   }
   public getScope(): string {
     return [
@@ -233,12 +240,13 @@ export class GoogleMailManager implements MailManager {
     return this.withErrorHandler(
       "getUserInfo",
       async () => {
-        const res = await people({ version: "v1", auth: this.auth }).people.get(
-          {
-            resourceName: "people/me",
-            personFields: "names,photos,emailAddresses",
-          }
-        )
+        const res = await people({
+          version: "v1",
+          auth: this.auth as unknown as Parameters<typeof people>[0]["auth"],
+        }).people.get({
+          resourceName: "people/me",
+          personFields: "names,photos,emailAddresses",
+        })
         return {
           address: res.data.emailAddresses?.[0]?.value ?? "",
           name: res.data.names?.[0]?.displayName ?? "",

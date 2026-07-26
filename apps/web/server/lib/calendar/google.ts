@@ -21,7 +21,16 @@ export class GoogleCalendarProvider implements CalendarProvider {
       env.GOOGLE_CLIENT_SECRET
     )
     auth.setCredentials({ refresh_token: config.refreshToken })
-    this.cal = calendar({ version: "v3", auth })
+    // Each @googleapis/* package bundles its own copy of google-auth-library's
+    // types. Whenever the dependency tree resolves more than one version of it,
+    // the two OAuth2Client declarations are structurally incompatible over a
+    // private field and the build fails type checking — even though they are
+    // the same class at runtime. Narrowed to the auth parameter's own type so
+    // the rest of the call stays checked.
+    this.cal = calendar({
+      version: "v3",
+      auth: auth as unknown as Parameters<typeof calendar>[0]["auth"],
+    })
   }
 
   async listCalendars(): Promise<CalendarInfo[]> {

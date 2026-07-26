@@ -29,13 +29,23 @@ const REQUIRED_IN_PRODUCTION: (keyof AppEnv)[] = [
   "ENCRYPTION_KEY",
 ]
 
+/**
+ * `next build` runs with NODE_ENV=production and imports server modules while
+ * collecting page data, so throwing on a missing variable here would fail the
+ * build on any machine that does not also hold the production secrets — which
+ * is most CI. The guard is about refusing to *serve* without them, so the build
+ * phase is exempt and the check still applies to every real request.
+ */
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build"
+
 const readEnv = (key: keyof AppEnv, fallback = ""): string => {
   const value = process.env[key]
   if (value) return value
 
   if (
     REQUIRED_IN_PRODUCTION.includes(key) &&
-    process.env.NODE_ENV === "production"
+    process.env.NODE_ENV === "production" &&
+    !isBuildPhase
   ) {
     throw new Error(
       `Missing required environment variable ${key}. Refusing to start.`
