@@ -9,6 +9,7 @@ import {
   resolveRefreshToken,
 } from "../lib/server-utils"
 import { autoDiscoverFolders } from "../lib/transport/provider-config"
+import { assertValidMailEndpoints } from "../lib/transport/host-validation"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
 import { EProviders } from "../types"
@@ -204,6 +205,10 @@ export async function createCustomConnection(
   smtpPort: number
 ) {
   const session = await requireSession()
+
+  // The caller names the host and port the server will connect to. Without this
+  // the action is a general-purpose SSRF probe against the internal network.
+  await assertValidMailEndpoints({ imapHost, imapPort, smtpHost, smtpPort })
 
   const discoveredFolders = await autoDiscoverFolders(
     email,

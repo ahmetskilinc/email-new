@@ -2,6 +2,7 @@
 import { type ImapProviderConfig, buildLabelToFolder } from "./provider-config"
 import { simpleParser, type ParsedMail, type Attachment } from "mailparser"
 import { ImapFlow } from "imapflow"
+import { safeError } from "../safe-error"
 
 const SPECIAL_USE_TO_LABEL: Record<string, string> = {
   "\\Sent": "SENT",
@@ -823,7 +824,9 @@ export async function deleteAllSpam(
       count: allUids.length,
     }
   } catch (e) {
-    return { success: false, message: String(e) }
+    // Never return the raw error: it carries the resolved host, port and socket
+    // state for a caller-supplied endpoint.
+    return { success: false, message: safeError("imap.deleteAllSpam", e).message }
   } finally {
     await client.logout().catch(() => {})
   }
