@@ -5,6 +5,7 @@ import {
   getActiveConnection,
   getzeitmailDB,
   resolveAccessToken,
+  resolveRefreshToken,
 } from "../lib/server-utils"
 import { createCalendarProvider } from "../lib/calendar"
 import type { CalendarEvent, CalendarInfo } from "../lib/calendar"
@@ -32,7 +33,7 @@ async function resolveConnection(userId: string, connectionId?: string) {
 function getProvider(connection: any) {
   return createCalendarProvider(connection.providerId, {
     accessToken: resolveAccessToken(connection),
-    refreshToken: connection.refreshToken ?? "",
+    refreshToken: resolveRefreshToken(connection),
     email: connection.email,
   })
 }

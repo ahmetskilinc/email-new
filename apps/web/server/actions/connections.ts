@@ -1,7 +1,13 @@
 "use server"
 
 import { requireSession } from "../lib/session"
-import { getActiveConnection, getzeitmailDB } from "../lib/server-utils"
+import {
+  connectionToDriver,
+  getActiveConnection,
+  getzeitmailDB,
+  resolveAccessToken,
+  resolveRefreshToken,
+} from "../lib/server-utils"
 import { autoDiscoverFolders } from "../lib/transport/provider-config"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
@@ -45,6 +51,26 @@ export async function setDefaultConnection(connectionId: string) {
 export async function deleteConnection(connectionId: string) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)
+
+  // Revoke the grant upstream BEFORE deleting the row — the row holds the only
+  // copy of the token needed to do it. Best-effort: a provider-side failure
+  // must not strand the connection in the user's account.
+  const existing = await db.findUserConnection(connectionId)
+  if (existing) {
+    try {
+      const driver = connectionToDriver(existing)
+      const token =
+        resolveRefreshToken(existing) || resolveAccessToken(existing)
+      if (token) await driver.revokeToken(token)
+    } catch (error) {
+      console.error(
+        "[deleteConnection] upstream revocation failed for connection",
+        connectionId,
+        error instanceof Error ? error.message : error
+      )
+    }
+  }
+
   await db.deleteConnection(connectionId)
 
   const activeConnection = await getActiveConnection(session.user.id).catch(

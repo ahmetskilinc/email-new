@@ -8,7 +8,7 @@ import {
 import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
-import { decrypt } from "./encryption"
+import { decryptSecret, encrypt, isEncrypted } from "./encryption"
 import { createDb } from "../db"
 import { env } from "../env"
 
@@ -19,6 +19,15 @@ const getSharedDb = () => {
     _sharedDb = createDb(env.DATABASE_URL)
   }
   return _sharedDb.db
+}
+
+/**
+ * Encrypts a credential for storage, idempotently — callers that already
+ * encrypted (the app-password connection actions) pass through untouched.
+ */
+const encryptSecret = (value: string | null | undefined): string | null => {
+  if (!value) return null
+  return isEncrypted(value) ? value : encrypt(value)
 }
 
 export const getzeitmailDB = async (userId: string) => {
@@ -72,8 +81,8 @@ export const getzeitmailDB = async (userId: string) => {
           email,
           name: info.name || null,
           picture: info.picture || null,
-          accessToken: info.accessToken,
-          refreshToken: info.refreshToken || null,
+          accessToken: encryptSecret(info.accessToken),
+          refreshToken: encryptSecret(info.refreshToken),
           scope: info.scope,
           imapConfig: info.imapConfig ?? null,
           expiresAt: info.expiresAt,
@@ -319,18 +328,27 @@ export const getActiveConnection = async (userId: string) => {
 
 const APP_PASSWORD_PROVIDERS = ["icloud", "yahoo", "custom"]
 
+/**
+ * Decrypts a stored credential. Applies to every provider: OAuth access and
+ * refresh tokens are just as sensitive as app-specific passwords, and are now
+ * encrypted at rest alongside them.
+ *
+ * Rows written before encryption-at-rest are still plaintext and are passed
+ * through unchanged (see `decryptSecret`). A corrupt or wrong-key ciphertext
+ * throws instead of being handed to a mail server as if it were the password.
+ */
 export function resolveAccessToken(conn: {
   providerId: string
   accessToken: string | null
 }): string {
-  if (!conn.accessToken) return ""
-  if (!APP_PASSWORD_PROVIDERS.includes(conn.providerId)) return conn.accessToken
+  return decryptSecret(conn.accessToken)
+}
 
-  try {
-    return decrypt(conn.accessToken)
-  } catch {
-    return conn.accessToken
-  }
+export function resolveRefreshToken(conn: {
+  providerId: string
+  refreshToken: string | null
+}): string {
+  return decryptSecret(conn.refreshToken)
 }
 
 export const connectionToDriver = (
@@ -352,7 +370,7 @@ export const connectionToDriver = (
     auth: {
       userId: activeConnection.userId,
       accessToken: resolveAccessToken(activeConnection),
-      refreshToken: activeConnection.refreshToken ?? "",
+      refreshToken: resolveRefreshToken(activeConnection),
       email: activeConnection.email,
     },
     ...(activeConnection.imapConfig != null

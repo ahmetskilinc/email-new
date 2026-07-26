@@ -4,7 +4,7 @@ import { nextCookies } from "better-auth/next-js"
 import * as schema from "../db/schema"
 import { getSocialProviders } from "./auth-providers"
 import { defaultUserSettings } from "./schemas"
-import { getzeitmailDB } from "./server-utils"
+import { getzeitmailDB, resolveRefreshToken } from "./server-utils"
 import { type EProviders } from "../types"
 import { createDriver } from "./driver"
 import { createDb } from "../db"
@@ -21,7 +21,8 @@ const connectionHandlerHook = async (account: Account) => {
       const existing = connections.find(
         (c) => c.providerId === account.providerId
       )
-      refreshToken = existing?.refreshToken ?? null
+      // Stored refresh tokens are encrypted at rest; decrypt before reuse.
+      refreshToken = existing ? resolveRefreshToken(existing) || null : null
     }
 
     if (!refreshToken) return
