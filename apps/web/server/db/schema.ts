@@ -259,3 +259,29 @@ export const syncState = createTable("sync_state", {
   lastError: text("last_error"),
   updatedAt: timestamp("updated_at").notNull(),
 })
+
+/**
+ * Security-relevant events: sign-in, mailbox connected or removed, mail sent,
+ * account deleted. Without this there is no way to answer "what did they touch"
+ * after an incident.
+ *
+ * Deliberately NOT foreign-keyed to user.id with onDelete: "cascade" — deleting
+ * an account would erase exactly the record an investigation needs. userId is a
+ * plain column, retained after the user row is gone.
+ */
+export const securityEvent = createTable(
+  "security_event",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id"),
+    type: text("type").notNull(),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => [
+    index("security_event_user_id_idx").on(t.userId),
+    index("security_event_type_created_idx").on(t.type, t.createdAt),
+  ]
+)

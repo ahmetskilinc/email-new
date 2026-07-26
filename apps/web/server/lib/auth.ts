@@ -5,6 +5,7 @@ import * as schema from "../db/schema"
 import { getSocialProviders } from "./auth-providers"
 import { defaultUserSettings } from "./schemas"
 import { getzeitmailDB, resolveRefreshToken } from "./server-utils"
+import { logSecurityEvent } from "./audit"
 import { type EProviders } from "../types"
 import { createDriver } from "./driver"
 import { createDb } from "../db"
@@ -184,6 +185,13 @@ const createAuthConfig = () => {
         },
         update: {
           after: connectionHandlerHook,
+        },
+      },
+      session: {
+        create: {
+          after: async (createdSession) => {
+            await logSecurityEvent("sign_in", createdSession.userId)
+          },
         },
       },
     },

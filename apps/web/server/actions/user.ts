@@ -9,6 +9,7 @@ import {
   resolveAccessToken,
   resolveRefreshToken,
 } from "../lib/server-utils"
+import { logSecurityEvent } from "../lib/audit"
 
 export async function deleteUser() {
   const session = await requireSession()
@@ -30,6 +31,10 @@ export async function deleteUser() {
       )
     }
   }
+
+  await logSecurityEvent("account_deleted", session.user.id, {
+    connectionCount: connections.length,
+  })
 
   await auth.api.deleteUser({
     headers: await headers(),

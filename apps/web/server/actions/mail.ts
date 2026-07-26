@@ -5,6 +5,7 @@ import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
 import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
 import { safeError } from "../lib/safe-error"
+import { logSecurityEvent } from "../lib/audit"
 import {
   MAX_ATTACHMENTS,
   MAX_ATTACHMENT_BYTES,
@@ -402,6 +403,12 @@ export async function sendMail(input: {
   await Promise.allSettled(
     allRecipients.map((r) => db.upsertRecipient(r.email, r.name))
   )
+
+  await logSecurityEvent("mail_sent", session.user.id, {
+    connectionId: connection.id,
+    recipientCount,
+    attachmentCount: attachments.length,
+  })
 
   return { success: true }
 }

@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      # --frozen-lockfile is deliberate: it fails when package.json and bun.lock
+      # disagree. That drift is how the repo ended up declaring next 16.2.6
+      # while the lockfile still resolved 16.2.3.
+      - name: Install
+        run: bun install --frozen-lockfile
+        env:
+          NPM_CONFIG_HUGEICONS_KEY: ${{ secrets.NPM_CONFIG_HUGEICONS_KEY }}
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun run --cwd apps/web test
+
+  audit:
+    runs-on: ubuntu-latest
+    # Advisory: a new CVE in a transitive dependency should be visible without
+    # blocking unrelated work.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.6
+
+      - name: Install
+        run: bun install --frozen-lockfile
+        env:
+          NPM_CONFIG_HUGEICONS_KEY: ${{ secrets.NPM_CONFIG_HUGEICONS_KEY }}
+
+      - name: Audit dependencies
+        run: bun audit --audit-level=high
