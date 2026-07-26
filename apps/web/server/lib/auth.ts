@@ -78,18 +78,36 @@ const createAuthConfig = () => {
             .map((o) => o.trim())
             .filter(Boolean)
         : []),
-      ...(process.env.VERCEL ? ["https://*.vercel.app"] : []),
+      // Deliberately no "https://*.vercel.app": that wildcard trusts every
+      // deployment on the platform, so anyone could host an origin trusted for
+      // auth callbacks and CSRF. Preview URLs belong in
+      // BETTER_AUTH_TRUSTED_ORIGINS, listed explicitly.
     ],
     advanced: {
       useSecureCookies: env.BETTER_AUTH_URL.startsWith("https://"),
     },
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      window: 60,
+      max: 100,
+      customRules: {
+        "/sign-in/email": { window: 300, max: 5 },
+        "/sign-up/email": { window: 3600, max: 5 },
+        "/forget-password": { window: 3600, max: 5 },
+        "/reset-password": { window: 3600, max: 5 },
+      },
+    },
     session: {
       cookieCache: {
         enabled: true,
-        maxAge: 60 * 5,
+        // Short: a revoked session stays usable for this long. Five minutes was
+        // long enough that "sign out everywhere" did not mean much.
+        maxAge: 60,
       },
       expiresIn: 60 * 60 * 24 * 30,
       updateAge: 60 * 60 * 24 * 3,
+      freshAge: 60 * 15,
     },
     socialProviders: getSocialProviders(
       env as unknown as Record<string, string>
@@ -97,7 +115,14 @@ const createAuthConfig = () => {
     account: {
       accountLinking: {
         enabled: true,
-        allowDifferentEmails: true,
+        // Implicit linking is what allows a pre-registered local account to
+        // absorb a later OAuth sign-in for the same address: with open signup
+        // and no email verification, an attacker could register victim@… first
+        // and have the victim's Google identity linked onto their row. Linking
+        // now requires an explicit, authenticated link action.
+        disableImplicitLinking: true,
+        // allowDifferentEmails removed: nothing in this app needs an OAuth
+        // identity to attach to an account with a different address.
         trustedProviders: ["google", "microsoft"],
       },
     },
@@ -126,7 +151,13 @@ const createAuthConfig = () => {
     },
     emailAndPassword: {
       enabled: true,
+      // Still false: this app has no transactional email channel configured, so
+      // requiring verification would lock every new user out. The account
+      // takeover it would otherwise mitigate is closed by disableImplicitLinking
+      // above. Turn this on as soon as a mail provider is wired up.
       requireEmailVerification: false,
+      minPasswordLength: 12,
+      maxPasswordLength: 256,
     },
     databaseHooks: {
       user: {
