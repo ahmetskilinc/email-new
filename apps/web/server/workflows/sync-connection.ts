@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { start } from "workflow/api"
 import { sleep } from "workflow"
 import { createDb } from "../db"
@@ -18,19 +18,31 @@ type ProviderThread = {
   $raw?: unknown
 }
 
+/**
+ * Every connection lookup inside these steps is scoped by owner as well as id.
+ * The authenticated entry points in server/actions/sync.ts already verify
+ * ownership before starting a run, but the workflow runtime resumes steps from
+ * persisted arguments, so the steps must not assume the id was ever checked.
+ */
+const scopedConnection = (connectionId: string, userId: string) =>
+  and(eq(connectionTable.id, connectionId), eq(connectionTable.userId, userId))
+
 const INITIAL_BACKFILL_PAGES = 3
 const PAGE_SIZE = 50
 const DELTA_PAGE_SIZE = 50
 const SYNC_INTERVAL = "5m"
 const STALE_LOCK_MS = 10 * 60 * 1000
 
-async function loadSyncStateStep(connectionId: string): Promise<{
+async function loadSyncStateStep(
+  connectionId: string,
+  userId: string
+): Promise<{
   historyId: string | null
 }> {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const conn = await db.query.connection.findFirst({
-    where: eq(connectionTable.id, connectionId),
+    where: scopedConnection(connectionId, userId),
   })
   if (!conn) throw new Error(`Connection ${connectionId} not found`)
 
@@ -89,6 +101,7 @@ async function releaseSyncLockStep(
 
 async function fetchPageStep(
   connectionId: string,
+  userId: string,
   pageToken: string | null,
   maxResults = PAGE_SIZE
 ): Promise<{
@@ -99,7 +112,7 @@ async function fetchPageStep(
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const conn = await db.query.connection.findFirst({
-    where: eq(connectionTable.id, connectionId),
+    where: scopedConnection(connectionId, userId),
   })
   if (!conn) throw new Error(`Connection ${connectionId} not found`)
 
@@ -125,6 +138,7 @@ async function fetchPageStep(
  */
 async function fetchHistoryDeltaStep(
   connectionId: string,
+  userId: string,
   historyId: string
 ): Promise<{
   supported: boolean
@@ -134,7 +148,7 @@ async function fetchHistoryDeltaStep(
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const conn = await db.query.connection.findFirst({
-    where: eq(connectionTable.id, connectionId),
+    where: scopedConnection(connectionId, userId),
   })
   if (!conn) throw new Error(`Connection ${connectionId} not found`)
   if (conn.providerId !== "google") {
@@ -284,11 +298,14 @@ async function persistHistoryIdStep(
     .where(eq(syncState.connectionId, connectionId))
 }
 
-async function connectionExistsStep(connectionId: string): Promise<boolean> {
+async function connectionExistsStep(
+  connectionId: string,
+  userId: string
+): Promise<boolean> {
   "use step"
   const { db } = createDb(env.DATABASE_URL)
   const row = await db.query.connection.findFirst({
-    where: eq(connectionTable.id, connectionId),
+    where: scopedConnection(connectionId, userId),
     columns: { id: true },
   })
   return Boolean(row)
@@ -299,8 +316,12 @@ async function connectionExistsStep(connectionId: string): Promise<boolean> {
  * so both the one-shot `syncConnection` workflow and the looping
  * `scheduleSyncConnection` workflow can share the same logic.
  */
-async function runSyncCycle(connectionId: string, providedRunId?: string) {
-  const { historyId } = await loadSyncStateStep(connectionId)
+async function runSyncCycle(
+  connectionId: string,
+  userId: string,
+  providedRunId?: string
+) {
+  const { historyId } = await loadSyncStateStep(connectionId, userId)
   const runId = await claimSyncLockStep(connectionId, providedRunId)
 
   let upserted = 0
@@ -311,7 +332,7 @@ async function runSyncCycle(connectionId: string, providedRunId?: string) {
     if (!historyId) {
       let pageToken: string | null = null
       for (let page = 0; page < INITIAL_BACKFILL_PAGES; page++) {
-        const result = await fetchPageStep(connectionId, pageToken)
+        const result = await fetchPageStep(connectionId, userId, pageToken)
         if (result.threads.length === 0) break
         latestHistoryId = result.topHistoryId ?? latestHistoryId
         upserted += await upsertThreadsStep(connectionId, result.threads)
@@ -320,11 +341,16 @@ async function runSyncCycle(connectionId: string, providedRunId?: string) {
       }
       await persistHistoryIdStep(connectionId, latestHistoryId, true)
     } else {
-      const delta = await fetchHistoryDeltaStep(connectionId, historyId)
+      const delta = await fetchHistoryDeltaStep(connectionId, userId, historyId)
       if (delta.supported) {
         mode = "delta"
         if (delta.changedThreadIds.length > 0) {
-          const page = await fetchPageStep(connectionId, null, DELTA_PAGE_SIZE)
+          const page = await fetchPageStep(
+            connectionId,
+            userId,
+            null,
+            DELTA_PAGE_SIZE
+          )
           latestHistoryId = page.topHistoryId ?? delta.nextHistoryId
           upserted = await upsertThreadsStep(connectionId, page.threads)
         } else {
@@ -333,7 +359,12 @@ async function runSyncCycle(connectionId: string, providedRunId?: string) {
         await persistHistoryIdStep(connectionId, latestHistoryId)
       } else {
         mode = "refresh"
-        const page = await fetchPageStep(connectionId, null, DELTA_PAGE_SIZE)
+        const page = await fetchPageStep(
+          connectionId,
+          userId,
+          null,
+          DELTA_PAGE_SIZE
+        )
         latestHistoryId = page.topHistoryId ?? historyId
         upserted = await upsertThreadsStep(connectionId, page.threads)
         await persistHistoryIdStep(connectionId, latestHistoryId)
@@ -356,16 +387,24 @@ async function runSyncCycle(connectionId: string, providedRunId?: string) {
  */
 export async function syncConnection(input: {
   connectionId: string
+  userId: string
   runId?: string
 }) {
   "use workflow"
-  const result = await runSyncCycle(input.connectionId, input.runId)
+  const result = await runSyncCycle(
+    input.connectionId,
+    input.userId,
+    input.runId
+  )
   return { connectionId: input.connectionId, ...result }
 }
 
-async function rescheduleSelfStep(connectionId: string): Promise<string> {
+async function rescheduleSelfStep(
+  connectionId: string,
+  userId: string
+): Promise<string> {
   "use step"
-  const run = await start(scheduleSyncConnection, [{ connectionId }])
+  const run = await start(scheduleSyncConnection, [{ connectionId, userId }])
   return run.runId
 }
 
@@ -374,16 +413,19 @@ async function rescheduleSelfStep(connectionId: string): Promise<string> {
  * itself so the loop survives deploys and crashes. Start once per connection
  * (at signup / first login); exits when the connection is removed.
  */
-export async function scheduleSyncConnection(input: { connectionId: string }) {
+export async function scheduleSyncConnection(input: {
+  connectionId: string
+  userId: string
+}) {
   "use workflow"
-  const { connectionId } = input
+  const { connectionId, userId } = input
 
-  const exists = await connectionExistsStep(connectionId)
+  const exists = await connectionExistsStep(connectionId, userId)
   if (!exists) return { connectionId, status: "ended" as const }
 
-  await runSyncCycle(connectionId)
+  await runSyncCycle(connectionId, userId)
   await sleep(SYNC_INTERVAL)
 
-  await rescheduleSelfStep(connectionId)
+  await rescheduleSelfStep(connectionId, userId)
   return { connectionId, status: "rescheduled" as const }
 }
