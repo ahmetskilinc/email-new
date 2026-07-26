@@ -2,6 +2,7 @@
 import { type ImapProviderConfig, buildLabelToFolder } from "./provider-config"
 import { simpleParser, type ParsedMail, type Attachment } from "mailparser"
 import { ImapFlow } from "imapflow"
+import { safeError } from "../safe-error"
 
 const SPECIAL_USE_TO_LABEL: Record<string, string> = {
   "\\Sent": "SENT",
@@ -138,7 +139,11 @@ function parsedMailToMessage(
     receivedOn: (parsed.date ?? new Date()).toISOString(),
     unread: isUnread,
     body: htmlBody || textBody,
-    processedHtml: htmlBody,
+    // Deliberately empty, matching the Gmail and Graph drivers. `processedHtml`
+    // denotes sanitized output; this is raw mailparser HTML straight off the
+    // wire. Assigning it here made every consumer that trusts the field — the
+    // print path in particular — render attacker HTML unsanitized.
+    processedHtml: "",
     blobUrl: "",
     decodedBody: htmlBody || textBody,
     references: parsed.references
@@ -819,7 +824,9 @@ export async function deleteAllSpam(
       count: allUids.length,
     }
   } catch (e) {
-    return { success: false, message: String(e) }
+    // Never return the raw error: it carries the resolved host, port and socket
+    // state for a caller-supplied endpoint.
+    return { success: false, message: safeError("imap.deleteAllSpam", e).message }
   } finally {
     await client.logout().catch(() => {})
   }

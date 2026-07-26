@@ -24,6 +24,17 @@ import {
 } from "bruv-ui"
 import { SignatureEditor } from "./signature-editor"
 import { toast } from "bruv-ui"
+import DOMPurify from "dompurify"
+
+// Signature bodies are sanitized when they are saved, but rows already in the
+// database predate that, so the preview cleans them again on the way out.
+const sanitizeSignature = (html: string) => {
+  try {
+    return DOMPurify.sanitize(html)
+  } catch {
+    return ""
+  }
+}
 
 type EditingSignature = {
   id?: string
@@ -230,7 +241,9 @@ export function SignaturesTab() {
                     {sig.body ? (
                       <div
                         className="prose-xs line-clamp-2 text-xs text-bruv-tertiary"
-                        dangerouslySetInnerHTML={{ __html: sig.body }}
+                        dangerouslySetInnerHTML={{
+                          __html: sanitizeSignature(sig.body),
+                        }}
                       />
                     ) : (
                       <p className="text-xs text-bruv-tertiary">(empty)</p>

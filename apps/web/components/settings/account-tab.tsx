@@ -55,7 +55,10 @@ export function AccountTab() {
       const result = await authClient.changePassword({
         currentPassword,
         newPassword,
-        revokeOtherSessions: false,
+        // Changing the password is the one remediation a compromised user has.
+        // Leaving other sessions alive meant an attacker's 30-day session
+        // survived it, and there is no session-management UI to kill it by hand.
+        revokeOtherSessions: true,
       })
       if (result.error) {
         toast.error(result.error.message ?? "Failed to change password")

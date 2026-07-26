@@ -144,8 +144,21 @@ export const userSettingsSchema = z.object({
 
 export type UserSettings = z.infer<typeof userSettingsSchema>
 
+/**
+ * Calendar and event ids are interpolated into provider request paths. They
+ * must stay on a bounded, printable charset so nothing whitespace- or
+ * control-laden reaches a URL. CalDAV uses the calendar's collection URL as its
+ * id, so path characters have to stay legal here; the providers that build
+ * fixed paths (Graph) apply their own, much stricter id check on top.
+ */
+const calendarResourceId = z
+  .string()
+  .min(1)
+  .max(1024)
+  .regex(/^[A-Za-z0-9._~:/@%+=-]+$/)
+
 export const createEventSchema = z.object({
-  calendarId: z.string().min(1),
+  calendarId: calendarResourceId,
   title: z.string().min(1),
   description: z.string().optional(),
   start: z.string().min(1),
@@ -173,8 +186,8 @@ export const createEventSchema = z.object({
 export type CreateEventData = z.infer<typeof createEventSchema>
 
 export const updateEventSchema = z.object({
-  eventId: z.string().min(1),
-  calendarId: z.string().min(1),
+  eventId: calendarResourceId,
+  calendarId: calendarResourceId,
   scope: z.enum(["single", "all", "thisAndFollowing"]).optional(),
   title: z.string().optional(),
   description: z.string().optional(),
@@ -202,8 +215,8 @@ export const updateEventSchema = z.object({
 export type UpdateEventData = z.infer<typeof updateEventSchema>
 
 export const deleteEventSchema = z.object({
-  eventId: z.string().min(1),
-  calendarId: z.string().min(1),
+  eventId: calendarResourceId,
+  calendarId: calendarResourceId,
   scope: z.enum(["single", "all", "thisAndFollowing"]).optional(),
   sendNotifications: z.boolean().optional(),
 })

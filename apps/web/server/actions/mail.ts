@@ -4,6 +4,18 @@ import { requireSession, requireActiveDriver } from "../lib/session"
 import { getzeitmailDB, connectionToDriver } from "../lib/server-utils"
 import { extractThreadDate, normalizeThreadPreview } from "@/lib/thread-utils"
 import { processEmailHtml } from "../lib/email-processor"
+import { safeError } from "../lib/safe-error"
+import { logSecurityEvent } from "../lib/audit"
+import {
+  MAX_ATTACHMENTS,
+  MAX_ATTACHMENT_BYTES,
+  MAX_RECIPIENTS,
+  MAX_TOTAL_ATTACHMENT_BYTES,
+  LimitExceededError,
+  assertBulkIds,
+  clampPageSize,
+  mapWithConcurrency,
+} from "../lib/limits"
 import { getListUnsubscribeAction } from "../lib/email-utils"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
@@ -32,6 +44,7 @@ export async function listAllInboxes(
   cursor: string = ""
 ) {
   const session = await requireSession()
+  maxResults = clampPageSize(maxResults, defaultPageSize)
   const db = await getzeitmailDB(session.user.id)
   const connections = await db.findManyConnections()
   const cursors: Record<string, string> = cursor ? JSON.parse(cursor) : {}
@@ -91,6 +104,7 @@ export async function listThreads(
   labelIds: string[] = []
 ) {
   const { connection, driver } = await requireActiveDriver()
+  maxResults = clampPageSize(maxResults, defaultPageSize)
 
   if (folder === FOLDERS.DRAFT) {
     return driver.listDrafts({ q, maxResults, pageToken: cursor })
@@ -146,7 +160,7 @@ export async function searchMail(params: {
   return driver.list({
     folder,
     query: query.trim() || undefined,
-    maxResults: params.maxResults ?? defaultPageSize,
+    maxResults: clampPageSize(params.maxResults, defaultPageSize),
     pageToken: params.cursor || undefined,
   })
 }
@@ -163,7 +177,7 @@ export async function markAsRead(ids: string[], connectionId?: string) {
     }
   }
 
-  return activeDriver.markAsRead(ids)
+  return activeDriver.markAsRead(assertBulkIds(ids, "messages"))
 }
 
 export async function markAsUnread(ids: string[], connectionId?: string) {
@@ -178,7 +192,7 @@ export async function markAsUnread(ids: string[], connectionId?: string) {
     }
   }
 
-  return activeDriver.markAsUnread(ids)
+  return activeDriver.markAsUnread(assertBulkIds(ids, "messages"))
 }
 
 export async function modifyLabels(
@@ -187,17 +201,21 @@ export async function modifyLabels(
   removeLabels: string[] = []
 ) {
   const { driver } = await requireActiveDriver()
-  if (!threadId.length)
+  const safeIds = assertBulkIds(threadId, "threads")
+  if (!safeIds.length)
     return { success: false, error: "No thread IDs provided" }
-  await driver.modifyLabels(threadId, { addLabels, removeLabels })
+  await driver.modifyLabels(safeIds, { addLabels, removeLabels })
   return { success: true }
 }
 
 export async function toggleStar(ids: string[]) {
   const { driver } = await requireActiveDriver()
-  if (!ids.length) return { success: false }
+  const safeIds = assertBulkIds(ids, "threads")
+  if (!safeIds.length) return { success: false }
 
-  const threads = await Promise.allSettled(ids.map((id) => driver.get(id)))
+  // Bounded: this used to issue one provider round-trip per id, unbounded and
+  // fully concurrent, from a caller-supplied array.
+  const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
   const anyStarred = threads.some(
     (r) =>
       r.status === "fulfilled" &&
@@ -206,7 +224,7 @@ export async function toggleStar(ids: string[]) {
       )
   )
 
-  await driver.modifyLabels(ids, {
+  await driver.modifyLabels(safeIds, {
     addLabels: anyStarred ? [] : ["STARRED"],
     removeLabels: anyStarred ? ["STARRED"] : [],
   })
@@ -215,9 +233,10 @@ export async function toggleStar(ids: string[]) {
 
 export async function toggleImportant(ids: string[]) {
   const { driver } = await requireActiveDriver()
-  if (!ids.length) return { success: false }
+  const safeIds = assertBulkIds(ids, "threads")
+  if (!safeIds.length) return { success: false }
 
-  const threads = await Promise.allSettled(ids.map((id) => driver.get(id)))
+  const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
   const anyImportant = threads.some(
     (r) =>
       r.status === "fulfilled" &&
@@ -226,7 +245,7 @@ export async function toggleImportant(ids: string[]) {
       )
   )
 
-  await driver.modifyLabels(ids, {
+  await driver.modifyLabels(safeIds, {
     addLabels: anyImportant ? [] : ["IMPORTANT"],
     removeLabels: anyImportant ? ["IMPORTANT"] : [],
   })
@@ -235,16 +254,19 @@ export async function toggleImportant(ids: string[]) {
 
 export async function bulkStar(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, { addLabels: ["STARRED"], removeLabels: [] })
 }
 
 export async function bulkUnstar(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, { addLabels: [], removeLabels: ["STARRED"] })
 }
 
 export async function bulkMarkImportant(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, {
     addLabels: ["IMPORTANT"],
     removeLabels: [],
@@ -253,6 +275,7 @@ export async function bulkMarkImportant(ids: string[]) {
 
 export async function bulkUnmarkImportant(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, {
     addLabels: [],
     removeLabels: ["IMPORTANT"],
@@ -261,16 +284,19 @@ export async function bulkUnmarkImportant(ids: string[]) {
 
 export async function bulkDelete(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, { addLabels: ["TRASH"], removeLabels: [] })
 }
 
 export async function bulkArchive(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, { addLabels: [], removeLabels: ["INBOX"] })
 }
 
 export async function bulkMute(ids: string[]) {
   const { driver } = await requireActiveDriver()
+  ids = assertBulkIds(ids, "threads")
   return driver.modifyLabels(ids, { addLabels: ["MUTE"], removeLabels: [] })
 }
 
@@ -282,7 +308,7 @@ export async function deleteAllSpam(): Promise<DeleteAllSpamResponse> {
     return {
       success: false,
       message: "Failed to delete spam emails",
-      error: String(error),
+      error: safeError("deleteAllSpam", error).message,
       count: 0,
     }
   }
@@ -311,6 +337,34 @@ export async function sendMail(input: {
 }) {
   const { session, connection, driver } = await requireActiveDriver()
   const { draftId, attachments = [], signatureId, ...mail } = input
+
+  // Unbounded recipients and attachments meant one call could fan out to
+  // arbitrarily many addresses and queue an upsert per recipient against the
+  // shared pool. A stolen session should not become unlimited mass-send from
+  // the victim's real domain.
+  const recipientCount =
+    (input.to?.length ?? 0) + (input.cc?.length ?? 0) + (input.bcc?.length ?? 0)
+  if (recipientCount > MAX_RECIPIENTS) {
+    throw new LimitExceededError(
+      `Too many recipients (max ${MAX_RECIPIENTS} per message).`
+    )
+  }
+  if (attachments.length > MAX_ATTACHMENTS) {
+    throw new LimitExceededError(
+      `Too many attachments (max ${MAX_ATTACHMENTS}).`
+    )
+  }
+  let totalAttachmentBytes = 0
+  for (const att of attachments) {
+    const size = Number(att?.size ?? 0)
+    if (size > MAX_ATTACHMENT_BYTES) {
+      throw new LimitExceededError("Attachment exceeds the size limit.")
+    }
+    totalAttachmentBytes += size
+  }
+  if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+    throw new LimitExceededError("Attachments exceed the total size limit.")
+  }
 
   const db = await getzeitmailDB(session.user.id)
   let signatureBody: string | null = null
@@ -350,6 +404,12 @@ export async function sendMail(input: {
     allRecipients.map((r) => db.upsertRecipient(r.email, r.name))
   )
 
+  await logSecurityEvent("mail_sent", session.user.id, {
+    connectionId: connection.id,
+    recipientCount,
+    attachmentCount: attachments.length,
+  })
+
   return { success: true }
 }
 
@@ -360,6 +420,7 @@ export async function deleteThread(id: string) {
 }
 
 export async function snoozeThreads(ids: string[]) {
+  ids = assertBulkIds(ids, "threads")
   if (!ids.length) return { success: false, error: "No thread IDs provided" }
   const { driver } = await requireActiveDriver()
   await driver.modifyLabels(ids, {
@@ -370,6 +431,7 @@ export async function snoozeThreads(ids: string[]) {
 }
 
 export async function unsnoozeThreads(ids: string[]) {
+  ids = assertBulkIds(ids, "threads")
   if (!ids.length) return { success: false, error: "No thread IDs" }
   const { driver } = await requireActiveDriver()
   await driver.modifyLabels(ids, {

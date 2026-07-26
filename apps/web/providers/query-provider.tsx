@@ -16,8 +16,20 @@ import { useMemo, type ReactNode } from "react"
 
 export const connectionIdRef = { current: null as string | null }
 
+const QUERY_CACHE_KEY = "mail-query-cache"
+
+/**
+ * Drops the in-memory query cache and the IndexedDB copy of it. The persisted
+ * cache holds message bodies and recipients, which otherwise survive sign-out
+ * and are readable by the next person to use the browser profile.
+ */
+export async function clearPersistedQueryCache() {
+  browserQueryClient?.clear()
+  await del(QUERY_CACHE_KEY).catch(() => {})
+}
+
 function createIDBPersister(
-  idbValidKey: IDBValidKey = "mail-query-cache"
+  idbValidKey: IDBValidKey = QUERY_CACHE_KEY
 ): Persister {
   return {
     persistClient: async (client: PersistedClient) => {

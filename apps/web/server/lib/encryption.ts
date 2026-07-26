@@ -10,6 +10,14 @@ const ALGORITHM = "aes-256-gcm"
 const IV_LENGTH = 12
 const AUTH_TAG_LENGTH = 16
 
+/**
+ * Ciphertext envelope prefix. Everything written by `encrypt()` carries it so
+ * that (a) values still stored in plaintext from before encryption-at-rest are
+ * distinguishable from ciphertext, and (b) a future key rotation can introduce
+ * "v2." alongside a decrypt path that still understands "v1.".
+ */
+const ENVELOPE_V1 = "v1."
+
 let derivedKey: Buffer | null = null
 
 function getKey(): Buffer {
@@ -39,12 +47,32 @@ export function encrypt(plaintext: string): string {
   ])
   const authTag = cipher.getAuthTag()
 
-  return Buffer.concat([iv, encrypted, authTag]).toString("base64")
+  return ENVELOPE_V1 + Buffer.concat([iv, encrypted, authTag]).toString("base64")
+}
+
+/** True if `value` was produced by `encrypt()` (as opposed to a legacy plaintext row). */
+export function isEncrypted(value: string | null | undefined): boolean {
+  return typeof value === "string" && value.startsWith(ENVELOPE_V1)
+}
+
+/**
+ * Decrypts a value written by `encrypt()`. Values that predate
+ * encryption-at-rest are returned unchanged so existing rows keep working;
+ * a value that *claims* to be ciphertext but fails to decrypt throws rather
+ * than silently degrading to the raw stored bytes.
+ */
+export function decryptSecret(value: string | null | undefined): string {
+  if (!value) return ""
+  if (!isEncrypted(value)) return value
+  return decrypt(value)
 }
 
 export function decrypt(ciphertext: string): string {
   const key = getKey()
-  const buf = Buffer.from(ciphertext, "base64")
+  const payload = ciphertext.startsWith(ENVELOPE_V1)
+    ? ciphertext.slice(ENVELOPE_V1.length)
+    : ciphertext
+  const buf = Buffer.from(payload, "base64")
 
   if (buf.length < IV_LENGTH + AUTH_TAG_LENGTH + 1) {
     throw new Error("Invalid encrypted payload")

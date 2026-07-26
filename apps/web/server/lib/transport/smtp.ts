@@ -3,6 +3,7 @@ import nodemailer from "nodemailer"
 import { ImapFlow } from "imapflow"
 import { simpleParser } from "mailparser"
 import { type ImapProviderConfig, ICLOUD_CONFIG } from "./provider-config"
+import { safeError } from "../safe-error"
 
 interface OutgoingMessage {
   to: { name?: string; email: string }[]
@@ -168,7 +169,9 @@ export async function createDraft(
     )
     return { id: String(appendResult?.uid ?? "unknown"), success: true }
   } catch (e) {
-    return { success: false, error: String(e) }
+    // Never return the raw error: it carries the resolved host, port and socket
+    // state for a caller-supplied endpoint.
+    return { success: false, error: safeError("smtp.createDraft", e).message }
   } finally {
     await client.logout().catch(() => {})
   }

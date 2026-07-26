@@ -34,6 +34,17 @@ import { toast } from "bruv-ui"
 import { cn } from "@workspace/ui/lib/utils"
 import { z } from "zod"
 import { XMarkIcon } from "@heroicons/react/16/solid"
+import DOMPurify from "dompurify"
+
+// Signature bodies are sanitized on save, but rows stored before that still
+// exist, so the preview cleans them again before it is inlined.
+const sanitizeSignature = (html: string) => {
+  try {
+    return DOMPurify.sanitize(html)
+  } catch {
+    return ""
+  }
+}
 
 const composeSchema = z.object({
   to: z.string().min(1, "Recipient is required"),
@@ -394,7 +405,9 @@ export function EmailComposer({
             <p>--</p>
             <div
               className="prose prose-sm dark:prose-invert max-w-none opacity-60"
-              dangerouslySetInnerHTML={{ __html: selectedSignature.body }}
+              dangerouslySetInnerHTML={{
+                __html: sanitizeSignature(selectedSignature.body),
+              }}
             />
           </div>
         )}

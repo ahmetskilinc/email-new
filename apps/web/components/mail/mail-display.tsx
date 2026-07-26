@@ -290,6 +290,23 @@ function getFileExtension(filename: string): string {
   return filename.split(".").pop()?.toUpperCase() ?? ""
 }
 
+/**
+ * Attachment names are attacker-controlled. A bidi override in the middle of
+ * a name makes the save dialog render "invoice[U+202E]gpj.exe" as
+ * "invoice.jpg", and control characters and path separators let the name lie
+ * about what is being saved and where.
+ */
+function sanitizeFilename(filename: string): string {
+  const cleaned = filename
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "")
+    .replace(/[/\\]/g, "_")
+    .replace(/^\.+/, "")
+    .trim()
+  return cleaned || "attachment"
+}
+
 function isPreviewableImage(mimeType: string): boolean {
   return mimeType.startsWith("image/")
 }
@@ -346,7 +363,7 @@ function AttachmentCard({
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = attachment.filename
+    a.download = sanitizeFilename(attachment.filename)
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

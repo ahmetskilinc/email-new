@@ -2,6 +2,7 @@
 
 import { requireSession } from "../lib/session"
 import { getzeitmailDB } from "../lib/server-utils"
+import { sanitizeTipTapFragment } from "../lib/sanitize-tip-tap-html"
 
 export async function listSignatures(connectionId?: string) {
   const session = await requireSession()
@@ -37,7 +38,13 @@ export async function createSignature(input: {
     await db.clearDefaultSignatures(input.connectionId)
   }
 
-  const [created] = await db.createSignature(input)
+  // Signature bodies are stored HTML that later gets rendered directly, so
+  // anything scriptable has to be stripped before it reaches the database —
+  // once persisted it would outlive cache clears and sign-out.
+  const [created] = await db.createSignature({
+    ...input,
+    body: sanitizeTipTapFragment(input.body),
+  })
   if (!created) throw new Error("Failed to create signature")
   return { id: created.id }
 }
@@ -56,7 +63,12 @@ export async function updateSignature(
     await db.clearDefaultSignatures(existing.connectionId)
   }
 
-  await db.updateSignature(id, input)
+  await db.updateSignature(id, {
+    ...input,
+    ...(input.body !== undefined
+      ? { body: sanitizeTipTapFragment(input.body) }
+      : {}),
+  })
   return { success: true }
 }
 

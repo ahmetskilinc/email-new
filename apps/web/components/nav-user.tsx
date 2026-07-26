@@ -31,6 +31,7 @@ import { useEffect, useState } from "react"
 import { toast } from "bruv-ui"
 import { useOpenSettings } from "@/store/settings"
 import { AddConnectionDialog } from "./settings/add-connection-dialog"
+import { clearPersistedQueryCache } from "@/providers/query-provider"
 
 const themeOptions = [
   {
@@ -80,7 +81,11 @@ export function NavUser() {
     }
 
   const handleLogout = async () => {
-    toast.promise(signOut(), {
+    // Tear the cached mail down with the session. The persisted query cache
+    // keeps message bodies in IndexedDB, so without this the previous user's
+    // mail is still sitting there for whoever signs in next on this machine.
+    const signOutAndClear = signOut().finally(() => clearPersistedQueryCache())
+    toast.promise(signOutAndClear, {
       loading: "Signing out...",
       success: () => "Signed out successfully!",
       error: "Error signing out",

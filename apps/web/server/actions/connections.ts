@@ -1,8 +1,16 @@
 "use server"
 
 import { requireSession } from "../lib/session"
-import { getActiveConnection, getzeitmailDB } from "../lib/server-utils"
+import {
+  connectionToDriver,
+  getActiveConnection,
+  getzeitmailDB,
+  resolveAccessToken,
+  resolveRefreshToken,
+} from "../lib/server-utils"
 import { autoDiscoverFolders } from "../lib/transport/provider-config"
+import { assertValidMailEndpoints } from "../lib/transport/host-validation"
+import { logSecurityEvent } from "../lib/audit"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
 import { EProviders } from "../types"
@@ -45,7 +53,31 @@ export async function setDefaultConnection(connectionId: string) {
 export async function deleteConnection(connectionId: string) {
   const session = await requireSession()
   const db = await getzeitmailDB(session.user.id)
+
+  // Revoke the grant upstream BEFORE deleting the row — the row holds the only
+  // copy of the token needed to do it. Best-effort: a provider-side failure
+  // must not strand the connection in the user's account.
+  const existing = await db.findUserConnection(connectionId)
+  if (existing) {
+    try {
+      const driver = connectionToDriver(existing)
+      const token =
+        resolveRefreshToken(existing) || resolveAccessToken(existing)
+      if (token) await driver.revokeToken(token)
+    } catch (error) {
+      console.error(
+        "[deleteConnection] upstream revocation failed for connection",
+        connectionId,
+        error instanceof Error ? error.message : error
+      )
+    }
+  }
+
   await db.deleteConnection(connectionId)
+  await logSecurityEvent("connection_removed", session.user.id, {
+    connectionId,
+    providerId: existing?.providerId ?? null,
+  })
 
   const activeConnection = await getActiveConnection(session.user.id).catch(
     () => null
@@ -113,6 +145,10 @@ export async function createIcloudConnection(email: string, password: string) {
     expiresAt: new Date("2099-12-31"),
   })
 
+  await logSecurityEvent("connection_added", session.user.id, {
+    providerId: "icloud",
+  })
+
   return { success: true }
 }
 
@@ -166,6 +202,10 @@ export async function createYahooConnection(email: string, password: string) {
     expiresAt: new Date("2099-12-31"),
   })
 
+  await logSecurityEvent("connection_added", session.user.id, {
+    providerId: "yahoo",
+  })
+
   return { success: true }
 }
 
@@ -178,6 +218,10 @@ export async function createCustomConnection(
   smtpPort: number
 ) {
   const session = await requireSession()
+
+  // The caller names the host and port the server will connect to. Without this
+  // the action is a general-purpose SSRF probe against the internal network.
+  await assertValidMailEndpoints({ imapHost, imapPort, smtpHost, smtpPort })
 
   const discoveredFolders = await autoDiscoverFolders(
     email,
@@ -225,6 +269,12 @@ export async function createCustomConnection(
     scope: "custom",
     expiresAt: new Date("2099-12-31"),
     imapConfig,
+  })
+
+  await logSecurityEvent("connection_added", session.user.id, {
+    providerId: "custom",
+    imapHost,
+    smtpHost,
   })
 
   return { success: true }

@@ -185,6 +185,24 @@ const MEETING_PROVIDERS: MeetingProvider[] = [
 
 const URL_REGEX = /https?:\/\/[^\s<>"'{}|\\^`[\]]+/gi
 
+/**
+ * Conference links come from calendar data we did not author, and they end up
+ * as the href of a "Join" button. Anything that is not plain http(s) — a
+ * `javascript:` or `data:` URL most of all — must never reach that anchor, so
+ * unrecognised values are dropped rather than passed through.
+ */
+export function toSafeJoinUrl(value: string): string | null {
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return value
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
 export function detectMeetingLink(url: string): MeetingLink | null {
   for (const provider of MEETING_PROVIDERS) {
     const match = url.match(provider.pattern)
@@ -219,10 +237,13 @@ export function detectConferenceLink(event: {
   if (event.conferenceLink) {
     const link = detectMeetingLink(event.conferenceLink)
     if (link) return link
-    return {
-      id: "conference",
-      name: "Video Call",
-      joinUrl: event.conferenceLink,
+    const safeUrl = toSafeJoinUrl(event.conferenceLink)
+    if (safeUrl) {
+      return {
+        id: "conference",
+        name: "Video Call",
+        joinUrl: safeUrl,
+      }
     }
   }
 

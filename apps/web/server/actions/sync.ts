@@ -26,7 +26,9 @@ export async function syncConnectionNow(connectionId?: string) {
     connections
       .filter((c) => c.accessToken)
       .map(async (c) => {
-        const run = await start(syncConnection, [{ connectionId: c.id }])
+        const run = await start(syncConnection, [
+          { connectionId: c.id, userId: session.user.id },
+        ])
         return { connectionId: c.id, runId: run.runId }
       })
   )
@@ -45,6 +47,8 @@ export async function startSyncSchedulerForConnection(connectionId: string) {
   const conn = await db.findUserConnection(connectionId)
   if (!conn) throw new Error("Connection not found")
 
-  const run = await start(scheduleSyncConnection, [{ connectionId }])
+  const run = await start(scheduleSyncConnection, [
+    { connectionId, userId: session.user.id },
+  ])
   return { connectionId, runId: run.runId }
 }
