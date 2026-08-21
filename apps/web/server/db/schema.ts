@@ -7,6 +7,7 @@ import {
   unique,
   index,
   integer,
+  bigint,
 } from "drizzle-orm/pg-core"
 import { defaultUserSettings } from "../lib/schemas"
 
@@ -85,6 +86,17 @@ export const verification = createTable(
     index("verification_identifier_idx").on(t.identifier),
     index("verification_expires_at_idx").on(t.expiresAt),
   ]
+)
+
+export const rateLimit = createTable(
+  "rate_limit",
+  {
+    id: text("id").primaryKey(),
+    key: text("key"),
+    count: integer("count"),
+    lastRequest: bigint("last_request", { mode: "number" }),
+  },
+  (t) => [index("rate_limit_key_idx").on(t.key)]
 )
 
 export const connection = createTable(
