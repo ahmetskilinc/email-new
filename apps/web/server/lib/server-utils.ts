@@ -330,6 +330,11 @@ export const getActiveConnection = async (userId: string) => {
       userData.defaultConnectionId
     )
     if (activeConnection) return activeConnection
+    // The default points at a connection that no longer exists. Clear it so
+    // the fallback below becomes the recorded default too — otherwise the
+    // client (which reads defaultConnectionId) and the server (which serves
+    // the fallback) keep disagreeing about the active account.
+    await db.updateUser({ defaultConnectionId: null })
   }
 
   const firstConnection = await db.findFirstConnection()

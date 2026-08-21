@@ -104,10 +104,13 @@ export async function deleteConnection(connectionId: string) {
     providerId: existing?.providerId ?? null,
   })
 
-  const activeConnection = await getActiveConnection(session.user.id).catch(
-    () => null
-  )
-  if (connectionId === activeConnection?.id) {
+  // Compare against the stored default, not getActiveConnection(): after the
+  // row is gone that helper silently falls back to another connection, so the
+  // old check could never match and the user row kept pointing at a deleted
+  // connection — leaving the client and server disagreeing on which account
+  // is active.
+  const userData = await db.findUser()
+  if (userData?.defaultConnectionId === connectionId) {
     await db.updateUser({ defaultConnectionId: null })
   }
 }
