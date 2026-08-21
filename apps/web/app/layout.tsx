@@ -55,6 +55,17 @@ export default function RootLayout({
   )
 }
 
+/**
+ * Every document has to be rendered per request, because proxy.ts protects the
+ * app with a nonce-based CSP and a nonce only exists once a request does. Next
+ * stamps it onto its own script tags while rendering; a page prerendered at
+ * build time carries none, so the browser blocks its entire bootstrap and the
+ * route loads with no working JavaScript at all. Declaring it on the root layout
+ * covers every current and future route, rather than leaving the next static
+ * page someone adds to break in production only.
+ */
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: "Tulli",
   description: "Tulli - Email client for the modern web",

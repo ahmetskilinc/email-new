@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useSettings } from "@/hooks/use-settings"
 import { useQuery } from "@tanstack/react-query"
 import { useTheme } from "next-themes"
+import {
+  EMAIL_FRAME_BOOTSTRAP,
+  EMAIL_FRAME_BOOTSTRAP_HASH,
+} from "@/lib/email-frame-bootstrap"
 
 interface MailContentProps {
   id: string
@@ -21,21 +25,17 @@ interface MailContentProps {
  *     an opaque origin. Even if the sanitizer is bypassed, the content cannot
  *     reach the app's DOM, cookies, storage, or same-origin endpoints. This is
  *     what the previous open shadow root — same origin, full access — did not do.
- *  2. A document CSP inside the frame. `script-src 'nonce-…'` lets the small
- *     trusted bootstrap below run while blocking any injected script that
- *     survived sanitization, and when remote images are disabled `img-src`/
+ *  2. A document CSP inside the frame. `script-src 'sha256-…'` lets the small
+ *     trusted bootstrap run while blocking any injected script that survived
+ *     sanitization, and when remote images are disabled `img-src`/
  *     `font-src` are 'none', so tracking pixels are stopped by the browser
  *     rather than by rewriting markup — including the `url()` loads in attacker
  *     CSS that DOM-level image blocking never caught.
  *
  * `allow-scripts` is required for the bootstrap to report content height back to
- * the parent; combined with the nonce CSP it grants attacker markup nothing.
+ * the parent; combined with the hash-pinned CSP it grants attacker markup nothing.
  */
-function buildFrameDocument(
-  bodyHtml: string,
-  nonce: string,
-  imagesEnabled: boolean
-): string {
+function buildFrameDocument(bodyHtml: string, imagesEnabled: boolean): string {
   const imgSrc = imagesEnabled ? "http: https: data:" : "'none'"
   const fontSrc = imagesEnabled ? "data: https:" : "'none'"
   const csp = [
@@ -43,7 +43,7 @@ function buildFrameDocument(
     `img-src ${imgSrc}`,
     `font-src ${fontSrc}`,
     `style-src 'unsafe-inline'`,
-    `script-src 'nonce-${nonce}'`,
+    `script-src '${EMAIL_FRAME_BOOTSTRAP_HASH}'`,
     `form-action 'none'`,
     `frame-src 'none'`,
     `object-src 'none'`,
@@ -56,32 +56,7 @@ function buildFrameDocument(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 </head><body>
 ${bodyHtml}
-<script nonce="${nonce}">
-(function () {
-  var post = function (msg) { parent.postMessage(Object.assign({ __mail: 1 }, msg), '*') }
-  var report = function () {
-    var d = document.documentElement, b = document.body
-    post({ type: 'height', height: Math.max(b.scrollHeight, d.scrollHeight, b.offsetHeight) })
-  }
-  window.addEventListener('load', report)
-  document.addEventListener('DOMContentLoaded', report)
-  if (window.ResizeObserver) new ResizeObserver(report).observe(document.body)
-  setTimeout(report, 50); setTimeout(report, 500)
-
-  // Links are handed to the parent, which validates the scheme and opens them.
-  document.addEventListener('click', function (e) {
-    var el = e.target
-    while (el && el.tagName !== 'A') el = el.parentElement
-    if (!el) return
-    e.preventDefault()
-    post({ type: 'link', href: el.getAttribute('href') || '' })
-  })
-
-  document.addEventListener('error', function (e) {
-    if (e.target && e.target.tagName === 'IMG') post({ type: 'imageBlocked' })
-  }, true)
-})()
-</script>
+<script>${EMAIL_FRAME_BOOTSTRAP}</script>
 </body></html>`
 }
 
@@ -128,18 +103,12 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
     refetchOnMount: false,
   })
 
-  // Regenerated per render of a new body so a nonce is never reused.
-  const nonce = useMemo(
-    () => crypto.randomUUID().replace(/-/g, ""),
-    [processedData?.html, imagesEnabled]
-  )
-
   const srcDoc = useMemo(
     () =>
       processedData
-        ? buildFrameDocument(processedData.html, nonce, imagesEnabled)
+        ? buildFrameDocument(processedData.html, imagesEnabled)
         : null,
-    [processedData, nonce, imagesEnabled]
+    [processedData, imagesEnabled]
   )
 
   useEffect(() => {
