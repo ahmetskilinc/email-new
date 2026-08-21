@@ -21,6 +21,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { toast } from "sonner"
 import { AddConnectionDialog } from "./add-connection-dialog"
+import { ICloudReconnectDialog } from "@/components/connection/icloud-reconnect-dialog"
 import {
   Avatar,
   AvatarFallback,
@@ -41,6 +42,10 @@ function ConnectionSkeleton() {
 
 export function ConnectionsTab() {
   const [addOpen, setAddOpen] = useState(false)
+  const [reconnecting, setReconnecting] = useState<{
+    id: string
+    email: string
+  } | null>(null)
   const { data, isPending, refetch: refetchConnections } = useConnections()
   const { refetch } = useSession()
 
@@ -97,6 +102,18 @@ export function ConnectionsTab() {
             )?.icon
             const isDisconnected = disconnectedIds.includes(connection.id)
             const isOnly = connections.length === 1
+            // An expired iCloud web session is re-imported, not re-granted:
+            // there is no OAuth flow behind it to send the user through.
+            const needsSessionReimport =
+              connection.providerId === "icloud" && connection.usesWebService
+            // A connection that still has an app-specific password keeps
+            // working over IMAP after Apple drops the session, so it is not
+            // "Disconnected" — but the user should still be told, or the
+            // account quietly stays on the slower path forever.
+            const sessionExpired =
+              needsSessionReimport &&
+              connection.connectionState !== "connected" &&
+              !isDisconnected
 
             return (
               <div
@@ -139,6 +156,14 @@ export function ConnectionsTab() {
                     {isDisconnected && (
                       <Badge variant="destructive">Disconnected</Badge>
                     )}
+                    {sessionExpired && (
+                      <Badge
+                        variant="outline"
+                        className="border-amber-600/40 text-amber-600"
+                      >
+                        iCloud session expired
+                      </Badge>
+                    )}
                   </div>
                   <span className="truncate text-xs text-muted-foreground">
                     {connection.email}
@@ -146,11 +171,18 @@ export function ConnectionsTab() {
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  {isDisconnected && (
+                  {(isDisconnected || sessionExpired) && (
                     <Button
                       variant="secondary"
                       size="sm"
                       onClick={async () => {
+                        if (needsSessionReimport) {
+                          setReconnecting({
+                            id: connection.id,
+                            email: connection.email,
+                          })
+                          return
+                        }
                         await authClient.linkSocial({
                           provider: connection.providerId,
                           callbackURL: window.location.href,
@@ -216,6 +248,21 @@ export function ConnectionsTab() {
           refetch()
         }}
       />
+
+      {reconnecting && (
+        <ICloudReconnectDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setReconnecting(null)
+          }}
+          connectionId={reconnecting.id}
+          email={reconnecting.email}
+          onSuccess={() => {
+            void refetchConnections()
+            refetch()
+          }}
+        />
+      )}
     </div>
   )
 }
