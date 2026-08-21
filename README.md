@@ -14,12 +14,8 @@ This will place the ui components in the `packages/ui/src/components` directory.
 
 ## Using components
 
-UI components come from the published [`bruv-ui`](https://www.npmjs.com/package/bruv-ui) package.
+To use the components in your app, import them from the `ui` package.
 
 ```tsx
-import { Button } from "bruv-ui";
+import { Button } from "@workspace/ui/components/button";
 ```
-
-The local `@workspace/ui` package now only holds app-specific shell pieces
-(`dual-sidebar`, `sidebar`, `sheet`, `field`, brand `icons`) plus shared
-styles/config until they are upstreamed to `bruv-ui`.

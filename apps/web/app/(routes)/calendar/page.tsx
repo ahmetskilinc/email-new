@@ -9,8 +9,9 @@ import {
   format,
   addDays,
 } from "date-fns"
-import { Button } from "bruv-ui"
-import { PlusIcon } from "@heroicons/react/16/solid"
+import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { MiniCalendar } from "@/components/calendar/mini-calendar"
 import { MonthView } from "@/components/calendar/month-view"
 import { EventDialog } from "@/components/calendar/event-dialog"
@@ -86,12 +87,12 @@ export default function CalendarPage() {
           <span className="text-sm font-semibold">Calendar</span>
           <Button
             variant="outline"
-            size="xs"
+            size="icon-xs"
             type="button"
-            aria-label="New event"
-            iconLeft={<PlusIcon />}
             onClick={() => openCreate()}
-          />
+          >
+            <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+          </Button>
         </div>
         <MiniCalendar
           selectedDate={selectedDate}

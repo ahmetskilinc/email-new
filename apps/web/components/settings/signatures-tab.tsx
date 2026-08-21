@@ -9,21 +9,22 @@ import {
   updateSignature,
   deleteSignature,
 } from "@/server/actions/signatures"
-import {
-  Button,
-  Badge,
-  Input,
-  Label,
-  Toggle,
-  Separator,
-  Skeleton,
-  Select,
-  SelectButton,
-  SelectContent,
-  SelectOption,
-} from "bruv-ui"
+import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@workspace/ui/components/badge"
+import { Input } from "@workspace/ui/components/input"
+import { Label } from "@workspace/ui/components/label"
 import { SignatureEditor } from "./signature-editor"
-import { toast } from "bruv-ui"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+import { Switch } from "@workspace/ui/components/switch"
+import { Separator } from "@workspace/ui/components/separator"
+import { Skeleton } from "@workspace/ui/components/skeleton"
+import { toast } from "sonner"
 import DOMPurify from "dompurify"
 
 // Signature bodies are sanitized when they are saved, but rows already in the
@@ -115,7 +116,7 @@ export function SignaturesTab() {
 
   if (connections.length === 0) {
     return (
-      <p className="text-sm text-bruv-tertiary">
+      <p className="text-sm text-muted-foreground">
         Connect an email account first to manage signatures.
       </p>
     )
@@ -131,18 +132,18 @@ export function SignaturesTab() {
             setSelectedConnectionId(v)
             setEditing(null)
           }}
-          items={connections.map((c) => ({ value: c.id, label: c.email }))}
         >
-          <SelectButton
-            size="sm"
-            placeholder="Select connection"
-            className="w-full max-w-xs"
-          />
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue>
+              {connections.find((c) => c.id === activeConnectionId)?.email ??
+                "Select connection"}
+            </SelectValue>
+          </SelectTrigger>
           <SelectContent>
             {connections.map((c) => (
-              <SelectOption key={c.id} value={c.id}>
+              <SelectItem key={c.id} value={c.id}>
                 {c.email}
-              </SelectOption>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -173,7 +174,7 @@ export function SignaturesTab() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Toggle
+            <Switch
               id="sig-default"
               size="sm"
               checked={editing.isDefault}
@@ -187,7 +188,6 @@ export function SignaturesTab() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="primary"
               onClick={handleSave}
               disabled={saving || !editing.name.trim()}
             >
@@ -219,7 +219,7 @@ export function SignaturesTab() {
               <Skeleton className="h-16 w-full" />
             </div>
           ) : !signatures?.length ? (
-            <p className="py-6 text-center text-sm text-bruv-tertiary">
+            <p className="py-6 text-center text-sm text-muted-foreground">
               No signatures yet for this account.
             </p>
           ) : (
@@ -227,31 +227,31 @@ export function SignaturesTab() {
               {signatures.map((sig) => (
                 <div
                   key={sig.id}
-                  className="flex items-start justify-between gap-3 rounded-bruv-lg border p-3"
+                  className="flex items-start justify-between gap-3 rounded-lg border p-3"
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{sig.name}</span>
                       {sig.isDefault && (
-                        <Badge variant="neutral" className="text-[10px]">
+                        <Badge variant="secondary" className="text-[10px]">
                           Default
                         </Badge>
                       )}
                     </div>
                     {sig.body ? (
                       <div
-                        className="prose-xs line-clamp-2 text-xs text-bruv-tertiary"
+                        className="prose-xs line-clamp-2 text-xs text-muted-foreground"
                         dangerouslySetInnerHTML={{
                           __html: sanitizeSignature(sig.body),
                         }}
                       />
                     ) : (
-                      <p className="text-xs text-bruv-tertiary">(empty)</p>
+                      <p className="text-xs text-muted-foreground">(empty)</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">
                     <Button
-                      variant="transparent"
+                      variant="ghost"
                       size="sm"
                       onClick={() =>
                         setEditing({
@@ -265,9 +265,9 @@ export function SignaturesTab() {
                       Edit
                     </Button>
                     <Button
-                      variant="transparent"
+                      variant="ghost"
                       size="sm"
-                      className="text-bruv-tertiary hover:text-bruv-danger"
+                      className="text-muted-foreground hover:text-destructive"
                       onClick={() => handleDelete(sig.id)}
                     >
                       Delete

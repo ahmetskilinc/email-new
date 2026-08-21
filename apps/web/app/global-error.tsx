@@ -30,7 +30,7 @@ export default function GlobalError({
             </div>
             <button
               onClick={reset}
-              className="rounded-bruv-md bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
+              className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium hover:bg-gray-200"
             >
               Try again
             </button>

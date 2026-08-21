@@ -1,18 +1,35 @@
 "use client"
 
 import { useState } from "react"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@workspace/ui/components/dialog"
 import { useSession, authClient } from "@/lib/auth-client"
 import { useConnections } from "@/hooks/use-connections"
 import { deleteConnection } from "@/server/actions/connections"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { emailProviders } from "@/lib/constants"
-import { Dialog, Button, Badge, Skeleton, Avatar } from "bruv-ui"
-import { PlusIcon } from "@heroicons/react/16/solid"
-import { toast } from "bruv-ui"
+import { Button } from "@workspace/ui/components/button"
+import { Badge } from "@workspace/ui/components/badge"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { toast } from "sonner"
 import { AddConnectionDialog } from "./add-connection-dialog"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
 
 function ConnectionSkeleton() {
   return (
-    <div className="flex items-center gap-4 rounded-bruv-lg border p-4">
+    <div className="flex items-center gap-4 rounded-lg border p-4">
       <Skeleton className="size-10 rounded-full" />
       <div className="flex flex-1 flex-col gap-1.5">
         <Skeleton className="h-4 w-28" />
@@ -49,17 +66,13 @@ export function ConnectionsTab() {
           <ConnectionSkeleton />
         </div>
       ) : connections.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-bruv-lg border border-dashed py-12">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-12">
           <p className="text-sm font-medium">No accounts connected</p>
-          <p className="text-sm text-bruv-tertiary">
+          <p className="text-sm text-muted-foreground">
             Connect an email account to get started.
           </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAddOpen(true)}
-            iconLeft={<PlusIcon />}
-          >
+          <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+            <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
             Add Account
           </Button>
         </div>
@@ -70,8 +83,8 @@ export function ConnectionsTab() {
               variant="outline"
               size="sm"
               onClick={() => setAddOpen(true)}
-              iconLeft={<PlusIcon />}
             >
+              <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
               Add Account
             </Button>
           </div>
@@ -88,22 +101,25 @@ export function ConnectionsTab() {
             return (
               <div
                 key={connection.id}
-                className="flex items-center gap-4 rounded-bruv-lg border p-4"
+                className="flex items-center gap-4 rounded-lg border p-4"
               >
                 {connection?.picture ? (
-                  <Avatar
-                    size="lg"
-                    src={connection.picture}
-                    alt={connection.name || connection.email}
-                    initials={(connection.name || connection.email)
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2)}
-                  />
+                  <Avatar className="size-10">
+                    <AvatarImage
+                      src={connection.picture}
+                      alt={connection.name || connection.email}
+                    />
+                    <AvatarFallback className="text-lg">
+                      {(connection.name || connection.email)
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")
+                        .toUpperCase()
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
                 ) : (
-                  <div className="flex size-10 items-center justify-center rounded-full border bg-bruv-subtle">
+                  <div className="flex size-10 items-center justify-center rounded-full border bg-sidebar-accent">
                     {ActiveConnectionIcon && (
                       <ActiveConnectionIcon className="size-4" />
                     )}
@@ -116,15 +132,15 @@ export function ConnectionsTab() {
                       {connection.name}
                     </span>
                     {provider && (
-                      <span className="text-xs text-bruv-tertiary">
+                      <span className="text-xs text-muted-foreground">
                         {provider.name}
                       </span>
                     )}
                     {isDisconnected && (
-                      <Badge variant="danger">Disconnected</Badge>
+                      <Badge variant="destructive">Disconnected</Badge>
                     )}
                   </div>
-                  <span className="truncate text-xs text-bruv-tertiary">
+                  <span className="truncate text-xs text-muted-foreground">
                     {connection.email}
                   </span>
                 </div>
@@ -144,40 +160,38 @@ export function ConnectionsTab() {
                       Reconnect
                     </Button>
                   )}
-                  <Dialog.Root>
-                    <Dialog.Trigger
+                  <Dialog>
+                    <DialogTrigger
                       render={
                         <Button
-                          variant="transparent"
+                          variant="ghost"
                           size="sm"
-                          className="text-bruv-tertiary hover:text-bruv-danger"
+                          className="text-muted-foreground hover:text-destructive"
                           disabled={isOnly}
                         >
                           Remove
                         </Button>
                       }
                     />
-                    <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
-                      <div className="flex flex-col gap-2">
-                        <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
-                          Disconnect Email Account
-                        </Dialog.Title>
-                        <p className="text-sm text-bruv-tertiary">
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Disconnect Email Account</DialogTitle>
+                        <DialogDescription>
                           Are you sure you want to disconnect{" "}
-                          <span className="font-medium text-bruv-primary">
+                          <span className="font-medium text-foreground">
                             {connection.email}
                           </span>
                           ?
-                        </p>
-                      </div>
+                        </DialogDescription>
+                      </DialogHeader>
                       <div className="flex justify-end gap-3">
-                        <Dialog.Close
+                        <DialogClose
                           render={<Button variant="secondary">Cancel</Button>}
                         />
-                        <Dialog.Close
+                        <DialogClose
                           render={
                             <Button
-                              variant="danger-light"
+                              variant="destructive"
                               onClick={() => disconnectAccount(connection.id)}
                             >
                               Disconnect
@@ -185,8 +199,8 @@ export function ConnectionsTab() {
                           }
                         />
                       </div>
-                    </Dialog.Content>
-                  </Dialog.Root>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
             )

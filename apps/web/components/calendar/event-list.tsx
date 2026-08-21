@@ -11,7 +11,7 @@ import {
 } from "date-fns"
 import { cn } from "@workspace/ui/lib/utils"
 import type { CalendarEvent } from "@/server/lib/calendar/types"
-import { ScrollArea } from "bruv-ui"
+import { ScrollArea } from "@workspace/ui/components/scroll-area"
 
 interface EventListProps {
   events: CalendarEvent[]
@@ -55,8 +55,8 @@ export function EventList({
       <div className={cn("space-y-3 p-1", className)}>
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="space-y-2">
-            <div className="h-3 w-20 animate-pulse rounded bg-bruv-subtle" />
-            <div className="h-12 animate-pulse rounded-bruv-md bg-bruv-subtle" />
+            <div className="h-3 w-20 animate-pulse rounded bg-muted" />
+            <div className="h-12 animate-pulse rounded-md bg-muted" />
           </div>
         ))}
       </div>
@@ -68,7 +68,7 @@ export function EventList({
       <div
         className={cn("flex flex-col items-center py-8 text-center", className)}
       >
-        <p className="text-xs text-bruv-tertiary">No upcoming events</p>
+        <p className="text-xs text-muted-foreground">No upcoming events</p>
       </div>
     )
   }
@@ -102,11 +102,11 @@ function DayGroup({
 
   return (
     <div>
-      <div className="sticky top-0 z-10 bg-bruv-base-1 px-1 py-1.5">
+      <div className="sticky top-0 z-10 bg-sidebar px-1 py-1.5">
         <span
           className={cn(
-            "text-xs font-medium text-bruv-tertiary",
-            isToday(date) && "font-semibold text-bruv-accent"
+            "text-xs font-medium text-muted-foreground",
+            isToday(date) && "font-semibold text-primary"
           )}
         >
           {label}
@@ -139,23 +139,23 @@ function EventItem({
 
   return (
     <div
-      className="group flex cursor-pointer gap-2 rounded-bruv-md border border-transparent px-2 py-1.5 transition-colors hover:border-bruv-neutral hover:bg-bruv-subtle/50"
+      className="group flex cursor-pointer gap-2 rounded-md border border-transparent px-2 py-1.5 transition-colors hover:border-border hover:bg-muted/50"
       onClick={() => onClick?.(event)}
     >
       <div
-        className="mt-1 h-full w-0.5 shrink-0 rounded-full bg-bruv-accent"
+        className="mt-1 h-full w-0.5 shrink-0 rounded-full bg-primary"
         style={event.color ? { backgroundColor: event.color } : undefined}
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium">{event.title}</p>
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] text-bruv-tertiary uppercase">
+          <span className="text-[10px] text-muted-foreground uppercase">
             {time}
           </span>
           {event.location && (
             <>
-              <span className="text-[10px] text-bruv-tertiary/50">·</span>
-              <span className="truncate text-[10px] text-bruv-tertiary">
+              <span className="text-[10px] text-muted-foreground/50">·</span>
+              <span className="truncate text-[10px] text-muted-foreground">
                 {event.location}
               </span>
             </>

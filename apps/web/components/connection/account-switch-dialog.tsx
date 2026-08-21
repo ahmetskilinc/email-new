@@ -1,6 +1,18 @@
 "use client"
 
-import { Dialog, Avatar, ScrollArea } from "bruv-ui"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
+import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { setDefaultConnection } from "@/server/actions/connections"
 import { activeConnectionQueryKey } from "@/hooks/use-connections"
@@ -120,7 +132,7 @@ export function AccountSwitchDialog({
     logs.length > 0 && logs[logs.length - 1]?.message === "Switch complete"
 
   return (
-    <Dialog.Root
+    <Dialog
       open={isOpen}
       onOpenChange={(open) => {
         if (!open && (isDone || error)) {
@@ -128,37 +140,40 @@ export function AccountSwitchDialog({
         }
       }}
     >
-      <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
-        <div className="flex flex-col gap-2">
-          <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
-            Switching Account
-          </Dialog.Title>
-          <p className="text-sm text-bruv-tertiary">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Switching Account</DialogTitle>
+          <DialogDescription>
             {error
               ? "Something went wrong while switching accounts."
               : "Please wait while we switch your account..."}
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
         {target && (
-          <div className="flex items-center gap-3 rounded-bruv-lg border p-3">
-            <Avatar
-              size="md"
-              src={target.picture ?? undefined}
-              alt={target.name || target.email}
-              initials={(target.name || target.email)
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()
-                .slice(0, 2)}
-            />
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <Avatar className="size-9">
+              {target.picture && (
+                <AvatarImage
+                  src={target.picture}
+                  alt={target.name || target.email}
+                />
+              )}
+              <AvatarFallback className="text-[10px]">
+                {(target.name || target.email)
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </AvatarFallback>
+            </Avatar>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">
                 {target.name || target.email}
               </p>
               {target.name && (
-                <p className="truncate text-xs text-bruv-tertiary">
+                <p className="truncate text-xs text-muted-foreground">
                   {target.email}
                 </p>
               )}
@@ -166,25 +181,25 @@ export function AccountSwitchDialog({
           </div>
         )}
 
-        <ScrollArea className="h-[140px] w-full rounded-bruv-lg border">
+        <ScrollArea className="h-[140px] w-full rounded-lg border">
           <div ref={scrollRef} className="p-3 font-mono text-[11px]">
             {logs.map((log, i) => (
               <div
                 key={i}
                 className={cn(
                   "flex items-start gap-2 py-0.5",
-                  log.status === "error" && "text-bruv-danger"
+                  log.status === "error" && "text-destructive"
                 )}
               >
-                <span className="w-12 shrink-0 text-right text-bruv-tertiary tabular-nums">
+                <span className="w-12 shrink-0 text-right text-muted-foreground tabular-nums">
                   {log.timestamp}ms
                 </span>
                 <span
                   className={cn(
                     "shrink-0",
-                    log.status === "pending" && "text-bruv-tertiary",
-                    log.status === "done" && "text-bruv-accent",
-                    log.status === "error" && "text-bruv-danger"
+                    log.status === "pending" && "text-muted-foreground",
+                    log.status === "done" && "text-primary",
+                    log.status === "error" && "text-destructive"
                   )}
                 >
                   {log.status === "pending"
@@ -197,13 +212,13 @@ export function AccountSwitchDialog({
               </div>
             ))}
             {logs.length === 0 && (
-              <div className="flex h-[116px] items-center justify-center text-bruv-tertiary">
+              <div className="flex h-[116px] items-center justify-center text-muted-foreground">
                 Initializing...
               </div>
             )}
           </div>
         </ScrollArea>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   )
 }

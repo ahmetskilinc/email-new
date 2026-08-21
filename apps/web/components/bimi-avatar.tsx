@@ -1,9 +1,13 @@
 "use client"
 
-import { Avatar } from "bruv-ui"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
 import { getBimiByEmail } from "@/server/actions/bimi"
 import { useSettings } from "@/hooks/use-settings"
-import { useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 const getFirstLetter = (name?: string) => {
@@ -19,6 +23,7 @@ interface BimiAvatarProps {
 
 export function BimiAvatar({ email, name }: BimiAvatarProps) {
   const { data: settingsData } = useSettings()
+  const [useDefaultFallback, setUseDefaultFallback] = useState(false)
 
   // The BIMI logo lives on a host the sender chooses, so loading it is remote
   // content and leaks a read receipt exactly like a tracking pixel. It has to
@@ -38,19 +43,23 @@ export function BimiAvatar({ email, name }: BimiAvatarProps) {
     queryKey: ["bimi", email],
     queryFn: () => getBimiByEmail(email || ""),
     // Not even the DNS lookup runs when remote content is disallowed.
-    enabled: !!email && remoteImagesAllowed,
+    enabled: !!email && remoteImagesAllowed && !useDefaultFallback,
     staleTime: 1000 * 60 * 60 * 24,
     gcTime: 1000 * 60 * 60 * 24 * 7,
   })
 
+  const handleError = useCallback(() => {
+    setUseDefaultFallback(true)
+  }, [])
+
   const firstLetter = getFirstLetter(name || email)
 
   return (
-    <Avatar
-      size="md"
-      src={remoteImagesAllowed ? (bimiUrl ?? undefined) : undefined}
-      initials={firstLetter}
-      alt={name || email}
-    />
+    <Avatar className="size-8">
+      {remoteImagesAllowed && bimiUrl && (
+        <AvatarImage src={bimiUrl} onError={handleError} />
+      )}
+      <AvatarFallback className="text-xs">{firstLetter}</AvatarFallback>
+    </Avatar>
   )
 }
