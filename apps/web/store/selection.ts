@@ -5,12 +5,20 @@ const selectedThreadIdsAtom = atom<Set<string>>(new Set<string>())
 
 const selectedCountAtom = atom((get) => get(selectedThreadIdsAtom).size)
 
+// Derived boolean so per-row subscribers only re-render when the selection
+// crosses empty/non-empty, not on every membership change.
+const anySelectedAtom = atom((get) => get(selectedThreadIdsAtom).size > 0)
+
 export function useSelectedThreadIds() {
   return useAtomValue(selectedThreadIdsAtom)
 }
 
 export function useSelectedCount() {
   return useAtomValue(selectedCountAtom)
+}
+
+export function useAnySelected() {
+  return useAtomValue(anySelectedAtom)
 }
 
 export function useIsThreadSelected(id: string) {

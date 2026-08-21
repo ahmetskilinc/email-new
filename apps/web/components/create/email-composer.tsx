@@ -21,7 +21,13 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@workspace/ui/components/field"
-import { useCallback, useEffect, useRef, useState } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react"
 import { useEmailAliases } from "@/hooks/use-email-aliases"
 import { useConnections } from "@/hooks/use-connections"
 import { useSignatures } from "@/hooks/use-signatures"
@@ -29,6 +35,7 @@ import useComposeEditor from "@/hooks/use-compose-editor"
 import { RecipientInput } from "@/components/create/recipient-input"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useSettings } from "@/hooks/use-settings"
+import { useAnimations } from "@/hooks/use-animations"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { serializeFiles } from "@/lib/schemas"
@@ -83,6 +90,19 @@ interface EmailComposerProps {
     signatureId?: string
   }) => Promise<void>
   onClose?: () => void
+  /**
+   * When provided, the composer registers a close guard the parent should
+   * consult before closing (X / Escape / overlay). It returns true when
+   * closing is safe; when it returns false the composer has opened its
+   * discard-confirmation dialog and the parent must keep the composer open.
+   */
+  closeGuardRef?: MutableRefObject<(() => boolean) | null>
+  /**
+   * Show success/error toasts from inside the composer after a send
+   * (default true). Parents that own the send lifecycle themselves — e.g.
+   * the compose dialog's optimistic/undo send — pass false.
+   */
+  toastOnSend?: boolean
   className?: string
   autofocus?: boolean
 }
@@ -103,9 +123,12 @@ export function EmailComposer({
   initialAttachments = [],
   onSendEmail,
   onClose,
+  closeGuardRef,
+  toastOnSend = true,
   className,
   autofocus = false,
 }: EmailComposerProps) {
+  const animationsEnabled = useAnimations()
   const { data: aliases } = useEmailAliases()
   const { data: settings } = useSettings()
   const { data: connectionsData } = useConnections()
@@ -132,9 +155,32 @@ export function EmailComposer({
     },
   })
 
-  const { register, handleSubmit, watch, setValue, formState } = form
-  const { errors, isSubmitting, isDirty } = formState
+  const { register, handleSubmit, watch, getValues, setValue, formState } = form
+  const { errors, isSubmitting } = formState
   const currentFromEmail = watch("fromEmail")
+
+  // Autosave bookkeeping. `lastChangedAt` > `lastSavedAt` means there are
+  // edits no draft save has captured yet — the close guard uses that to
+  // decide whether closing needs confirmation.
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastChangedAtRef = useRef(0)
+  const lastSavedAtRef = useRef(0)
+  const performAutosaveRef = useRef<() => Promise<void>>(async () => {})
+
+  const markChanged = useCallback(() => {
+    lastChangedAtRef.current = Date.now()
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      void performAutosaveRef.current()
+    }, 3000)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    },
+    []
+  )
 
   const activeConnectionId =
     connections.find(
@@ -167,7 +213,7 @@ export function EmailComposer({
   const editor = useComposeEditor({
     initialValue: initialMessage,
     isReadOnly: isSubmitting,
-    onLengthChange: () => {},
+    onLengthChange: markChanged,
     onModEnter: () => {
       void handleSubmit(onSubmit)()
       return true
@@ -191,6 +237,8 @@ export function EmailComposer({
 
   const onSubmit = async (data: ComposeFormValues) => {
     try {
+      // A pending autosave must not fire after the message is sent.
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
       await onSendEmail({
         to: parseRecipients(data.to),
         cc: showCc ? parseRecipients(data.cc ?? "") : undefined,
@@ -201,52 +249,100 @@ export function EmailComposer({
         fromEmail: data.fromEmail || undefined,
         signatureId: selectedSignatureId || undefined,
       })
+      lastChangedAtRef.current = 0
       form.reset()
       editor?.commands.clearContent(true)
-      toast.success("Email sent")
+      if (toastOnSend) toast.success("Email sent")
     } catch {
-      toast.error("Failed to send email")
+      if (toastOnSend) toast.error("Failed to send email")
     }
   }
 
-  const watchedValues = watch()
+  // Debounced autosave reads current values on fire instead of subscribing
+  // the whole component to every form value (`watch()` re-rendered the
+  // composer on each keystroke). Saves whenever there is ANY meaningful
+  // content — body text, subject, or a recipient — so bodies aren't lost
+  // just because no recipient/subject was set yet.
+  const performAutosave = async () => {
+    if (!editor) return
+    const values = getValues()
+    const bodyText = editor.getText().trim()
+    const hasContent =
+      bodyText.length > 0 ||
+      values.subject.trim().length > 0 ||
+      parseRecipients(values.to).length > 0
+    if (!hasContent) return
+
+    try {
+      const draftData = {
+        to: values.to,
+        cc: values.cc || undefined,
+        bcc: values.bcc || undefined,
+        subject: values.subject,
+        message: editor.getHTML(),
+        attachments: await serializeFiles(attachments),
+        id: draftId,
+        threadId: threadId || null,
+        fromEmail: values.fromEmail || null,
+      }
+      const response = await createDraft(draftData)
+      lastSavedAtRef.current = Date.now()
+      if (response?.id && response.id !== draftId) {
+        setDraftId(response.id)
+      }
+    } catch {
+      toast.error("Failed to save draft")
+    }
+  }
+
+  // Keep the ref pointing at the latest closure so the debounce timer always
+  // saves current values without re-arming on every render.
+  useEffect(() => {
+    performAutosaveRef.current = performAutosave
+  })
 
   useEffect(() => {
-    if (!isDirty || !editor) return
-    const timer = setTimeout(async () => {
-      const to = parseRecipients(watchedValues.to)
-      if (!to.length || !watchedValues.subject) return
+    const subscription = watch((_, { name }) => {
+      // The alias effect programmatically sets fromEmail on load; that alone
+      // is neither a user edit nor worth a draft.
+      if (name === "fromEmail") return
+      markChanged()
+    })
+    return () => subscription.unsubscribe()
+  }, [watch, markChanged])
 
-      try {
-        const draftData = {
-          to: watchedValues.to,
-          cc: watchedValues.cc || undefined,
-          bcc: watchedValues.bcc || undefined,
-          subject: watchedValues.subject,
-          message: editor.getHTML(),
-          attachments: await serializeFiles(attachments),
-          id: draftId,
-          threadId: threadId || null,
-          fromEmail: watchedValues.fromEmail || null,
-        }
-        const response = await createDraft(draftData)
-        if (response?.id && response.id !== draftId) {
-          setDraftId(response.id)
-        }
-      } catch {
-        toast.error("Failed to save draft")
-      }
-    }, 3000)
-    return () => clearTimeout(timer)
-  }, [
-    isDirty,
-    watchedValues,
-    editor,
-    attachments,
-    draftId,
-    threadId,
-    setDraftId,
-  ])
+  const attachmentsInitializedRef = useRef(false)
+  useEffect(() => {
+    if (!attachmentsInitializedRef.current) {
+      attachmentsInitializedRef.current = true
+      return
+    }
+    markChanged()
+  }, [attachments, markChanged])
+
+  // Parent-consulted close guard: allow closing silently when nothing
+  // changed or the latest changes are already saved as a draft; otherwise
+  // open the discard confirmation and veto the close.
+  useEffect(() => {
+    if (!closeGuardRef) return
+    closeGuardRef.current = () => {
+      if (lastChangedAtRef.current === 0) return true
+      if (lastChangedAtRef.current <= lastSavedAtRef.current) return true
+      const values = getValues()
+      const bodyText = editor?.getText().trim() ?? ""
+      const hasContent =
+        bodyText.length > 0 ||
+        values.subject.trim().length > 0 ||
+        values.to.trim().length > 0 ||
+        attachments.length > 0
+      if (!hasContent) return true
+      setShowLeaveConfirmation(true)
+      return false
+    }
+    return () => {
+      closeGuardRef.current = null
+    }
+  })
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
@@ -260,7 +356,7 @@ export function EmailComposer({
           data-invalid={!!errors.to || undefined}
           className="pr-8"
         >
-          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+          <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
             To:
           </FieldLabel>
           <RecipientInput
@@ -291,7 +387,7 @@ export function EmailComposer({
 
         {showCc && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
               Cc:
             </FieldLabel>
             <RecipientInput
@@ -305,7 +401,7 @@ export function EmailComposer({
 
         {showBcc && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
               Bcc:
             </FieldLabel>
             <RecipientInput
@@ -321,8 +417,8 @@ export function EmailComposer({
           orientation="horizontal"
           data-invalid={!!errors.subject || undefined}
         >
-          <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
-            Sub:
+          <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
+            Subject
           </FieldLabel>
           <Input
             {...register("subject")}
@@ -335,7 +431,7 @@ export function EmailComposer({
 
         {aliases && aliases.length > 1 && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
               From:
             </FieldLabel>
             <Select
@@ -360,7 +456,7 @@ export function EmailComposer({
 
         {signatures && signatures.length > 0 && (
           <Field orientation="horizontal">
-            <FieldLabel className="w-8 flex-none! shrink-0 text-sm text-muted-foreground">
+            <FieldLabel className="w-14 flex-none! shrink-0 text-sm text-muted-foreground">
               Sig:
             </FieldLabel>
             <Select
@@ -411,10 +507,13 @@ export function EmailComposer({
       <AnimatePresence>
         {attachments.length > 0 && (
           <motion.div
-            initial={{ height: 0, opacity: 0 }}
+            initial={animationsEnabled ? { height: 0, opacity: 0 } : false}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
+            transition={{
+              duration: animationsEnabled ? 0.2 : 0,
+              ease: "easeInOut",
+            }}
             className="overflow-hidden border-t"
           >
             <div className="flex flex-wrap gap-2 p-3">
@@ -422,11 +521,13 @@ export function EmailComposer({
                 {attachments.map((file, i) => (
                   <motion.div
                     key={`${file.name}-${file.size}-${i}`}
-                    layout
-                    initial={{ opacity: 0, scale: 0.8 }}
+                    layout={animationsEnabled}
+                    initial={
+                      animationsEnabled ? { opacity: 0, scale: 0.8 } : false
+                    }
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: animationsEnabled ? 0.15 : 0 }}
                   >
                     <AttachmentPreview
                       file={file}
@@ -485,7 +586,7 @@ export function EmailComposer({
               variant="secondary"
               onClick={() => setShowLeaveConfirmation(false)}
             >
-              Stay
+              Keep editing
             </Button>
             <Button
               type="button"

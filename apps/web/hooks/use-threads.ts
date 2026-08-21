@@ -18,6 +18,7 @@ import {
   processEmailContent,
 } from "@/server/actions/mail"
 import { extractThreadDate } from "@/lib/thread-utils"
+import { patchThreadPreviews } from "@/hooks/use-thread-actions"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useSession } from "@/lib/auth-client"
 import { useSettings } from "./use-settings"
@@ -180,7 +181,14 @@ export const useThread = (
         hasBlockedImages: result.hasBlockedImages,
       }
     },
-    enabled: !!latestMessage?.decodedBody && !!settings?.settings,
+    // Also gated on the resolved theme: before next-themes hydrates,
+    // resolvedTheme is undefined and the fallback ("light") would sanitize —
+    // and cache — under a key the viewer never reads once the real theme
+    // resolves, doubling the work on cold open.
+    enabled:
+      !!latestMessage?.decodedBody &&
+      !!settings?.settings &&
+      resolvedTheme !== undefined,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -190,18 +198,36 @@ export const useThread = (
   const queryClient = useQueryClient()
   const markedReadRef = useRef<string | null>(null)
 
+  // Auto mark-as-read on open, honoring the user's autoRead setting. Waits
+  // for settings to load rather than assuming; the schema defaults autoRead to
+  // true so unset settings preserve the old behavior.
+  const autoRead = settings?.settings?.autoRead ?? true
+
   useEffect(() => {
     if (!id || !threadQuery.data?.hasUnread || markedReadRef.current === id)
       return
+    if (!settings || !autoRead) return
 
     markedReadRef.current = id
-    markAsRead([id], connectionId)
-      .then(() => {
-        queryClient.invalidateQueries({ queryKey: ["threads"] })
-        queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
-      })
-      .catch(() => {})
-  }, [id, threadQuery.data?.hasUnread, connectionId, queryClient])
+    // Flip the flag in place instead of refetching every loaded page.
+    patchThreadPreviews(queryClient, [id], { unread: false })
+    queryClient.setQueryData(
+      ["thread", id, connectionId],
+      (old: typeof threadQuery.data) =>
+        old ? { ...old, hasUnread: false } : old
+    )
+    markAsRead([id], connectionId).catch(() => {
+      markedReadRef.current = null
+      patchThreadPreviews(queryClient, [id], { unread: true })
+    })
+  }, [
+    id,
+    threadQuery.data?.hasUnread,
+    connectionId,
+    queryClient,
+    settings,
+    autoRead,
+  ])
 
   return { ...threadQuery, data: finalData, isGroupThread, latestDraft }
 }

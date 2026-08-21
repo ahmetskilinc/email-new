@@ -1,21 +1,16 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useQueryState } from "nuqs"
-import { useQueryClient } from "@tanstack/react-query"
+import { useAtom, useSetAtom } from "jotai"
 import { useThreads } from "@/hooks/use-threads"
+import { useThreadActions } from "@/hooks/use-thread-actions"
 import { useReplyActions } from "@/hooks/use-reply-actions"
+import { focusedIndexAtom } from "@/hooks/use-mail-navigation"
 import { useOpenCompose } from "@/store/compose"
 import { useCommandPalette } from "@/store/command-palette"
-import {
-  bulkArchive,
-  bulkDelete,
-  toggleStar,
-  markAsRead,
-  markAsUnread,
-} from "@/server/actions/mail"
+import { shortcutsHelpOpenAtom } from "@/components/shortcuts-help"
 import { useSelectedThreadIds, useSelectionActions } from "@/store/selection"
-import { toast } from "sonner"
 
 function isTyping(): boolean {
   const el = document.activeElement
@@ -33,192 +28,201 @@ export function useKeyboardShortcuts() {
     useReplyActions(threadId)
   const openCompose = useOpenCompose()
   const [, setCommandPaletteOpen] = useCommandPalette()
+  const setShortcutsHelpOpen = useSetAtom(shortcutsHelpOpenAtom)
   const selectedIds = useSelectedThreadIds()
   const { clearAll: clearSelection } = useSelectionActions()
-  const queryClient = useQueryClient()
+  const [focusedIndex, setFocusedIndex] = useAtom(focusedIndexAtom)
+  const actions = useThreadActions()
+
+  // Everything volatile lives in a ref so the keydown listener is subscribed
+  // exactly once instead of being torn down on every render.
+  const stateRef = useRef({
+    threadId,
+    setThreadId,
+    threads,
+    handleReply,
+    handleReplyAll,
+    handleForward,
+    openCompose,
+    setCommandPaletteOpen,
+    setShortcutsHelpOpen,
+    selectedIds,
+    clearSelection,
+    focusedIndex,
+    setFocusedIndex,
+    actions,
+  })
 
   useEffect(() => {
-    const invalidate = () => {
-      queryClient.invalidateQueries({ queryKey: ["threads"] })
-      queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
-      queryClient.invalidateQueries({ queryKey: ["thread"] })
+    stateRef.current = {
+      threadId,
+      setThreadId,
+      threads,
+      handleReply,
+      handleReplyAll,
+      handleForward,
+      openCompose,
+      setCommandPaletteOpen,
+      setShortcutsHelpOpen,
+      selectedIds,
+      clearSelection,
+      focusedIndex,
+      setFocusedIndex,
+      actions,
     }
+  })
 
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const s = stateRef.current
+
       // Command palette — works even when typing
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault()
-        setCommandPaletteOpen((prev) => !prev)
+        s.setCommandPaletteOpen((prev) => !prev)
         return
       }
 
       if (isTyping()) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
 
       const key = e.key
 
-      // Navigation
+      // Targets for bulk-aware actions: checkbox selection wins, then the
+      // open thread, then the keyboard cursor.
+      const focusedThread =
+        s.focusedIndex !== null ? s.threads[s.focusedIndex] : undefined
+      const targets =
+        s.selectedIds.size > 0
+          ? Array.from(s.selectedIds)
+          : s.threadId
+            ? [s.threadId]
+            : focusedThread
+              ? [focusedThread.id]
+              : null
+
+      // Advances the open thread (when it's being acted on) and keeps the
+      // cursor in place so it lands on the following row once this one is
+      // optimistically removed.
+      const advancePastRemoved = () => {
+        if (s.selectedIds.size === 0 && s.threadId) {
+          const idx = s.threads.findIndex((t) => t.id === s.threadId)
+          const next = s.threads[idx + 1] ?? s.threads[idx - 1]
+          void s.setThreadId(next?.id ?? null)
+        }
+        if (s.focusedIndex !== null) {
+          const clamped = Math.min(s.focusedIndex, s.threads.length - 2)
+          s.setFocusedIndex(clamped < 0 ? null : clamped)
+        }
+      }
+
+      // Cursor movement — j/k move focus WITHOUT opening or marking read
       if (key === "j" || key === "k") {
         e.preventDefault()
-        if (threads.length === 0) return
-        const currentIndex = threadId
-          ? threads.findIndex((t) => t.id === threadId)
-          : -1
-        const nextIndex =
+        if (s.threads.length === 0) return
+        const base =
+          s.focusedIndex ??
+          (s.threadId ? s.threads.findIndex((t) => t.id === s.threadId) : -1)
+        const next =
           key === "j"
-            ? Math.min(currentIndex + 1, threads.length - 1)
-            : Math.max(currentIndex - 1, 0)
-        void setThreadId(threads[nextIndex]!.id)
+            ? Math.min(base + 1, s.threads.length - 1)
+            : Math.max(base - 1, 0)
+        s.setFocusedIndex(next)
+        return
+      }
+
+      // Open focused thread
+      if (key === "Enter" || key === "o") {
+        const target = e.target as HTMLElement | null
+        // Don't hijack Enter aimed at buttons/links/dialogs
+        if (key === "Enter" && target?.closest?.("button, a, [role='dialog']"))
+          return
+        if (!focusedThread) return
+        e.preventDefault()
+        void s.setThreadId(focusedThread.id)
         return
       }
 
       // Compose
       if (key === "c") {
         e.preventDefault()
-        openCompose()
+        s.openCompose()
         return
       }
 
       // Reply / Reply All / Forward (require selected thread)
       if (key === "r" && !e.shiftKey) {
         e.preventDefault()
-        handleReply()
+        s.handleReply()
         return
       }
       if (key === "a") {
         e.preventDefault()
-        handleReplyAll()
+        s.handleReplyAll()
         return
       }
       if (key === "f") {
         e.preventDefault()
-        handleForward()
+        s.handleForward()
         return
       }
 
-      // Archive (bulk-aware)
+      // Archive (bulk-aware, optimistic with undo)
       if (key === "e") {
-        const targets =
-          selectedIds.size > 0
-            ? Array.from(selectedIds)
-            : threadId
-              ? [threadId]
-              : null
         if (!targets) return
         e.preventDefault()
-        if (selectedIds.size === 0 && threadId) {
-          const idx = threads.findIndex((t) => t.id === threadId)
-          const next = threads[idx + 1] ?? threads[idx - 1]
-          void setThreadId(next?.id ?? null)
-        }
-        toast.promise(
-          bulkArchive(targets).then(() => {
-            invalidate()
-            clearSelection()
-          }),
-          {
-            loading: "Archiving...",
-            success: "Archived",
-            error: "Failed to archive",
-          }
-        )
+        advancePastRemoved()
+        s.actions.archive(targets)
+        s.clearSelection()
         return
       }
 
-      // Delete (bulk-aware)
+      // Delete (bulk-aware, optimistic with undo)
       if (key === "#") {
-        const targets =
-          selectedIds.size > 0
-            ? Array.from(selectedIds)
-            : threadId
-              ? [threadId]
-              : null
         if (!targets) return
         e.preventDefault()
-        if (selectedIds.size === 0 && threadId) {
-          const idx = threads.findIndex((t) => t.id === threadId)
-          const next = threads[idx + 1] ?? threads[idx - 1]
-          void setThreadId(next?.id ?? null)
-        }
-        toast.promise(
-          bulkDelete(targets).then(() => {
-            invalidate()
-            clearSelection()
-          }),
-          {
-            loading: "Deleting...",
-            success: "Deleted",
-            error: "Failed to delete",
-          }
-        )
+        advancePastRemoved()
+        s.actions.deleteThreads(targets)
+        s.clearSelection()
         return
       }
 
-      // Star (bulk-aware)
+      // Star (bulk-aware, silent + optimistic)
       if (key === "s") {
-        const targets =
-          selectedIds.size > 0
-            ? Array.from(selectedIds)
-            : threadId
-              ? [threadId]
-              : null
         if (!targets) return
         e.preventDefault()
-        toast.promise(
-          toggleStar(targets).then(() => {
-            invalidate()
-            clearSelection()
-          }),
-          {
-            loading: "Updating...",
-            success: "Star toggled",
-            error: "Failed to toggle star",
-          }
-        )
+        s.actions.toggleStar(targets)
+        s.clearSelection()
         return
       }
 
-      // Toggle read/unread (bulk-aware)
-      if (key === "u") {
-        const targets =
-          selectedIds.size > 0
-            ? Array.from(selectedIds)
-            : threadId
-              ? [threadId]
-              : null
+      // Toggle read/unread (bulk-aware, optimistic)
+      if (key === "u" || key === "U") {
         if (!targets) return
         e.preventDefault()
-        if (e.shiftKey) {
-          toast.promise(
-            markAsUnread(targets).then(() => {
-              invalidate()
-              clearSelection()
-            }),
-            {
-              loading: "Updating...",
-              success: "Marked as unread",
-              error: "Failed to mark as unread",
-            }
-          )
-        } else {
-          toast.promise(
-            markAsRead(targets).then(() => {
-              invalidate()
-              clearSelection()
-            }),
-            {
-              loading: "Updating...",
-              success: "Marked as read",
-              error: "Failed to mark as read",
-            }
-          )
-        }
+        if (e.shiftKey) s.actions.markUnread(targets)
+        else s.actions.markRead(targets)
+        s.clearSelection()
         return
       }
 
-      // Escape — deselect
+      // Shortcuts help
+      if (key === "?") {
+        e.preventDefault()
+        s.setShortcutsHelpOpen(true)
+        return
+      }
+
+      // Escape — close thread, then clear selection, then clear cursor
       if (key === "Escape") {
         e.preventDefault()
-        void setThreadId(null)
+        if (s.threadId) {
+          void s.setThreadId(null)
+        } else if (s.selectedIds.size > 0) {
+          s.clearSelection()
+        } else if (s.focusedIndex !== null) {
+          s.setFocusedIndex(null)
+        }
         return
       }
 
@@ -235,17 +239,5 @@ export function useKeyboardShortcuts() {
 
     document.addEventListener("keydown", handler)
     return () => document.removeEventListener("keydown", handler)
-  }, [
-    threadId,
-    threads,
-    setThreadId,
-    handleReply,
-    handleReplyAll,
-    handleForward,
-    openCompose,
-    setCommandPaletteOpen,
-    selectedIds,
-    clearSelection,
-    queryClient,
-  ])
+  }, [])
 }

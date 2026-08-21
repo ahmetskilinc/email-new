@@ -4,6 +4,10 @@ export interface ThreadPreview {
   receivedOn: string
   unread: boolean
   starred: boolean
+  /** Short plain-text body preview, when the provider supplies one. */
+  snippet?: string
+  /** True when the thread is known to carry attachments (provider-dependent). */
+  hasAttachments?: boolean
 }
 
 export function normalizeThreadPreview(raw: unknown): ThreadPreview {
@@ -24,6 +28,8 @@ export function normalizeThreadPreview(raw: unknown): ThreadPreview {
     receivedOn: extractReceivedOn(r),
     unread: extractUnread(r),
     starred: extractStarred(r),
+    snippet: extractSnippet(r),
+    hasAttachments: extractHasAttachments(r),
   }
 }
 
@@ -65,6 +71,46 @@ function extractSender(r: Record<string, unknown>): {
   }
 
   return { email: "unknown" }
+}
+
+// Gmail snippets are HTML-entity encoded; decode the handful that actually
+// show up so the list row doesn't render "&#39;" literally.
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) =>
+      String.fromCodePoint(parseInt(code, 16))
+    )
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+}
+
+function extractSnippet(r: Record<string, unknown>): string | undefined {
+  const preview = r.preview as Record<string, unknown> | undefined
+  const raw =
+    (typeof preview?.snippet === "string" && preview.snippet) ||
+    // Gmail thread list items carry `snippet`
+    (typeof r.snippet === "string" && r.snippet) ||
+    // Microsoft Graph messages carry `bodyPreview`
+    (typeof r.bodyPreview === "string" && r.bodyPreview) ||
+    undefined
+  if (!raw) return undefined
+  const decoded = decodeEntities(raw).replace(/\s+/g, " ").trim()
+  return decoded || undefined
+}
+
+function extractHasAttachments(r: Record<string, unknown>): boolean | undefined {
+  const preview = r.preview as Record<string, unknown> | undefined
+  if (typeof preview?.hasAttachments === "boolean") {
+    return preview.hasAttachments
+  }
+  // Microsoft Graph list projection includes `hasAttachments`
+  if (typeof r.hasAttachments === "boolean") return r.hasAttachments
+  return undefined
 }
 
 function extractSubject(r: Record<string, unknown>): string {

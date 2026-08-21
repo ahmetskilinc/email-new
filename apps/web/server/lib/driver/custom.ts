@@ -13,6 +13,7 @@ import type {
 } from "./types"
 import type { CreateDraftData } from "../schemas"
 import {
+  IMAP_TIMEOUTS,
   countUnread,
   deleteAllSpam,
   deleteMessages,
@@ -267,6 +268,7 @@ export class CustomImapMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
     // If the mailbox op throws we'd walk away from a live, authenticated IMAP
@@ -293,6 +295,7 @@ export class CustomImapMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
     // Same reason as createLabel: never leave an authenticated client dangling.
@@ -311,6 +314,7 @@ export class CustomImapMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
     // Same reason as createLabel: never leave an authenticated client dangling.

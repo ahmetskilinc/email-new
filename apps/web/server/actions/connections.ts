@@ -86,7 +86,14 @@ export async function deleteConnection(connectionId: string) {
   // is active.
   const userData = await db.findUser()
   if (userData?.defaultConnectionId === connectionId) {
-    await db.updateUser({ defaultConnectionId: null })
+    // Promote the oldest remaining connection rather than leaving the user
+    // with no recorded default (which forced getActiveConnection into its
+    // silent-fallback path on every request).
+    const remaining = await db.findManyConnections()
+    const next = [...remaining].sort(
+      (a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)
+    )[0]
+    await db.updateUser({ defaultConnectionId: next?.id ?? null })
   }
 }
 

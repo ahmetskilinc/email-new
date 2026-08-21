@@ -70,7 +70,13 @@ export function formatDate(dateInput: string | Date | number): string {
       return format(dateObj, "MMM dd")
     }
 
-    return format(dateObj, "MM/dd/yy")
+    // Locale-aware short date (e.g. 08/21/26 in en-US, 21/08/26 in en-GB)
+    // instead of hardcoding the US MM/dd/yy order.
+    return new Intl.DateTimeFormat(undefined, {
+      year: "2-digit",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(dateObj)
   } catch {
     return ""
   }

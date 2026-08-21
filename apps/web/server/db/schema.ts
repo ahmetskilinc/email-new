@@ -268,6 +268,11 @@ export const syncState = createTable("sync_state", {
   lastDeltaAt: timestamp("last_delta_at"),
   syncLockedAt: timestamp("sync_locked_at"),
   lastRunId: text("last_run_id"),
+  /** Resumable backfill watermark: provider pageToken to continue from. */
+  backfillPageToken: text("backfill_page_token"),
+  /** Owner of the active scheduler loop plus its liveness heartbeat. */
+  schedulerRunId: text("scheduler_run_id"),
+  schedulerHeartbeatAt: timestamp("scheduler_heartbeat_at"),
   lastError: text("last_error"),
   updatedAt: timestamp("updated_at").notNull(),
 })

@@ -1,9 +1,16 @@
-// @ts-nocheck
 import nodemailer from "nodemailer"
 import { ImapFlow } from "imapflow"
-import { simpleParser } from "mailparser"
-import { type ImapProviderConfig, ICLOUD_CONFIG } from "./provider-config"
+// @ts-expect-error -- mailparser ships no types and @types/mailparser is not
+// installed; the module resolves as `any`.
+import { simpleParser, type AddressObject } from "mailparser"
+import {
+  type ImapProviderConfig,
+  ICLOUD_CONFIG,
+  YAHOO_CONFIG,
+} from "./provider-config"
 import { safeError } from "../safe-error"
+import { assertPublicHost } from "./host-validation"
+import { IMAP_TIMEOUTS } from "./imap"
 
 interface OutgoingMessage {
   to: { name?: string; email: string }[]
@@ -38,48 +45,126 @@ interface DraftData {
   threadId?: string
 }
 
-function makeTransport(
+interface ParsedDraftContent {
+  id: string
+  to?: string[]
+  subject?: string
+  content?: string
+  cc?: string[]
+  bcc?: string[]
+  rawMessage?: { internalDate?: string | null }
+}
+
+/**
+ * Hosts hardcoded in provider-config. Anything else came from user-supplied
+ * custom-connection config and must be re-validated (and its IP pinned) at
+ * connect time.
+ */
+const KNOWN_SMTP_HOSTS = new Set([
+  ICLOUD_CONFIG.smtpHost,
+  YAHOO_CONFIG.smtpHost,
+])
+const KNOWN_IMAP_HOSTS = new Set([
+  ICLOUD_CONFIG.imapHost,
+  YAHOO_CONFIG.imapHost,
+])
+
+async function makeTransport(
   email: string,
   password: string,
   config: ImapProviderConfig = ICLOUD_CONFIG
 ) {
+  let host = config.smtpHost
+  let servername: string | undefined
+  if (!KNOWN_SMTP_HOSTS.has(config.smtpHost)) {
+    // User-supplied host: re-resolve and connect to the validated IP so DNS
+    // cannot rebind to an internal address between validation and connect.
+    // TLS still verifies the certificate against the original hostname.
+    const [ip] = await assertPublicHost(config.smtpHost, "SMTP")
+    if (ip) {
+      servername = config.smtpHost.trim().toLowerCase()
+      host = ip
+    }
+  }
   return nodemailer.createTransport({
-    host: config.smtpHost,
+    host,
     port: config.smtpPort,
     secure: config.smtpSecure,
     requireTLS: config.smtpRequireTLS,
+    ...(servername ? { tls: { servername } } : {}),
     auth: { user: email, pass: password },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 60_000,
+    dnsTimeout: 10_000,
   })
 }
 
-function makeClient(
+async function makeClient(
   email: string,
   password: string,
   config: ImapProviderConfig = ICLOUD_CONFIG
-): ImapFlow {
+): Promise<ImapFlow> {
+  let host = config.imapHost
+  let servername: string | undefined
+  if (!KNOWN_IMAP_HOSTS.has(config.imapHost)) {
+    const [ip] = await assertPublicHost(config.imapHost, "IMAP")
+    if (ip) {
+      servername = config.imapHost.trim().toLowerCase()
+      host = ip
+    }
+  }
   return new ImapFlow({
-    host: config.imapHost,
+    host,
     port: config.imapPort,
     secure: true,
+    ...(servername ? { tls: { servername } } : {}),
     auth: { user: email, pass: password },
     logger: false,
+    ...IMAP_TIMEOUTS,
   })
+}
+
+/**
+ * Display names come from user/provider data: strip CR/LF so a crafted name
+ * cannot inject headers, and escape quotes/backslashes so the quoted-string
+ * stays a quoted-string.
+ */
+function sanitizeDisplayName(name: string): string {
+  return name.replace(/[\r\n]+/g, " ").replace(/(["\\])/g, "\\$1").trim()
 }
 
 function formatAddresses(list: { name?: string; email: string }[]): string {
   return list
-    .map((a) => (a.name ? `"${a.name}" <${a.email}>` : a.email))
+    .map((a) =>
+      a.name ? `"${sanitizeDisplayName(a.name)}" <${a.email}>` : a.email
+    )
     .join(", ")
 }
 
-export async function sendEmail(
+/** Renders mail options to a raw RFC822 message via a stream transport. */
+async function buildRawMessage(
+  mailOptions: nodemailer.SendMailOptions
+): Promise<string> {
+  const transport = nodemailer.createTransport({
+    streamTransport: true,
+    newline: "unix",
+  })
+  const info = await transport.sendMail(mailOptions)
+  return await new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = []
+    const stream = info.message as NodeJS.ReadableStream
+    stream.on("data", (chunk: Buffer) => chunks.push(chunk))
+    stream.on("end", () => resolve(Buffer.concat(chunks).toString()))
+    stream.on("error", reject)
+  })
+}
+
+function buildMailOptions(
   email: string,
-  password: string,
-  message: OutgoingMessage,
-  config: ImapProviderConfig = ICLOUD_CONFIG
-): Promise<{ id?: string | null }> {
-  const transport = makeTransport(email, password, config)
-  const mailOptions: nodemailer.SendMailOptions = {
+  message: OutgoingMessage
+): nodemailer.SendMailOptions {
+  return {
     from: message.fromEmail ? `${email} <${message.fromEmail}>` : email,
     to: formatAddresses(message.to),
     cc: message.cc ? formatAddresses(message.cc) : undefined,
@@ -94,8 +179,101 @@ export async function sendEmail(
     })),
     headers: message.headers,
   }
+}
+
+export async function sendEmail(
+  email: string,
+  password: string,
+  message: OutgoingMessage,
+  config: ImapProviderConfig = ICLOUD_CONFIG
+): Promise<{ id?: string | null }> {
+  const transport = await makeTransport(email, password, config)
+  const mailOptions = buildMailOptions(email, message)
   const info = await transport.sendMail(mailOptions)
+  const rejected = (info.rejected ?? []).map((r) =>
+    typeof r === "string" ? r : (r.address ?? String(r))
+  )
+  const accepted = info.accepted ?? []
+
+  // Plain IMAP servers don't auto-save outgoing mail, so append a copy to the
+  // Sent folder (unless the provider's SMTP does it itself, e.g. Yahoo —
+  // appending there duplicates every message). Runs before the rejection
+  // check: a partially-accepted message was delivered and belongs in Sent.
+  // Best effort: the message is already on the wire, so a failure here must
+  // never fail the send.
+  if (accepted.length > 0 && !config.smtpSavesSent) {
+    try {
+      const raw = await buildRawMessage(mailOptions)
+      const client = await makeClient(email, password, config)
+      try {
+        await client.connect()
+        await client.append(config.folders.sent, raw, ["\\Seen"])
+      } finally {
+        await client.logout().catch(() => {})
+      }
+    } catch (e) {
+      console.error("[smtp:sendEmail] failed to append to Sent folder", e)
+    }
+  }
+
+  if (rejected.length > 0) {
+    // Distinguish partial delivery: resending the whole message would
+    // duplicate it for the recipients that were accepted.
+    const clientMessage =
+      accepted.length > 0
+        ? `The email was delivered, but the server rejected these recipients: ${rejected.join(", ")}. Resend to those addresses only.`
+        : `The server rejected these recipients: ${rejected.join(", ")}.`
+    const { message: msg } = safeError(
+      "smtp.sendEmail",
+      new Error(`recipients rejected: ${rejected.join(", ")}`),
+      clientMessage
+    )
+    throw new Error(msg)
+  }
+
   return { id: info.messageId ?? null }
+}
+
+function parseDraftAddressList(
+  addr: AddressObject | AddressObject[] | undefined
+): string[] {
+  if (!addr) return []
+  return (Array.isArray(addr) ? addr : [addr])
+    .flatMap((a) => ("value" in a ? a.value : [a]))
+    .map((a: { address?: string }) => a.address ?? "")
+    .filter(Boolean)
+}
+
+/** Reads and parses one draft from the currently connected client. */
+async function readDraft(
+  client: ImapFlow,
+  draftId: string,
+  config: ImapProviderConfig,
+  options: { readOnly?: boolean } = {}
+): Promise<ParsedDraftContent> {
+  await client.mailboxOpen(config.folders.drafts, {
+    readOnly: options.readOnly ?? false,
+  })
+  const uid = parseInt(draftId, 10)
+  if (isNaN(uid)) throw new Error(`Invalid draftId: ${draftId}`)
+  for await (const msg of client.fetch(
+    `${uid}`,
+    { source: true, uid: true },
+    { uid: true }
+  )) {
+    if (!msg.source) continue
+    const parsed = await simpleParser(Buffer.from(msg.source))
+    return {
+      id: draftId,
+      to: parseDraftAddressList(parsed.to),
+      cc: parseDraftAddressList(parsed.cc),
+      bcc: [],
+      subject: parsed.subject ?? "",
+      content: parsed.html || parsed.text || "",
+      rawMessage: { internalDate: parsed.date?.toISOString() ?? null },
+    }
+  }
+  throw new Error(`Draft ${draftId} not found`)
 }
 
 export async function sendDraft(
@@ -105,18 +283,36 @@ export async function sendDraft(
   message: OutgoingMessage,
   config: ImapProviderConfig = ICLOUD_CONFIG
 ): Promise<void> {
-  const draft = await getDraft(email, password, draftId, config)
-  const mergedMessage: OutgoingMessage = {
-    ...(draft as unknown as OutgoingMessage),
-    ...message,
-  }
-  await sendEmail(email, password, mergedMessage, config)
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.drafts)
+    const draft = await readDraft(client, draftId, config)
+    // Explicit field mapping: the stored draft uses plain address strings and
+    // a `content` field, which don't line up with OutgoingMessage's shape.
+    const merged: OutgoingMessage = {
+      to: message.to?.length
+        ? message.to
+        : (draft.to ?? []).map((address) => ({ email: address })),
+      cc:
+        message.cc ??
+        (draft.cc?.length
+          ? draft.cc.map((address) => ({ email: address }))
+          : undefined),
+      bcc: message.bcc,
+      subject: message.subject ?? draft.subject ?? "",
+      message: message.message ?? draft.content ?? "",
+      attachments: message.attachments,
+      headers: message.headers,
+      threadId: message.threadId,
+      fromEmail: message.fromEmail,
+    }
+    await sendEmail(email, password, merged, config)
     const uid = parseInt(draftId, 10)
-    if (!isNaN(uid)) await client.messageDelete([uid], { uid: true })
+    if (!isNaN(uid)) {
+      // Drafts mailbox is still selected from readDraft; delete on the same
+      // connection instead of reconnecting.
+      await client.messageDelete([uid], { uid: true })
+    }
   } finally {
     await client.logout().catch(() => {})
   }
@@ -128,13 +324,14 @@ export async function createDraft(
   draft: DraftData,
   config: ImapProviderConfig = ICLOUD_CONFIG
 ): Promise<{ id?: string | null; success?: boolean; error?: string }> {
-  const client = makeClient(email, password, config)
+  let client: ImapFlow
+  try {
+    client = await makeClient(email, password, config)
+  } catch (e) {
+    return { success: false, error: safeError("smtp.createDraft", e).message }
+  }
   try {
     await client.connect()
-    const transport = nodemailer.createTransport({
-      streamTransport: true,
-      newline: "unix",
-    })
     const mailOptions: nodemailer.SendMailOptions = {
       from: email,
       to: draft.to ? formatAddresses(draft.to) : "",
@@ -149,25 +346,14 @@ export async function createDraft(
         contentType: att.type,
       })),
     }
-    const info = await transport.sendMail(mailOptions)
-    let rawMessage = ""
-    await new Promise<void>((resolve, reject) => {
-      const chunks: Buffer[] = []
-      ;(info.message as NodeJS.ReadableStream).on("data", (chunk: Buffer) =>
-        chunks.push(chunk)
-      )
-      ;(info.message as NodeJS.ReadableStream).on("end", () => {
-        rawMessage = Buffer.concat(chunks).toString()
-        resolve()
-      })
-      ;(info.message as NodeJS.ReadableStream).on("error", reject)
-    })
+    const rawMessage = await buildRawMessage(mailOptions)
     const appendResult = await client.append(
       config.folders.drafts,
       rawMessage,
       ["\\Draft", "\\Seen"]
     )
-    return { id: String(appendResult?.uid ?? "unknown"), success: true }
+    const uid = appendResult ? appendResult.uid : undefined
+    return { id: String(uid ?? "unknown"), success: true }
   } catch (e) {
     // Never return the raw error: it carries the resolved host, port and socket
     // state for a caller-supplied endpoint.
@@ -182,49 +368,11 @@ export async function getDraft(
   password: string,
   draftId: string,
   config: ImapProviderConfig = ICLOUD_CONFIG
-): Promise<{
-  id: string
-  to?: string[]
-  subject?: string
-  content?: string
-  cc?: string[]
-  bcc?: string[]
-  rawMessage?: { internalDate?: string | null }
-}> {
-  const client = makeClient(email, password, config)
+): Promise<ParsedDraftContent> {
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.drafts, { readOnly: true })
-    const uid = parseInt(draftId, 10)
-    if (isNaN(uid)) throw new Error(`Invalid draftId: ${draftId}`)
-    for await (const msg of client.fetch(
-      `${uid}`,
-      { source: true, uid: true },
-      { uid: true }
-    )) {
-      if (!msg.source) continue
-      const parsed = await simpleParser(Buffer.from(msg.source))
-      return {
-        id: draftId,
-        to: parsed.to
-          ? (Array.isArray(parsed.to) ? parsed.to : [parsed.to])
-              .flatMap((a) => ("value" in a ? a.value : [a]))
-              .map((a: { address?: string }) => a.address ?? "")
-              .filter(Boolean)
-          : [],
-        cc: parsed.cc
-          ? (Array.isArray(parsed.cc) ? parsed.cc : [parsed.cc])
-              .flatMap((a) => ("value" in a ? a.value : [a]))
-              .map((a: { address?: string }) => a.address ?? "")
-              .filter(Boolean)
-          : [],
-        bcc: [],
-        subject: parsed.subject ?? "",
-        content: parsed.html || parsed.text || "",
-        rawMessage: { internalDate: parsed.date?.toISOString() ?? null },
-      }
-    }
-    throw new Error(`Draft ${draftId} not found`)
+    return await readDraft(client, draftId, config, { readOnly: true })
   } finally {
     await client.logout().catch(() => {})
   }
@@ -239,7 +387,7 @@ export async function listDrafts(
   threads: { id: string; historyId: string | null; $raw: unknown }[]
   nextPageToken: string | null
 }> {
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     const mailbox = await client.mailboxOpen(config.folders.drafts, {
@@ -263,9 +411,10 @@ export async function listDrafts(
         $raw: { uid: msg.uid, subject: msg.envelope?.subject },
       })
     }
+    const lastId = threads[threads.length - 1]?.id
     const nextPageToken =
-      threads.length >= maxResults
-        ? String(parseInt(threads[threads.length - 1].id, 10) + 1)
+      threads.length >= maxResults && lastId
+        ? String(parseInt(lastId, 10) + 1)
         : null
     return { threads, nextPageToken }
   } finally {
@@ -279,7 +428,7 @@ export async function deleteDraft(
   draftId: string,
   config: ImapProviderConfig = ICLOUD_CONFIG
 ): Promise<void> {
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     await client.mailboxOpen(config.folders.drafts)

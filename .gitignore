@@ -5,12 +5,9 @@ node_modules
 .pnp
 .pnp.js
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Local env files (covers .env.local, .env.bak, etc. — only the example is tracked)
+.env*
+!.env.example
 
 # Testing
 coverage
@@ -34,5 +31,6 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+*.bak
 
 .swc

@@ -1,8 +1,15 @@
-// @ts-nocheck
-import { type ImapProviderConfig, buildLabelToFolder } from "./provider-config"
+import {
+  type ImapProviderConfig,
+  buildLabelToFolder,
+  ICLOUD_CONFIG,
+  YAHOO_CONFIG,
+} from "./provider-config"
+// @ts-expect-error -- mailparser ships no types and @types/mailparser is not
+// installed; the module resolves as `any`.
 import { simpleParser, type ParsedMail, type Attachment } from "mailparser"
 import { ImapFlow } from "imapflow"
 import { safeError } from "../safe-error"
+import { assertPublicHost } from "./host-validation"
 
 const SPECIAL_USE_TO_LABEL: Record<string, string> = {
   "\\Sent": "SENT",
@@ -13,17 +20,47 @@ const SPECIAL_USE_TO_LABEL: Record<string, string> = {
   "\\Archive": "ARCHIVE",
 }
 
-function makeClient(
+/**
+ * Hosts hardcoded in provider-config. Anything else came from user-supplied
+ * custom-connection config and must be re-validated (and its IP pinned) at
+ * connect time.
+ */
+const KNOWN_IMAP_HOSTS = new Set([
+  ICLOUD_CONFIG.imapHost,
+  YAHOO_CONFIG.imapHost,
+])
+
+export const IMAP_TIMEOUTS = {
+  greetingTimeout: 10_000,
+  connectionTimeout: 15_000,
+  socketTimeout: 60_000,
+} as const
+
+async function makeClient(
   email: string,
   password: string,
   config: ImapProviderConfig
-): ImapFlow {
+): Promise<ImapFlow> {
+  let host = config.imapHost
+  let servername: string | undefined
+  if (!KNOWN_IMAP_HOSTS.has(config.imapHost)) {
+    // User-supplied host: re-resolve and connect to the validated IP so DNS
+    // cannot rebind to an internal address between validation and connect.
+    // TLS still verifies the certificate against the original hostname.
+    const [ip] = await assertPublicHost(config.imapHost, "IMAP")
+    if (ip) {
+      servername = config.imapHost.trim().toLowerCase()
+      host = ip
+    }
+  }
   return new ImapFlow({
-    host: config.imapHost,
+    host,
     port: config.imapPort,
     secure: true,
+    ...(servername ? { tls: { servername } } : {}),
     auth: { user: email, pass: password },
     logger: false,
+    ...IMAP_TIMEOUTS,
   })
 }
 
@@ -42,26 +79,39 @@ function getThreadRoot(
   return (messageId ?? "").replace(/[<>]/g, "").trim()
 }
 
+/**
+ * Extracts a single header value from a raw header block: unfolds continuation
+ * lines first (RFC 5322 folding), then matches to end of line. References
+ * headers in particular are almost always folded across lines.
+ */
+function headerValue(raw: string, name: string): string | undefined {
+  const unfolded = raw.replace(/\r?\n[ \t]+/g, " ")
+  const match = unfolded.match(new RegExp(`^${name}:[ \\t]*(.*)$`, "im"))
+  const value = match?.[1]?.trim()
+  return value || undefined
+}
+
+function parseThreadHeaders(headers?: Buffer): {
+  messageId?: string
+  references?: string
+} {
+  if (!headers) return {}
+  const raw = Buffer.from(headers).toString()
+  return {
+    messageId: headerValue(raw, "message-id"),
+    references: headerValue(raw, "references")?.replace(/\s+/g, " "),
+  }
+}
+
 function threadRootFromImapFetchMsg(msg: {
   headers?: Buffer
   envelope?: { messageId?: string }
 }): string {
-  const headerMessageId = msg.headers
-    ? (() => {
-        const parsed = Buffer.from(msg.headers).toString()
-        const match = parsed.match(/^message-id:\s*(.+)$/im)
-        return match?.[1]?.trim()
-      })()
-    : undefined
-  const headerReferences = msg.headers
-    ? (() => {
-        const parsed = Buffer.from(msg.headers).toString()
-        const match = parsed.match(/^references:\s*([\s\S]*?)(?=^\S|\z)/im)
-        return match?.[1]?.replace(/\s+/g, " ").trim()
-      })()
-    : undefined
-  const messageId = headerMessageId ?? msg.envelope?.messageId
-  return getThreadRoot(headerReferences, messageId)
+  const parsed = parseThreadHeaders(msg.headers)
+  return getThreadRoot(
+    parsed.references,
+    parsed.messageId ?? msg.envelope?.messageId
+  )
 }
 
 function encodeThreadId(rootMsgId: string): string {
@@ -70,6 +120,82 @@ function encodeThreadId(rootMsgId: string): string {
 
 function decodeThreadId(threadId: string): string {
   return Buffer.from(threadId, "base64url").toString("utf-8")
+}
+
+/**
+ * Message ids carry the folder the message was found in (base64url after the
+ * uid) so attachment/raw fetches don't have to guess the mailbox. Plain
+ * numeric ids from older clients still parse — the folder is just unknown.
+ */
+function encodeMessageId(uid: number, folder: string): string {
+  return `${uid}:${Buffer.from(folder).toString("base64url")}`
+}
+
+function decodeMessageId(messageId: string): { uid: number; folder?: string } {
+  const [uidPart, folderPart] = messageId.split(":")
+  const uid = parseInt(uidPart ?? "", 10)
+  let folder: string | undefined
+  if (folderPart) {
+    try {
+      folder = Buffer.from(folderPart, "base64url").toString("utf-8")
+    } catch {
+      folder = undefined
+    }
+  }
+  return { uid, folder: folder || undefined }
+}
+
+/**
+ * Server-side search for all messages of a thread in the currently open
+ * mailbox: the root message itself plus everything referencing it.
+ */
+async function searchThreadUids(
+  client: ImapFlow,
+  rootMsgId: string
+): Promise<number[]> {
+  const byMsgId = asUidList(
+    await client.search(
+      { header: { "Message-ID": `<${rootMsgId}>` } },
+      { uid: true }
+    )
+  )
+  const byRefs = asUidList(
+    await client.search({ header: { References: rootMsgId } }, { uid: true })
+  )
+  return [...new Set([...byMsgId, ...byRefs])]
+}
+
+/**
+ * Opens the mailbox containing `uid`. When a folder hint is present only that
+ * mailbox is tried; legacy ids without a hint fall back to probing the
+ * configured folders (INBOX first, matching the old behavior).
+ */
+async function openMessageFolder(
+  client: ImapFlow,
+  config: ImapProviderConfig,
+  uid: number,
+  folderHint: string | undefined
+): Promise<string | null> {
+  const candidates = folderHint
+    ? [folderHint]
+    : [
+        config.folders.inbox,
+        config.folders.archive,
+        config.folders.sent,
+        config.folders.trash,
+        config.folders.spam,
+        config.folders.drafts,
+      ]
+  for (const folder of candidates) {
+    try {
+      await client.mailboxOpen(folder, { readOnly: true })
+      const found = await client.fetchOne(`${uid}`, { uid: true }, { uid: true })
+      if (found) return folder
+    } catch {
+      // mailbox missing or fetch failed — try the next candidate
+    }
+  }
+  return null
 }
 
 function parseAddresses(
@@ -107,14 +233,19 @@ function parsedMailToMessage(
   ]
   if (isStarred) labels.push({ id: "STARRED", name: "Starred" })
   if (isDraft) labels.push({ id: "DRAFT", name: "Drafts" })
+  // Metadata only — attachment bytes are fetched on demand via
+  // getAttachment/getMessageAttachments. Nothing in the rendering pipeline
+  // consumes inline (cid:) content from this list, so no content is kept.
   const attachments = (parsed.attachments ?? []).map(
     (att: Attachment, i: number) => ({
       attachmentId: `${uid}:${i}`,
       filename: att.filename ?? `attachment-${i}`,
       mimeType: att.contentType ?? "application/octet-stream",
       size: att.size ?? att.content?.length ?? 0,
-      body: att.content?.toString("base64") ?? "",
-      headers: Object.entries(att.headers ?? {}).map(([name, value]) => ({
+      body: "",
+      headers: Array.from(
+        (att.headers ?? new Map()) as Map<string, unknown>
+      ).map(([name, value]) => ({
         name,
         value: String(value),
       })),
@@ -123,7 +254,7 @@ function parsedMailToMessage(
   const htmlBody = parsed.html || parsed.textAsHtml || ""
   const textBody = parsed.text || ""
   return {
-    id: `${uid}`,
+    id: encodeMessageId(uid, folder),
     threadId,
     title: parsed.subject ?? "(no subject)",
     subject: parsed.subject ?? "(no subject)",
@@ -167,7 +298,7 @@ export async function validateCredentials(
   password: string,
   config: ImapProviderConfig
 ): Promise<{ email: string; name: string }> {
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   await client.connect()
   await client.logout()
   const name = email.split("@")[0] ?? email
@@ -190,7 +321,7 @@ export async function listThreads(
 }> {
   const labelToFolder = buildLabelToFolder(config)
   const folderName = labelToFolder[params.folder.toUpperCase()] ?? params.folder
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     const mailbox = await client.mailboxOpen(folderName, { readOnly: true })
@@ -217,7 +348,11 @@ export async function listThreads(
     const totalMessages = mailbox.exists
 
     let fetchRange: string
-    let seqStart: number
+    let fetchByUid = false
+    // Search-mode cursor: offset into the sorted search result.
+    let searchOffset = 0
+    // Non-search modes: whether an older page exists past this one.
+    let hasOlder = false
 
     if (searchUids) {
       const sorted = [...searchUids].sort((a, b) => b - a)
@@ -225,8 +360,26 @@ export async function listThreads(
       const sliced = sorted.slice(pageStart, pageStart + fetchCount)
       if (sliced.length === 0) return { threads: [], nextPageToken: null }
       fetchRange = sliced.join(",")
-      seqStart = pageStart + sliced.length
+      fetchByUid = true
+      searchOffset = pageStart + sliced.length
+    } else if (params.pageToken?.startsWith("u")) {
+      // UID-based page token ("u<uid>"): everything strictly older than the
+      // oldest UID of the previous page. Stable across expunges, unlike the
+      // legacy sequence-number tokens.
+      const beforeUid = parseInt(params.pageToken.slice(1), 10)
+      if (!Number.isFinite(beforeUid) || beforeUid <= 1) {
+        return { threads: [], nextPageToken: null }
+      }
+      const olderUids = asUidList(
+        await client.search({ uid: `1:${beforeUid - 1}` }, { uid: true })
+      ).sort((a, b) => b - a)
+      if (olderUids.length === 0) return { threads: [], nextPageToken: null }
+      const sliced = olderUids.slice(0, fetchCount)
+      fetchRange = sliced.join(",")
+      fetchByUid = true
+      hasOlder = olderUids.length > sliced.length
     } else {
+      // First page (or a legacy numeric sequence token from an older client).
       let seqEnd: number
       if (params.pageToken) {
         seqEnd = parseInt(params.pageToken, 10) - 1
@@ -234,8 +387,9 @@ export async function listThreads(
       } else {
         seqEnd = totalMessages
       }
-      seqStart = Math.max(1, seqEnd - fetchCount + 1)
+      const seqStart = Math.max(1, seqEnd - fetchCount + 1)
       fetchRange = `${seqStart}:${seqEnd}`
+      hasOlder = seqStart > 1
     }
 
     const messages: {
@@ -248,7 +402,7 @@ export async function listThreads(
       subject?: string
       from?: { name?: string; address?: string }
     }[] = []
-    const fetchOptions = searchUids ? { uid: true } : undefined
+    const fetchOptions = fetchByUid ? { uid: true } : undefined
     for await (const msg of client.fetch(
       fetchRange,
       {
@@ -259,25 +413,12 @@ export async function listThreads(
       },
       fetchOptions
     )) {
-      const headerMessageId = msg.headers
-        ? (() => {
-            const parsed = Buffer.from(msg.headers).toString()
-            const match = parsed.match(/^message-id:\s*(.+)$/im)
-            return match?.[1]?.trim()
-          })()
-        : undefined
-      const headerReferences = msg.headers
-        ? (() => {
-            const parsed = Buffer.from(msg.headers).toString()
-            const match = parsed.match(/^references:\s*([\s\S]*?)(?=^\S|\z)/im)
-            return match?.[1]?.replace(/\s+/g, " ").trim()
-          })()
-        : undefined
+      const parsedHeaders = parseThreadHeaders(msg.headers)
       messages.push({
         uid: msg.uid,
         seq: msg.seq,
-        messageId: headerMessageId ?? msg.envelope?.messageId,
-        references: headerReferences,
+        messageId: parsedHeaders.messageId ?? msg.envelope?.messageId,
+        references: parsedHeaders.references,
         date: msg.envelope?.date ?? undefined,
         flags: msg.flags ?? new Set(),
         subject: msg.envelope?.subject ?? undefined,
@@ -325,42 +466,20 @@ export async function listThreads(
     })
     let nextPageToken: string | null = null
     if (searchUids) {
-      if (seqStart < searchUids.length && threads.length >= params.maxResults) {
-        nextPageToken = String(seqStart)
+      if (
+        searchOffset < searchUids.length &&
+        threads.length >= params.maxResults
+      ) {
+        nextPageToken = String(searchOffset)
       }
-    } else if (seqStart > 1 && threads.length >= params.maxResults) {
-      nextPageToken = String(seqStart)
+    } else if (hasOlder && threads.length >= params.maxResults) {
+      const minUid = Math.min(...messages.map((m) => m.uid))
+      if (minUid > 1) nextPageToken = `u${minUid}`
     }
     return { threads, nextPageToken }
-  } catch (err) {
-    throw err
   } finally {
     await client.logout().catch(() => {})
   }
-}
-
-async function fetchMessageByUid(
-  client: ImapFlow,
-  uid: number,
-  threadId: string,
-  folder: string
-) {
-  for await (const msg of client.fetch(
-    `${uid}`,
-    { source: true, flags: true, uid: true },
-    { uid: true }
-  )) {
-    if (!msg.source) continue
-    const parsed = await simpleParser(Buffer.from(msg.source))
-    return parsedMailToMessage(
-      msg.uid,
-      threadId,
-      parsed,
-      msg.flags ?? new Set(),
-      folder
-    )
-  }
-  return null
 }
 
 export async function getThread(
@@ -377,7 +496,7 @@ export async function getThread(
   isLatestDraft?: boolean
 }> {
   const rootMsgId = decodeThreadId(threadId)
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
 
   const scanFolder = async (
     folder: string
@@ -386,22 +505,26 @@ export async function getThread(
       const mailbox = await client.mailboxOpen(folder, { readOnly: true })
       if (!mailbox.exists || mailbox.exists === 0) return []
 
-      const matchingUids: number[] = []
-
-      for await (const msg of client.fetch("1:*", {
-        uid: true,
-        envelope: true,
-        headers: ["message-id", "references", "in-reply-to"],
-      })) {
-        if (threadRootFromImapFetchMsg(msg) === rootMsgId) {
-          matchingUids.push(msg.uid)
-        }
-      }
+      const matchingUids = await searchThreadUids(client, rootMsgId)
+      if (matchingUids.length === 0) return []
 
       const msgs: Record<string, unknown>[] = []
-      for (const uid of matchingUids) {
-        const msg = await fetchMessageByUid(client, uid, threadId, folder)
-        if (msg) msgs.push(msg)
+      for await (const msg of client.fetch(
+        matchingUids.join(","),
+        { source: true, flags: true, uid: true },
+        { uid: true }
+      )) {
+        if (!msg.source) continue
+        const parsed = await simpleParser(Buffer.from(msg.source))
+        msgs.push(
+          parsedMailToMessage(
+            msg.uid,
+            threadId,
+            parsed,
+            msg.flags ?? new Set(),
+            folder
+          )
+        )
       }
       return msgs
     } catch (err) {
@@ -423,6 +546,7 @@ export async function getThread(
       allMessages.push(...sentMsgs)
     } else {
       for (const folder of [
+        config.folders.archive,
         config.folders.sent,
         config.folders.drafts,
         config.folders.trash,
@@ -464,22 +588,26 @@ export async function deleteMessages(
   config: ImapProviderConfig
 ): Promise<void> {
   const rootMsgId = decodeThreadId(threadId)
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.inbox)
-    const searchUids = asUidList(
-      await client.search(
-        { header: { "Message-ID": `<${rootMsgId}>` } },
-        { uid: true }
-      )
-    )
-    const refsUids = asUidList(
-      await client.search({ header: { References: rootMsgId } }, { uid: true })
-    )
-    const uids = [...new Set([...searchUids, ...refsUids])]
-    if (uids.length > 0)
-      await client.messageMove(uids, config.folders.trash, { uid: true })
+    for (const folder of [
+      config.folders.inbox,
+      config.folders.archive,
+      config.folders.sent,
+      config.folders.drafts,
+      config.folders.spam,
+    ]) {
+      try {
+        const mailbox = await client.mailboxOpen(folder)
+        if (!mailbox.exists || mailbox.exists === 0) continue
+        const uids = await searchThreadUids(client, rootMsgId)
+        if (uids.length > 0)
+          await client.messageMove(uids, config.folders.trash, { uid: true })
+      } catch {
+        // skip folders that don't exist or can't be opened
+      }
+    }
   } finally {
     await client.logout().catch(() => {})
   }
@@ -497,7 +625,7 @@ export async function markMessages(
   ] as string[]
   if (targets.length === 0) return
 
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     for (const folder of [
@@ -511,26 +639,18 @@ export async function markMessages(
         const mailbox = await client.mailboxOpen(folder)
         if (!mailbox.exists || mailbox.exists === 0) continue
 
-        const uidsByRoot = new Map<string, number[]>()
-        for (const r of targets) uidsByRoot.set(r, [])
-
-        for await (const msg of client.fetch("1:*", {
-          uid: true,
-          envelope: true,
-          headers: ["message-id", "references", "in-reply-to"],
-        })) {
-          const msgRoot = threadRootFromImapFetchMsg(msg)
-          const bucket = uidsByRoot.get(msgRoot)
-          if (bucket) bucket.push(msg.uid)
-        }
-
+        const uids = new Set<number>()
         for (const rootMsgId of targets) {
-          const uids = uidsByRoot.get(rootMsgId)
-          if (!uids?.length) continue
-          if (read)
-            await client.messageFlagsAdd(uids, ["\\Seen"], { uid: true })
-          else await client.messageFlagsRemove(uids, ["\\Seen"], { uid: true })
+          for (const uid of await searchThreadUids(client, rootMsgId)) {
+            uids.add(uid)
+          }
         }
+        if (uids.size === 0) continue
+        const uidList = [...uids]
+        if (read)
+          await client.messageFlagsAdd(uidList, ["\\Seen"], { uid: true })
+        else
+          await client.messageFlagsRemove(uidList, ["\\Seen"], { uid: true })
       } catch {}
     }
   } finally {
@@ -547,64 +667,60 @@ export async function modifyLabels(
   config: ImapProviderConfig
 ): Promise<void> {
   const labelToFolder = buildLabelToFolder(config)
-  const client = makeClient(email, password, config)
+  const targets = [
+    ...new Set(threadIds.map((tid) => decodeThreadId(tid)).filter((r) => !!r)),
+  ] as string[]
+  if (targets.length === 0) return
+
+  // Flag/move decisions depend only on the labels, not on the thread, so
+  // compute them once and do a single pass per folder for every thread.
+  const addFlags: string[] = []
+  const removeFlags: string[] = []
+  const moveToFolder = addLabels.find((l) => labelToFolder[l.toUpperCase()])
+  const removeFromLabel = removeLabels.find(
+    (l) => labelToFolder[l.toUpperCase()]
+  )
+  if (addLabels.includes("STARRED") || addLabels.includes("IMPORTANT"))
+    addFlags.push("\\Flagged")
+  if (removeLabels.includes("STARRED") || removeLabels.includes("IMPORTANT"))
+    removeFlags.push("\\Flagged")
+
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    for (const threadId of threadIds) {
-      const rootMsgId = decodeThreadId(threadId)
-      const addFlags: string[] = []
-      const removeFlags: string[] = []
-      const moveToFolder = addLabels.find((l) => labelToFolder[l.toUpperCase()])
-      const removeFromLabel = removeLabels.find(
-        (l) => labelToFolder[l.toUpperCase()]
-      )
-      if (addLabels.includes("STARRED") || addLabels.includes("IMPORTANT"))
-        addFlags.push("\\Flagged")
-      if (
-        removeLabels.includes("STARRED") ||
-        removeLabels.includes("IMPORTANT")
-      )
-        removeFlags.push("\\Flagged")
-      const sourceFolders = [
-        config.folders.inbox,
-        config.folders.sent,
-        config.folders.drafts,
-        config.folders.trash,
-        config.folders.spam,
-        config.folders.archive,
-      ]
-      for (const folder of sourceFolders) {
-        try {
-          await client.mailboxOpen(folder)
-          const byMsgId = asUidList(
-            await client.search(
-              { header: { "Message-ID": `<${rootMsgId}>` } },
-              { uid: true }
-            )
-          )
-          const byRefs = asUidList(
-            await client.search(
-              { header: { References: rootMsgId } },
-              { uid: true }
-            )
-          )
-          const uids = [...new Set([...byMsgId, ...byRefs])]
-          if (uids.length === 0) continue
-          if (addFlags.length)
-            await client.messageFlagsAdd(uids, addFlags, { uid: true })
-          if (removeFlags.length)
-            await client.messageFlagsRemove(uids, removeFlags, { uid: true })
-          if (moveToFolder) {
-            const targetFolder = labelToFolder[moveToFolder.toUpperCase()]
-            if (targetFolder && targetFolder !== folder)
-              await client.messageMove(uids, targetFolder, { uid: true })
+    const sourceFolders = [
+      config.folders.inbox,
+      config.folders.sent,
+      config.folders.drafts,
+      config.folders.trash,
+      config.folders.spam,
+      config.folders.archive,
+    ]
+    for (const folder of sourceFolders) {
+      try {
+        await client.mailboxOpen(folder)
+        const uidSet = new Set<number>()
+        for (const rootMsgId of targets) {
+          for (const uid of await searchThreadUids(client, rootMsgId)) {
+            uidSet.add(uid)
           }
-          if (removeFromLabel === "INBOX" && !moveToFolder)
-            await client.messageMove(uids, config.folders.archive, {
-              uid: true,
-            })
-        } catch {}
-      }
+        }
+        if (uidSet.size === 0) continue
+        const uids = [...uidSet]
+        if (addFlags.length)
+          await client.messageFlagsAdd(uids, addFlags, { uid: true })
+        if (removeFlags.length)
+          await client.messageFlagsRemove(uids, removeFlags, { uid: true })
+        if (moveToFolder) {
+          const targetFolder = labelToFolder[moveToFolder.toUpperCase()]
+          if (targetFolder && targetFolder !== folder)
+            await client.messageMove(uids, targetFolder, { uid: true })
+        }
+        if (removeFromLabel === "INBOX" && !moveToFolder)
+          await client.messageMove(uids, config.folders.archive, {
+            uid: true,
+          })
+      } catch {}
     }
   } finally {
     await client.logout().catch(() => {})
@@ -616,7 +732,7 @@ export async function listFolders(
   password: string,
   config: ImapProviderConfig
 ): Promise<{ id: string; name: string; type: string }[]> {
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     const mailboxes = await client.list()
@@ -646,7 +762,7 @@ export async function countUnread(
   password: string,
   config: ImapProviderConfig
 ): Promise<{ count?: number; label?: string }[]> {
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     const counts: { count?: number; label?: string }[] = []
@@ -657,8 +773,9 @@ export async function countUnread(
     ]
     for (const { folder, label } of folders) {
       try {
-        const mb = await client.mailboxOpen(folder, { readOnly: true })
-        counts.push({ label, count: mb.unseen ?? 0 })
+        // STATUS avoids SELECTing each mailbox just to read a counter.
+        const status = await client.status(folder, { unseen: true })
+        counts.push({ label, count: status.unseen ?? 0 })
       } catch {
         counts.push({ label, count: 0 })
       }
@@ -675,12 +792,13 @@ export async function getRawEmail(
   messageId: string,
   config: ImapProviderConfig
 ): Promise<string> {
-  const client = makeClient(email, password, config)
+  const { uid, folder } = decodeMessageId(messageId)
+  if (isNaN(uid)) throw new Error("Invalid messageId")
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.inbox, { readOnly: true })
-    const uid = parseInt(messageId, 10)
-    if (isNaN(uid)) throw new Error("Invalid messageId")
+    const found = await openMessageFolder(client, config, uid, folder)
+    if (!found) return ""
     let rawEmail = ""
     for await (const msg of client.fetch(
       `${uid}`,
@@ -702,12 +820,14 @@ export async function getAttachment(
   attachmentId: string,
   config: ImapProviderConfig
 ): Promise<string> {
-  const client = makeClient(email, password, config)
+  const { uid, folder } = decodeMessageId(messageId)
+  if (isNaN(uid)) return ""
+  const partIndex = parseInt(attachmentId.split(":")[1] ?? "0", 10)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.inbox, { readOnly: true })
-    const uid = parseInt(messageId, 10)
-    const partIndex = parseInt(attachmentId.split(":")[1] ?? "0", 10)
+    const found = await openMessageFolder(client, config, uid, folder)
+    if (!found) return ""
     for await (const msg of client.fetch(
       `${uid}`,
       { source: true },
@@ -739,11 +859,13 @@ export async function getMessageAttachments(
     body: string
   }[]
 > {
-  const client = makeClient(email, password, config)
+  const { uid, folder } = decodeMessageId(messageId)
+  if (isNaN(uid)) return []
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
-    await client.mailboxOpen(config.folders.inbox, { readOnly: true })
-    const uid = parseInt(messageId, 10)
+    const found = await openMessageFolder(client, config, uid, folder)
+    if (!found) return []
     for await (const msg of client.fetch(
       `${uid}`,
       { source: true },
@@ -757,7 +879,9 @@ export async function getMessageAttachments(
         mimeType: att.contentType ?? "application/octet-stream",
         size: att.size ?? att.content?.length ?? 0,
         body: att.content?.toString("base64") ?? "",
-        headers: Object.entries(att.headers ?? {}).map(([name, value]) => ({
+        headers: Array.from(
+        (att.headers ?? new Map()) as Map<string, unknown>
+      ).map(([name, value]) => ({
           name,
           value: String(value),
         })),
@@ -782,17 +906,30 @@ export async function listHistory(
   config: ImapProviderConfig
 ): Promise<{ history: unknown[]; historyId: string }> {
   const parts = historyId.split(":")
+  const storedUidValidity = parts[0] ?? ""
   const lastUid = parseInt(parts[1] ?? "0", 10)
-  const client = makeClient(email, password, config)
+  const client = await makeClient(email, password, config)
   try {
     await client.connect()
     const mailbox = await client.mailboxOpen(config.folders.inbox, {
       readOnly: true,
     })
     const uidValidity = mailbox.uidValidity
+    if (storedUidValidity && storedUidValidity !== `${uidValidity}`) {
+      // UIDVALIDITY changed: every UID the caller has stored is meaningless.
+      // Signal a full resync instead of returning phantom "new" messages.
+      const latestUid = Math.max(0, Number(mailbox.uidNext ?? 1) - 1)
+      return {
+        history: [{ type: "fullResync" }],
+        historyId: `${uidValidity}:${latestUid}`,
+      }
+    }
+    // `lastUid+1:*` quirk: if lastUid is already the highest UID, the server
+    // interprets the range as `*:*` and returns that last message again —
+    // filter to strictly-newer UIDs.
     const newUids = asUidList(
       await client.search({ uid: `${lastUid + 1}:*` }, { uid: true })
-    )
+    ).filter((uid) => uid > lastUid)
     const history = newUids.map((uid) => ({ uid, type: "new" }))
     const latestUid = newUids.length > 0 ? Math.max(...newUids) : lastUid
     return { history, historyId: `${uidValidity}:${latestUid}` }
@@ -806,7 +943,12 @@ export async function deleteAllSpam(
   password: string,
   config: ImapProviderConfig
 ): Promise<{ success: boolean; message: string; count?: number }> {
-  const client = makeClient(email, password, config)
+  let client: ImapFlow
+  try {
+    client = await makeClient(email, password, config)
+  } catch (e) {
+    return { success: false, message: safeError("imap.deleteAllSpam", e).message }
+  }
   try {
     await client.connect()
     await client.mailboxOpen(config.folders.spam)

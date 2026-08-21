@@ -104,7 +104,7 @@ export interface MailManager {
   getScope(): string
   listHistory<T>(
     historyId: string
-  ): Promise<{ history: T[]; historyId: string }>
+  ): Promise<{ history: T[]; historyId: string; historyExpired?: boolean }>
   markAsRead(threadIds: string[]): Promise<void>
   markAsUnread(threadIds: string[]): Promise<void>
   normalizeIds(id: string[]): { threadIds: string[] }

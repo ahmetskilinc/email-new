@@ -17,6 +17,7 @@ import { sanitizeTipTapHtml } from "../sanitize-tip-tap-html"
 import { Client } from "@microsoft/microsoft-graph-client"
 import type { MailManager, ManagerConfig } from "./types"
 import type { CreateDraftData } from "../schemas"
+import { env } from "../../env"
 import he from "he"
 
 // Graph mail folder ids are base64url blobs. Anything outside that alphabet in
@@ -24,9 +25,9 @@ import he from "he"
 // path somewhere else in Graph on the user's token.
 const GRAPH_FOLDER_ID = /^[A-Za-z0-9_=-]{1,512}$/
 
-// A list page is a fan-out of one Graph round trip per message, each pulling
-// every attachment's bytes. Cap the page and the number in flight so a single
-// request can't be turned into hundreds of concurrent downloads.
+// Cap the page size, and the number of per-message Graph requests in flight
+// for helpers that still fan out (conversation-id resolution, category reads),
+// so a single request can't turn into hundreds of concurrent calls.
 const MAX_LIST_RESULTS = 100
 const LIST_CONCURRENCY = 5
 
@@ -50,20 +51,91 @@ async function mapWithConcurrency<T, R>(
   return results
 }
 
+const MICROSOFT_TOKEN_URL =
+  "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+
 export class OutlookMailManager implements MailManager {
   private graphClient: Client
 
-  constructor(public config: ManagerConfig) {
-    const getAccessToken = async () => {
-      if (config.auth.accessToken) return config.auth.accessToken
-      throw new Error("No access token available for Microsoft")
-    }
+  // Refreshed-token state. The config carries no expiry for the stored access
+  // token, so the stored token is used until a request 401s; from then on the
+  // in-memory token (with its known expiry) is the source of truth. Note the
+  // refreshed token is only cached on this driver instance — the config does
+  // not carry the connection id, so there is no way to persist it from here.
+  private cachedToken: { token: string; expiresAt: number } | null = null
+  private refreshPromise: Promise<string> | null = null
+  private storedTokenInvalid = false
 
+  constructor(public config: ManagerConfig) {
     this.graphClient = Client.initWithMiddleware({
       authProvider: {
-        getAccessToken,
+        getAccessToken: () => this.getAccessToken(),
       },
     })
+  }
+
+  private async getAccessToken(): Promise<string> {
+    if (
+      this.cachedToken &&
+      this.cachedToken.expiresAt - 60_000 > Date.now()
+    ) {
+      return this.cachedToken.token
+    }
+    if (this.cachedToken) {
+      // Cached token expired (or is about to) — refresh proactively.
+      return this.refreshAccessToken()
+    }
+    if (!this.storedTokenInvalid && this.config.auth?.accessToken) {
+      return this.config.auth.accessToken
+    }
+    return this.refreshAccessToken()
+  }
+
+  /** Single-flight refresh: concurrent callers share one token request. */
+  private refreshAccessToken(): Promise<string> {
+    if (this.refreshPromise) return this.refreshPromise
+    this.refreshPromise = (async () => {
+      try {
+        const refreshToken = this.config.auth?.refreshToken
+        if (!refreshToken) {
+          const error = new Error("No refresh token available for Microsoft")
+          ;(error as any).code = "invalid_grant"
+          throw error
+        }
+
+        const res = await fetch(MICROSOFT_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({
+            client_id: env.MICROSOFT_CLIENT_ID,
+            client_secret: env.MICROSOFT_CLIENT_SECRET,
+            grant_type: "refresh_token",
+            refresh_token: refreshToken,
+            scope: this.getScope(),
+          }),
+        })
+
+        const data: any = await res.json().catch(() => ({}))
+        if (!res.ok || !data.access_token) {
+          const error = new Error(
+            data.error_description ||
+              `Microsoft token refresh failed (${res.status})`
+          )
+          ;(error as any).code = data.error || "token_refresh_failed"
+          ;(error as any).statusCode = res.status
+          throw error
+        }
+
+        this.cachedToken = {
+          token: data.access_token,
+          expiresAt: Date.now() + Number(data.expires_in ?? 3600) * 1000,
+        }
+        return this.cachedToken.token
+      } finally {
+        this.refreshPromise = null
+      }
+    })()
+    return this.refreshPromise
   }
 
   public getScope(): string {
@@ -157,10 +229,14 @@ export class OutlookMailManager implements MailManager {
       { messageIds }
     )
   }
-  private async modifyMessageReadStatus(messageIds: string[], isRead: boolean) {
-    if (messageIds.length === 0) {
+  private async modifyMessageReadStatus(threadIds: string[], isRead: boolean) {
+    if (threadIds.length === 0) {
       return
     }
+
+    // Callers pass thread ids (= Graph conversation ids); PATCHing
+    // /me/messages/{id} needs message ids, so resolve members first.
+    const messageIds = await this.resolveMessageIds(threadIds)
 
     const batchRequests = messageIds.map((id, index) => ({
       id: `${index}`,
@@ -170,11 +246,104 @@ export class OutlookMailManager implements MailManager {
       headers: { "Content-Type": "application/json" },
     }))
 
-    try {
-      await this.graphClient.api("/$batch").post({ requests: batchRequests })
-    } catch (error) {
-      console.error("Error during batch update of message read status:", error)
-      throw error
+    await this.executeBatch(batchRequests)
+  }
+
+  /**
+   * Resolves ids that may be conversation ids into the member message ids by
+   * filtering /me/messages on conversationId. Ids that match no conversation
+   * are passed through unchanged (they are already message ids).
+   */
+  private async resolveMessageIds(ids: string[]): Promise<string[]> {
+    const resolved = await mapWithConcurrency(
+      ids,
+      LIST_CONCURRENCY,
+      async (id) => {
+        try {
+          const res = await this.graphClient
+            .api("/me/messages")
+            .filter(`conversationId eq '${id.replace(/'/g, "''")}'`)
+            .select("id")
+            .top(100)
+            .get()
+          const memberIds = (res?.value ?? [])
+            .map((msg: { id?: string }) => msg.id)
+            .filter((msgId: string | undefined): msgId is string => !!msgId)
+          return memberIds.length > 0 ? memberIds : [id]
+        } catch (err) {
+          // Not resolvable as a conversation — treat as a message id. Log it:
+          // if this was throttling rather than an id-space mismatch, the
+          // fallthrough produces confusing 404s in the subsequent batch.
+          console.warn(
+            "[microsoft:resolveMessageIds] conversation filter failed, using raw id",
+            err instanceof Error ? err.message : err
+          )
+          return [id]
+        }
+      }
+    )
+    return [...new Set(resolved.flat())]
+  }
+
+  /**
+   * Posts requests through /$batch (20 parts per call, Graph's limit) and
+   * inspects each part's status: throttled parts (429/503/504) are retried
+   * honoring Retry-After, real failures are surfaced instead of being
+   * silently swallowed by an HTTP 200 envelope.
+   */
+  private async executeBatch(requests: any[], maxRetries = 3) {
+    let pending = requests
+    for (let attempt = 0; pending.length > 0; attempt++) {
+      const responses: any[] = []
+      for (let i = 0; i < pending.length; i += 20) {
+        const chunk = pending.slice(i, i + 20)
+        const res = await this.graphClient
+          .api("/$batch")
+          .post({ requests: chunk })
+        responses.push(...(res?.responses ?? []))
+      }
+
+      const byId = new Map(pending.map((req) => [String(req.id), req]))
+      const retryable: any[] = []
+      const failures: { id: string; status: number; body?: unknown }[] = []
+      let retryAfterSeconds = 0
+
+      for (const part of responses) {
+        const status = Number(part?.status)
+        if (status >= 200 && status < 300) continue
+        const original = byId.get(String(part?.id))
+        if (!original) continue
+        if ([429, 503, 504].includes(status) && attempt < maxRetries) {
+          const headerValue = Number(
+            part?.headers?.["Retry-After"] ?? part?.headers?.["retry-after"]
+          )
+          retryAfterSeconds = Math.max(
+            retryAfterSeconds,
+            Number.isFinite(headerValue) ? headerValue : 0
+          )
+          retryable.push(original)
+        } else {
+          failures.push({ id: String(part?.id), status, body: part?.body })
+        }
+      }
+
+      if (failures.length > 0) {
+        const first = failures[0]!
+        throw new Error(
+          `Graph $batch: ${failures.length} request(s) failed (first: status ${first.status})`
+        )
+      }
+
+      pending = retryable
+      if (pending.length > 0) {
+        const delaySeconds = Math.min(
+          Math.max(retryAfterSeconds, 2 ** attempt),
+          30
+        )
+        await new Promise((resolve) =>
+          setTimeout(resolve, delaySeconds * 1000)
+        )
+      }
     }
   }
   public getUserInfo() {
@@ -224,74 +393,48 @@ export class OutlookMailManager implements MailManager {
     return this.withErrorHandler(
       "count",
       async () => {
-        const userLabels = await this.graphClient.api("/me/mailfolders").get()
+        // The folder listing already carries unreadItemCount/totalItemCount —
+        // no per-folder GET needed. Page through @odata.nextLink so mailboxes
+        // with more than one page of folders aren't truncated.
+        const folders: { label: string; count: number | undefined }[] = []
+        let request = this.graphClient
+          .api("/me/mailFolders")
+          .select("id,displayName,unreadItemCount,totalItemCount")
+          .top(100)
 
-        if (!userLabels.value) {
-          return []
+        for (;;) {
+          const res = await request.get()
+
+          for (const folder of (res?.value ?? []) as MailFolder[]) {
+            let normalizedLabel = folder.displayName || folder.id || ""
+
+            if (folder.displayName === "Inbox") normalizedLabel = "Inbox"
+            else if (folder.displayName === "Sent Items")
+              normalizedLabel = "Sent"
+            else if (folder.displayName === "Drafts") normalizedLabel = "Drafts"
+            else if (folder.displayName === "Deleted Items")
+              normalizedLabel = "Bin"
+            else if (folder.displayName === "Archive")
+              normalizedLabel = "Archive"
+            else if (folder.displayName === "Junk Email")
+              normalizedLabel = "Spam"
+
+            // Use unreadItemCount only for Inbox, use totalItemCount for all other folders
+            const count =
+              normalizedLabel === "Inbox"
+                ? Number(folder.unreadItemCount)
+                : Number(folder.totalItemCount)
+
+            folders.push({
+              label: normalizedLabel,
+              count: Number.isFinite(count) ? count : undefined,
+            })
+          }
+
+          const nextLink: string | undefined = res?.["@odata.nextLink"]
+          if (!nextLink) break
+          request = this.graphClient.api(nextLink)
         }
-
-        const folders = await Promise.all(
-          userLabels.value.map(async (folder: MailFolder) => {
-            try {
-              const res = await this.graphClient
-                .api(`/me/mailfolders/${folder.id}`)
-                .get()
-
-              let normalizedLabel = res.displayName || res.id || ""
-
-              if (
-                res.displayName === "Inbox" ||
-                res.id?.toLowerCase() === "inbox"
-              )
-                normalizedLabel = "Inbox"
-              else if (
-                res.displayName === "Sent Items" ||
-                res.id?.toLowerCase() === "sentitems"
-              )
-                normalizedLabel = "Sent"
-              else if (
-                res.displayName === "Drafts" ||
-                res.id?.toLowerCase() === "drafts"
-              )
-                normalizedLabel = "Drafts"
-              else if (
-                res.displayName === "Deleted Items" ||
-                res.id?.toLowerCase() === "deleteditems"
-              )
-                normalizedLabel = "Bin"
-              else if (
-                res.displayName === "Archive" ||
-                res.id?.toLowerCase() === "archive"
-              )
-                normalizedLabel = "Archive"
-              else if (
-                res.displayName === "Junk Email" ||
-                res.id?.toLowerCase() === "junkemail"
-              )
-                normalizedLabel = "Spam"
-
-              // Use unreadItemCount only for Inbox, use totalItemCount for all other folders
-              const count =
-                res.id?.toLowerCase() === "inbox"
-                  ? Number(res.unreadItemCount)
-                  : Number(res.totalItemCount)
-
-              return {
-                label: normalizedLabel,
-                count: count ?? undefined,
-              }
-            } catch (error) {
-              console.error(
-                `Error getting counts for folder ${folder.id}:`,
-                error
-              )
-              return {
-                label: folder.displayName || folder.id || "",
-                count: undefined,
-              }
-            }
-          })
-        )
 
         return folders
       },
@@ -308,85 +451,54 @@ export class OutlookMailManager implements MailManager {
     const { folder, query: q, pageToken } = params
     const maxResults = Math.min(params.maxResults ?? 100, MAX_LIST_RESULTS)
 
-    const folderId = this.resolveFolderId(folder)
-
-    let request = this.graphClient
-      .api(`/me/mailFolders/${encodeURIComponent(folderId)}/messages`)
-      .top(maxResults)
-
-    if (q) {
-      request = request.search(`"${q}"`)
-    }
-
-    request = request.select(
-      "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId,conversationId,bodyPreview,internetMessageHeaders"
-    )
-
-    if (maxResults > 0) {
-      request = request.top(maxResults)
-    }
+    let request
     if (pageToken) {
-      console.warn(
-        "Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly."
-      )
-    }
+      // pageToken is Graph's @odata.nextLink: a full URL that already carries
+      // the folder, $select, $top and skip state — request it as-is.
+      request = this.graphClient.api(pageToken)
+    } else {
+      const folderId = this.resolveFolderId(folder)
 
-    // request = request.orderby('receivedDateTime desc');
+      request = this.graphClient
+        .api(`/me/mailFolders/${encodeURIComponent(folderId)}/messages`)
+        .top(maxResults)
+        .select(
+          "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,parentFolderId,conversationId,bodyPreview,hasAttachments,internetMessageHeaders"
+        )
+
+      if (q) {
+        // $search values are wrapped in double quotes; embedded quotes would
+        // break out of the phrase, so strip them.
+        request = request.search(`"${q.replace(/"/g, "")}"`)
+      } else {
+        // $orderby cannot be combined with $search.
+        request = request.orderby("receivedDateTime desc")
+      }
+    }
 
     return this.withErrorHandler(
       "list",
       async () => {
         const res = await request.get()
 
-        // console.log(JSON.stringify(res, null, 4));
-
-        const messages: Message[] = res.value
+        const messages: Message[] = res.value ?? []
         const nextPageLink: string | undefined = res["@odata.nextLink"]
 
-        // First parse all messages to get basic info
-        const parsedMessages = await Promise.all(
-          messages.map((msg) => this.parseOutlookMessage(msg))
+        // The $select projection (bodyPreview, hasAttachments, …) already
+        // carries everything a list row needs — no per-message get() here.
+        // Bodies and attachment content are fetched on demand via get() /
+        // getAttachment().
+        const parsedMessages = messages.map((msg) =>
+          this.parseOutlookMessage(msg)
         )
 
-        // Then fetch full content for each message, a few at a time
-        const fullMessages = await mapWithConcurrency(
-          messages,
-          LIST_CONCURRENCY,
-          async (msg, index) => {
-            try {
-              // Get the full message content using the get method
-              const fullMessage = await this.get(msg.id || "")
-              return {
-                ...parsedMessages[index],
-                ...fullMessage.latest,
-                decodedBody: fullMessage.latest.decodedBody || "",
-              }
-            } catch (error) {
-              console.error(
-                `Failed to fetch full message for ${msg.id}:`,
-                error
-              )
-              // If get fails, fall back to basic message info
-              return {
-                ...parsedMessages[index],
-                body: "",
-                processedHtml: "",
-                blobUrl: "",
-                decodedBody: "",
-                attachments: [],
-              }
-            }
-          }
-        )
-
-        // Format response according to interface requirements
         return {
           threads: messages.map((msg, index) => ({
             id: msg.id || msg.internetMessageId || "",
             historyId: msg.lastModifiedDateTime ?? null,
             $raw: {
               ...msg,
-              ...fullMessages[index],
+              ...parsedMessages[index],
             },
           })),
           nextPageToken: nextPageLink || null,
@@ -443,8 +555,11 @@ export class OutlookMailManager implements MailManager {
         const message: Message = await this.graphClient
           .api(`/me/messages/${id}`)
           .select(
-            "id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,attachments,conversationId,bodyPreview,internetMessageHeaders"
+            "id,subject,body,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,inferenceClassification,categories,conversationId,bodyPreview,internetMessageHeaders"
           )
+          // Metadata only — contentBytes stays out of this request and is
+          // fetched on demand through getAttachment().
+          .expand("attachments($select=id,name,size,contentType,isInline)")
           .get()
 
         if (!message) {
@@ -464,36 +579,16 @@ export class OutlookMailManager implements MailManager {
 
         const attachmentsData = message.attachments || []
 
-        const attachments = await Promise.all(
-          attachmentsData.map(async (att) => {
-            if (
-              !att.id ||
-              !att.name ||
-              att.size === undefined ||
-              att.contentType === undefined
-            ) {
-              return null
-            }
-            const attachmentContent = await this.graphClient
-              .api(`/me/messages/${message.id}/attachments/${att.id}`)
-              .get()
-
-            if (!attachmentContent.contentBytes) {
-              return null
-            }
-
-            return {
-              filename: att.name,
-              mimeType: att.contentType ?? "application/octet-stream",
-              size: att.size,
-              attachmentId: att.id,
-              headers: [],
-              body: attachmentContent.contentBytes,
-            }
-          })
-        ).then((attachments) =>
-          attachments.filter((a): a is NonNullable<typeof a> => a !== null)
-        )
+        const attachments = attachmentsData
+          .filter((att) => att.id && att.name)
+          .map((att) => ({
+            filename: att.name || "",
+            mimeType: att.contentType ?? "application/octet-stream",
+            size: att.size ?? 0,
+            attachmentId: att.id || "",
+            headers: [] as { name: string; value: string }[],
+            body: "", // Empty body — fetch on demand with getAttachment
+          }))
 
         const parsedData = this.parseOutlookMessage(message)
 
@@ -571,70 +666,89 @@ export class OutlookMailManager implements MailManager {
     )
   }
   private async modifyMessageLabelsOrFolders(
-    messageIds: string[],
+    threadIds: string[],
     addItems: string[],
     removeItems: string[]
   ) {
-    if (messageIds.length === 0) {
+    if (threadIds.length === 0) {
       return
     }
-    const batchRequests = messageIds.map((id, index) => {
-      const patchBody = {}
 
-      if (addItems.length > 0 || removeItems.length > 0) {
-        console.warn(
-          `Modifying categories (${addItems.join(",")}, ${removeItems.join(",")}) on message ${id} is not fully implemented.`
-        )
-      }
+    // Split the requested changes into a folder move (a well-known folder in
+    // addItems) and category add/removes (everything else).
+    const moveToFolderId = addItems
+      .map((item) => this.getOutlookFolderId(item))
+      .find((folderId) => folderId !== undefined)
+    const addCategories = addItems.filter(
+      (item) => !this.getOutlookFolderId(item)
+    )
+    const removeCategories = removeItems.filter(
+      (item) => !this.getOutlookFolderId(item)
+    )
 
-      if (!addItems[0]) {
-        console.warn("No addItems")
-        return
-      }
+    // Removing a well-known folder with no destination (bulkArchive sends
+    // removeLabels:["INBOX"]) is a move, not a category change — Graph has no
+    // "remove from folder" concept. Mirror the IMAP transport: archive it.
+    const removesFolder = removeItems.some((item) =>
+      this.getOutlookFolderId(item)
+    )
+    const effectiveMoveId =
+      moveToFolderId ?? (removesFolder ? "archive" : undefined)
 
-      let moveToFolderId: string | undefined
-      if (addItems.length > 0 && this.getOutlookFolderId(addItems[0])) {
-        moveToFolderId = this.getOutlookFolderId(addItems[0]) || addItems[0]
-        console.warn(
-          `Attempting to move message ${id} to folder ${moveToFolderId}. This is a move operation, not adding a label.`
-        )
+    if (
+      !effectiveMoveId &&
+      addCategories.length === 0 &&
+      removeCategories.length === 0
+    ) {
+      return
+    }
+
+    // Callers pass thread ids (= Graph conversation ids); resolve them to the
+    // member message ids that /me/messages operations require.
+    const messageIds = await this.resolveMessageIds(threadIds)
+    if (messageIds.length === 0) return
+
+    if (addCategories.length > 0 || removeCategories.length > 0) {
+      // PATCHing `categories` replaces the whole array, so read each
+      // message's current categories first, then write the merged set.
+      const current = await mapWithConcurrency(
+        messageIds,
+        LIST_CONCURRENCY,
+        async (id) => {
+          const res = await this.graphClient
+            .api(`/me/messages/${id}`)
+            .select("id,categories")
+            .get()
+          return { id, categories: (res?.categories ?? []) as string[] }
+        }
+      )
+
+      const patchRequests = current.map(({ id, categories }, index) => {
+        const next = new Set(categories)
+        removeCategories.forEach((cat) => next.delete(cat))
+        addCategories.forEach((cat) => next.add(cat))
         return {
           id: `${index}`,
-          method: "POST",
-          url: `/me/messages/${id}/move`,
-          body: { destinationId: moveToFolderId },
+          method: "PATCH",
+          url: `/me/messages/${id}`,
+          body: { categories: [...next] },
           headers: { "Content-Type": "application/json" },
         }
-      }
-      return {
-        id: `${index}`,
-        method: "PATCH",
-        url: `/me/messages/${id}`,
-        body: patchBody,
-        headers: { "Content-Type": "application/json" },
-      }
-    })
+      })
 
-    const validBatchRequests = batchRequests
-      .filter((req) => typeof req !== "undefined")
-      .filter(
-        (req) => Object.keys(req.body).length > 0 || req.method === "POST"
-      )
-
-    if (validBatchRequests.length === 0) {
-      console.warn(
-        "No valid batch requests generated for modifyMessageLabelsOrFolders."
-      )
-      return
+      await this.executeBatch(patchRequests)
     }
 
-    try {
-      await this.graphClient
-        .api("/$batch")
-        .post({ requests: validBatchRequests })
-    } catch (error) {
-      console.error("Error during batch modification of messages:", error)
-      throw error
+    if (effectiveMoveId) {
+      const moveRequests = messageIds.map((id, index) => ({
+        id: `${index}`,
+        method: "POST",
+        url: `/me/messages/${id}/move`,
+        body: { destinationId: effectiveMoveId },
+        headers: { "Content-Type": "application/json" },
+      }))
+
+      await this.executeBatch(moveRequests)
     }
   }
   public sendDraft(draftId: string, data: IOutgoingMessage) {
@@ -689,22 +803,24 @@ export class OutlookMailManager implements MailManager {
     return this.withErrorHandler(
       "listDrafts",
       async () => {
-        let request = this.graphClient.api("/me/mailfolders/drafts/messages")
-
-        if (q) {
-          request = request.search(`"${q}"`)
-        }
-
-        request = request.select(
-          "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,conversationId,bodyPreview,internetMessageHeaders"
-        )
-        // request = request.orderby('receivedDateTime desc');
-        request = request.top(maxResults)
-
+        let request
         if (pageToken) {
-          console.warn(
-            "Outlook pagination typically uses @odata.nextLink (full URL). pageToken needs to be handled accordingly."
-          )
+          // pageToken is Graph's @odata.nextLink — a full URL carrying all
+          // the query state for the next page.
+          request = this.graphClient.api(pageToken)
+        } else {
+          request = this.graphClient
+            .api("/me/mailfolders/drafts/messages")
+            .select(
+              "id,subject,from,toRecipients,ccRecipients,bccRecipients,sentDateTime,receivedDateTime,isRead,internetMessageId,conversationId,bodyPreview,internetMessageHeaders"
+            )
+            .top(maxResults)
+
+          if (q) {
+            request = request.search(`"${q.replace(/"/g, "")}"`)
+          } else {
+            request = request.orderby("receivedDateTime desc")
+          }
         }
 
         const res = await request.get()
@@ -887,9 +1003,12 @@ export class OutlookMailManager implements MailManager {
   }
   public async getUserLabels() {
     try {
-      // Get root mail folders
+      // Get root mail folders with their immediate children in one request,
+      // so the common one-level hierarchy needs no per-folder round trips.
       const rootFoldersResponse = await this.graphClient
         .api("/me/mailfolders")
+        .top(100)
+        .expand("childFolders($top=100)")
         .get()
       const rootFolders: MailFolder[] = rootFoldersResponse.value || []
 
@@ -947,11 +1066,21 @@ export class OutlookMailManager implements MailManager {
         )
           ? "system"
           : "user"
-        const childFoldersResponse = await this.graphClient
-          .api(`/me/mailFolders/${folder.id}/childFolders`)
-          .get()
 
-        const childFolders: MailFolder[] = childFoldersResponse.value || []
+        // Prefer children already delivered via $expand; only fall back to a
+        // per-folder request when the folder has children we don't have yet.
+        let childFolders: MailFolder[] = folder.childFolders || []
+        if (
+          childFolders.length === 0 &&
+          (folder.childFolderCount ?? 0) > 0
+        ) {
+          const childFoldersResponse = await this.graphClient
+            .api(`/me/mailFolders/${folder.id}/childFolders`)
+            .top(100)
+            .expand("childFolders($top=100)")
+            .get()
+          childFolders = childFoldersResponse.value || []
+        }
 
         const childLabels = await this.processMailFoldersHierarchy(
           childFolders,
@@ -1382,7 +1511,21 @@ export class OutlookMailManager implements MailManager {
     try {
       return await Promise.resolve(fn())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (initialError: any) {
+      let error = initialError
+      // A 401 usually just means the stored access token expired. Refresh and
+      // retry once before considering the credential dead.
+      if (initialError?.statusCode === 401) {
+        this.storedTokenInvalid = true
+        this.cachedToken = null
+        try {
+          await this.refreshAccessToken()
+          return await Promise.resolve(fn())
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } catch (retryError: any) {
+          error = retryError
+        }
+      }
       // "Fatal" here means the connection gets torn down, so it must mean the
       // credential is actually dead — a 401 or invalid_grant. Treating every
       // 4xx that way let a bad message id or a permissions blip take out the
@@ -1402,7 +1545,11 @@ export class OutlookMailManager implements MailManager {
           isFatal,
         }
       )
-      if (isFatal) await deleteActiveConnection()
+      if (isFatal)
+        await deleteActiveConnection(
+          this.config.auth?.userId,
+          this.config.auth?.email
+        )
       throw new StandardizedError(error, operation, context)
     }
   }
@@ -1428,7 +1575,11 @@ export class OutlookMailManager implements MailManager {
         stack: error.stack,
         isFatal,
       })
-      if (isFatal) void deleteActiveConnection()
+      if (isFatal)
+        void deleteActiveConnection(
+          this.config.auth?.userId,
+          this.config.auth?.email
+        )
       throw new StandardizedError(error, operation, context)
     }
   }

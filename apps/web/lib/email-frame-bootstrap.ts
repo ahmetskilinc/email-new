@@ -19,12 +19,20 @@ export const EMAIL_FRAME_BOOTSTRAP = `
   var post = function (msg) { parent.postMessage(Object.assign({ __mail: 1 }, msg), '*') }
   var report = function () {
     var d = document.documentElement, b = document.body
-    post({ type: 'height', height: Math.max(b.scrollHeight, d.scrollHeight, b.offsetHeight) })
+    // Every metric rounds down somewhere; a fraction lost here leaves the
+    // frame a pixel short of its content. Take the max and round up.
+    post({ type: 'height', height: Math.ceil(Math.max(
+      b.scrollHeight, d.scrollHeight, b.offsetHeight,
+      b.getBoundingClientRect().height, d.getBoundingClientRect().height
+    )) })
   }
   window.addEventListener('load', report)
+  window.addEventListener('resize', report)
   document.addEventListener('DOMContentLoaded', report)
   if (window.ResizeObserver) new ResizeObserver(report).observe(document.body)
-  setTimeout(report, 50); setTimeout(report, 500)
+  // Late layout shifts (webfonts, images without dimensions) that never touch
+  // the body's own border-box slip past the ResizeObserver — re-measure.
+  setTimeout(report, 50); setTimeout(report, 500); setTimeout(report, 1500)
 
   // Links are handed to the parent, which validates the scheme and opens them.
   document.addEventListener('click', function (e) {
@@ -50,4 +58,4 @@ export const EMAIL_FRAME_BOOTSTRAP = `
  * without updating this constant cannot ship silently.
  */
 export const EMAIL_FRAME_BOOTSTRAP_HASH =
-  "sha256-oodt76n6b7vPIgEr3dqiZEJFUwPzAPaGBoLf+wIn5T8="
+  "sha256-lX9fcRWuKm7BzxLQrSC7CEQK1JpD/eTOgm8KwK0zTlA="

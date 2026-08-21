@@ -5,21 +5,11 @@ import {
   signature,
   recipient,
 } from "../db/schema"
-import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
+import { eq, and, or, ilike, asc, desc, sql } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
 import { decryptSecret, encrypt, isEncrypted } from "./encryption"
-import { createDb } from "../db"
-import { env } from "../env"
-
-let _sharedDb: ReturnType<typeof createDb> | null = null
-
-const getSharedDb = () => {
-  if (!_sharedDb) {
-    _sharedDb = createDb(env.DATABASE_URL)
-  }
-  return _sharedDb.db
-}
+import { getSharedDb } from "../db"
 
 /**
  * Encrypts a credential for storage, idempotently — callers that already
@@ -31,7 +21,7 @@ const encryptSecret = (value: string | null | undefined): string | null => {
 }
 
 export const getzeitmailDB = async (userId: string) => {
-  const db = getSharedDb()
+  const { db } = getSharedDb()
 
   return {
     findManyConnections: () =>
@@ -48,6 +38,7 @@ export const getzeitmailDB = async (userId: string) => {
     findFirstConnection: () =>
       db.query.connection.findFirst({
         where: eq(connection.userId, userId),
+        orderBy: [asc(connection.createdAt)],
       }),
 
     deleteConnection: (connectionId: string) =>
@@ -93,8 +84,11 @@ export const getzeitmailDB = async (userId: string) => {
           target: [connection.userId, connection.email],
           set: {
             providerId,
-            accessToken: info.accessToken,
-            refreshToken: info.refreshToken || null,
+            // Same treatment as the insert branch: credentials are encrypted
+            // at rest. `encryptSecret` is idempotent, so callers that already
+            // encrypted (app-password flows) pass through unchanged.
+            accessToken: encryptSecret(info.accessToken),
+            refreshToken: encryptSecret(info.refreshToken),
             scope: info.scope,
             imapConfig: info.imapConfig ?? null,
             expiresAt: info.expiresAt,

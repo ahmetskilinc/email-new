@@ -29,6 +29,14 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@workspace/ui"],
+  experimental: {
+    serverActions: {
+      // The compose flow ships attachments through server actions as base64
+      // (~4/3 inflation plus multipart overhead). Next's 1MB default would
+      // reject anything near the advertised 25MB-per-file / 40MB-total limits.
+      bodySizeLimit: "60mb",
+    },
+  },
   // Stack traces and original sources should not ship to the browser in prod.
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
