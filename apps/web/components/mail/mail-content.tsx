@@ -55,12 +55,14 @@ function buildFrameDocument(bodyHtml: string, imagesEnabled: boolean): string {
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  /* Vertical scrolling belongs to the surrounding ScrollArea: the frame is
-     sized to its content via postMessage, and any measurement that lands a
-     pixel short must not produce a second, nested scrollbar. Horizontal stays
-     scrollable for emails wider than the pane. */
-  html { overflow-y: hidden; }
-  body { overflow-x: auto; }
+  /* The frame is sized to its content via postMessage, so its own scrollbar
+     should never be seen — hiding it removes the doubled scrollbar whenever a
+     measurement lands short. Deliberately NOT overflow:hidden: a hidden
+     overflow root swallows wheel events over the frame without scrolling
+     anything, so an undersized frame would become unreadable. With only the
+     scrollbar hidden, an undersized frame still scrolls under the wheel. */
+  html { scrollbar-width: none; }
+  html::-webkit-scrollbar { display: none; }
 </style>
 </head><body>
 ${bodyHtml}
