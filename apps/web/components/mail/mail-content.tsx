@@ -54,6 +54,14 @@ function buildFrameDocument(bodyHtml: string, imagesEnabled: boolean): string {
 <html><head>
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Vertical scrolling belongs to the surrounding ScrollArea: the frame is
+     sized to its content via postMessage, and any measurement that lands a
+     pixel short must not produce a second, nested scrollbar. Horizontal stays
+     scrollable for emails wider than the pane. */
+  html { overflow-y: hidden; }
+  body { overflow-x: auto; }
+</style>
 </head><body>
 ${bodyHtml}
 <script>${EMAIL_FRAME_BOOTSTRAP}</script>

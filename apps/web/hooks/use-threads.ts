@@ -96,7 +96,7 @@ export const useThread = (
   const [queryThreadId] = useQueryState("threadId")
   const id = threadId ?? queryThreadId
   const { data: settings } = useSettings()
-  const { theme: systemTheme } = useTheme()
+  const { resolvedTheme } = useTheme()
   const threadConnectionMap = useAtomValue(threadConnectionAtom)
   const connectionId = id ? threadConnectionMap[id] : undefined
 
@@ -157,24 +157,23 @@ export const useThread = (
     )
   }, [settings?.settings, latestMessage?.sender?.email])
 
+  // Warms the exact cache entry MailContent reads: the key (including the
+  // resolved theme) must match its query key verbatim, or this prefetch is
+  // dead weight — it previously keyed on the raw theme value ("system"), so
+  // the viewer never saw it and re-processed every message on open.
   useQuery({
     queryKey: [
       "email-content",
       latestMessage?.id,
       shouldLoadImages,
-      systemTheme,
+      resolvedTheme,
     ],
     queryFn: async () => {
       if (!latestMessage?.decodedBody || !settings?.settings) return null
-      const userTheme =
-        settings.settings.colorTheme === "system"
-          ? systemTheme
-          : settings.settings.colorTheme
-      const theme = userTheme === "dark" ? "dark" : "light"
       const result = await processEmailContent(
         latestMessage.decodedBody,
         shouldLoadImages,
-        theme
+        (resolvedTheme as "light" | "dark") || "light"
       )
       return {
         html: result.processedHtml,
