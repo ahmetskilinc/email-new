@@ -39,17 +39,11 @@ declare module "bun:test" {
     toBeDefined(): void
     toBeUndefined(): void
     toBeNull(): void
-    toBeTruthy(): void
-    toBeFalsy(): void
-    toBeInstanceOf(expected: unknown): void
-    toHaveLength(expected: number): void
   }
 
   interface AsyncMatchers {
     toThrow(expected?: unknown): Promise<void>
     toBe(expected: unknown): Promise<void>
-    toBeDefined(): Promise<void>
-    toBeInstanceOf(expected: unknown): Promise<void>
   }
 
   interface Expectation extends Matchers {
@@ -58,14 +52,5 @@ declare module "bun:test" {
     rejects: AsyncMatchers
   }
 
-  interface ExpectFn {
-    (actual: unknown): Expectation
-    /** Asymmetric matcher: the array contains at least these members. */
-    arrayContaining(expected: readonly unknown[]): unknown
-    /** Asymmetric matcher: the object contains at least these properties. */
-    objectContaining(expected: Record<string, unknown>): unknown
-    any(constructor: unknown): unknown
-  }
-
-  export const expect: ExpectFn
+  export function expect(actual: unknown): Expectation
 }

@@ -9,13 +9,6 @@ import { eq, and, or, ilike, desc, sql } from "drizzle-orm"
 import type { EProviders } from "../types"
 import { createDriver } from "./driver"
 import { decryptSecret, encrypt, isEncrypted } from "./encryption"
-import {
-  deserializeSession,
-  redactSession,
-  serializeSession,
-  type ICloudWebSession,
-} from "./transport/icloud/session"
-import type { ICloudConnectionState } from "./transport/icloud/errors"
 import { createDb } from "../db"
 import { env } from "../env"
 
@@ -75,9 +68,6 @@ export const getzeitmailDB = async (userId: string) => {
         scope: string
         expiresAt: Date
         imapConfig?: unknown
-        /** Already-encrypted iCloud web session, for the mailws provider. */
-        webSession?: string | null
-        connectionState?: string | null
       }
     ) => {
       const now = new Date()
@@ -95,8 +85,6 @@ export const getzeitmailDB = async (userId: string) => {
           refreshToken: encryptSecret(info.refreshToken),
           scope: info.scope,
           imapConfig: info.imapConfig ?? null,
-          webSession: encryptSecret(info.webSession),
-          connectionState: info.connectionState ?? null,
           expiresAt: info.expiresAt,
           createdAt: now,
           updatedAt: now,
@@ -109,8 +97,6 @@ export const getzeitmailDB = async (userId: string) => {
             refreshToken: info.refreshToken || null,
             scope: info.scope,
             imapConfig: info.imapConfig ?? null,
-            webSession: encryptSecret(info.webSession),
-            connectionState: info.connectionState ?? null,
             expiresAt: info.expiresAt,
             name: info.name || null,
             picture: info.picture || null,
@@ -365,71 +351,14 @@ export function resolveRefreshToken(conn: {
   return decryptSecret(conn.refreshToken)
 }
 
-/**
- * Decrypts a stored iCloud web session.
- *
- * A session that will not decrypt or parse is treated as absent rather than
- * fatal: the connection may still have an app-specific password to fall back
- * on, and a mailbox that keeps working over IMAP beats one that throws. The
- * failure is logged — redacted — so it is still visible.
- */
-export function resolveIcloudSession(conn: {
-  id: string
-  providerId: string
-  webSession: string | null
-}): ICloudWebSession | undefined {
-  if (conn.providerId !== "icloud" || !conn.webSession) return undefined
-  try {
-    return deserializeSession(decryptSecret(conn.webSession))
-  } catch (error) {
-    console.error(
-      "[icloud] stored web session is unusable for connection",
-      conn.id,
-      error instanceof Error ? error.message : error
-    )
-    return undefined
-  }
-}
-
-/** Writes a refreshed session back, always encrypted. */
-export async function persistIcloudSession(
-  connectionId: string,
-  session: ICloudWebSession
-): Promise<void> {
-  const db = getSharedDb()
-  await db
-    .update(connection)
-    .set({
-      webSession: encrypt(serializeSession(session)),
-      connectionState: "connected",
-      updatedAt: new Date(),
-    })
-    .where(eq(connection.id, connectionId))
-}
-
-export async function setConnectionState(
-  connectionId: string,
-  state: ICloudConnectionState
-): Promise<void> {
-  const db = getSharedDb()
-  await db
-    .update(connection)
-    .set({ connectionState: state, updatedAt: new Date() })
-    .where(eq(connection.id, connectionId))
-}
-
 export const connectionToDriver = (
   activeConnection: typeof connection.$inferSelect
 ) => {
   const isAppPasswordProvider = APP_PASSWORD_PROVIDERS.includes(
     activeConnection.providerId
   )
-  const icloudSession = resolveIcloudSession(activeConnection)
-
-  // An iCloud connection authenticated by a web session has no app password to
-  // check for; the session is the credential.
   if (
-    (!activeConnection.accessToken && !icloudSession) ||
+    !activeConnection.accessToken ||
     (!isAppPasswordProvider && !activeConnection.refreshToken)
   ) {
     throw new Error(
@@ -448,31 +377,6 @@ export const connectionToDriver = (
       ? {
           imapConfig:
             activeConnection.imapConfig as import("./transport/provider-config").ImapProviderConfig,
-        }
-      : {}),
-    ...(icloudSession
-      ? {
-          icloud: {
-            session: icloudSession,
-            appPasswordAvailable: Boolean(activeConnection.accessToken),
-            onSessionUpdate: (session: ICloudWebSession) =>
-              persistIcloudSession(activeConnection.id, session).catch(
-                (error) => {
-                  console.error(
-                    "[icloud] failed to persist refreshed session",
-                    redactSession(session),
-                    error instanceof Error ? error.message : error
-                  )
-                }
-              ),
-            onStateChange: (state: ICloudConnectionState) =>
-              setConnectionState(activeConnection.id, state).catch((error) => {
-                console.error(
-                  "[icloud] failed to record connection state",
-                  error instanceof Error ? error.message : error
-                )
-              }),
-          },
         }
       : {}),
   })
