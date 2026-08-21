@@ -74,12 +74,7 @@ export function MailListRow({
           selected && "bg-accent/50 opacity-100"
         )}
       >
-        <div
-          className={cn(
-            "relative flex w-full items-center justify-between gap-4 px-4",
-            !unread && "opacity-60"
-          )}
-        >
+        <div className="relative flex w-full items-center justify-between gap-4 px-4">
           <div className="relative flex size-8 shrink-0 items-center justify-center">
             {/* Checkbox — visible on hover, or always when any selection active */}
             <div
@@ -111,7 +106,9 @@ export function MailListRow({
             </div>
           </div>
 
-          <div className="w-full min-w-0">
+          {/* Read-state dimming applies to the text only — the avatar keeps
+              full opacity. */}
+          <div className={cn("w-full min-w-0", !unread && "opacity-60")}>
             <div className="flex w-full flex-row items-center justify-between">
               <div
                 className={cn(

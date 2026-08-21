@@ -15,6 +15,7 @@ import {
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { setDefaultConnection } from "@/server/actions/connections"
+import { listThreads } from "@/server/actions/mail"
 import { activeConnectionQueryKey } from "@/hooks/use-connections"
 import { activeConnectionIdAtom } from "@/store/connection"
 import { useSession } from "@/lib/auth-client"
@@ -94,6 +95,28 @@ export function AccountSwitchDialog({
       await setDefaultConnection(target.id)
       markLastDone()
 
+      // Load the new account's mail list BEFORE the dialog closes: the threads
+      // query is keyed by connection id, so without this the list only starts
+      // fetching after the switch completes and the user stares at skeletons.
+      // Must run after setDefaultConnection — listThreads reads the server-side
+      // active connection. The prefetched entry is fresh (staleTime 60s), so
+      // the list mounts straight onto it without refetching.
+      addLog("Loading mailbox...", "pending")
+      const folderMatch = window.location.pathname.match(/^\/mail\/([^/?#]+)/)
+      const folder =
+        folderMatch?.[1] && folderMatch[1] !== "all-inboxes"
+          ? folderMatch[1]
+          : "inbox"
+      await queryClient
+        .prefetchInfiniteQuery({
+          // Mirrors the key/args in useThreads (empty search, first page).
+          queryKey: ["threads", folder, "", target.id],
+          queryFn: () => listThreads(folder, "", undefined, ""),
+          initialPageParam: "",
+        })
+        .catch(() => {})
+      markLastDone()
+
       addLog("Switching active connection...", "pending")
       setConnectionId(target.id)
       queryClient.setQueryData(activeConnectionQueryKey(session.user.id), {
@@ -106,7 +129,9 @@ export function AccountSwitchDialog({
       void queryClient.invalidateQueries({
         queryKey: activeConnectionQueryKey(session.user.id),
       })
-      queryClient.invalidateQueries({ queryKey: ["threads"] })
+      // No blanket invalidation of ["threads"]: those queries are keyed by
+      // connection id, so other accounts' caches are still valid — and
+      // invalidating would force a refetch of the list we just prefetched.
       queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
       markLastDone()
 

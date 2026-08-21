@@ -212,7 +212,17 @@ function applyEmailPreferences(
   shouldLoadImages: boolean
 ): { processedHtml: string; hasBlockedImages: boolean } {
   let hasBlockedImages = false
-  const isDarkTheme = theme === "dark"
+
+  // An email that declares any color of its own was designed for a white
+  // surface: forcing a dark background under, say, inline `color:#000` renders
+  // it black-on-black. Only emails that leave colors entirely to the client
+  // are safe to theme — everything else keeps the light surface in dark mode,
+  // the way most mail clients render HTML email.
+  const declaresOwnColors =
+    /(?:^|[;{"'\s])(?:color|background|background-color)\s*:|bgcolor\s*=/i.test(
+      preprocessedHtml
+    )
+  const isDarkTheme = theme === "dark" && !declaresOwnColors
 
   const $ = cheerio.load(preprocessedHtml)
 

@@ -124,12 +124,7 @@ export function MailDisplay({ className }: { className?: string }) {
       .trim()
 
   return (
-    <div
-      className={cn(
-        "flex h-full max-h-[calc(100dvh-(3rem+16px))] flex-col",
-        className
-      )}
-    >
+    <div className={cn("flex h-full min-h-0 flex-col", className)}>
       {/* Pinned header — thread subject */}
       <div className="flex shrink-0 items-start justify-between gap-4 border-b p-4">
         <div className="flex items-center gap-2">
