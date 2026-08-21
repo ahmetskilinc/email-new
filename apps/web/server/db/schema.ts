@@ -104,6 +104,23 @@ export const connection = createTable(
       .$type<"google" | "microsoft" | "icloud" | "yahoo" | "custom">()
       .notNull(),
     imapConfig: jsonb("imap_config"),
+    /**
+     * Encrypted iCloud.com web session for the Mail WebService provider.
+     *
+     * Held apart from `accessToken` because it is a different credential with a
+     * different blast radius: an app-specific password reaches Mail over IMAP,
+     * whereas this is a signed-in iCloud.com session and may reach more of the
+     * user's account than Mail. Always written through `encrypt()`, never
+     * returned to the browser, and only ever logged via `redactSession`.
+     */
+    webSession: text("web_session"),
+    /**
+     * Provider-side health of the connection: "connected", "expired",
+     * "reauth_required" or "unsupported". NULL means connected — the state only
+     * matters for credentials that can expire out from under us, which today is
+     * the iCloud web session. See ICloudConnectionState.
+     */
+    connectionState: text("connection_state"),
     expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),

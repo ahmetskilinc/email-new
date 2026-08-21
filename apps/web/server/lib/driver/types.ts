@@ -38,6 +38,24 @@ export interface ParsedDraft {
 }
 
 import type { ImapProviderConfig } from "../transport/provider-config"
+import type { ICloudWebSession } from "../transport/icloud/session"
+import type { ICloudConnectionState } from "../transport/icloud/errors"
+
+/**
+ * iCloud-specific wiring for the Mail WebService (`mailws`) provider.
+ *
+ * The session is the credential; it is passed in already decrypted and must
+ * never be logged or returned to a caller. `onSessionUpdate` writes back the
+ * cookies Apple rotates mid-flight, and `onStateChange` records an expiry so
+ * the UI can prompt for re-authentication instead of failing silently.
+ */
+export type ICloudManagerConfig = {
+  session?: ICloudWebSession
+  onSessionUpdate?: (session: ICloudWebSession) => void | Promise<void>
+  onStateChange?: (state: ICloudConnectionState) => void | Promise<void>
+  /** True when the connection still carries an app-specific password to fall back on. */
+  appPasswordAvailable?: boolean
+}
 
 export type ManagerConfig = {
   auth: {
@@ -47,6 +65,7 @@ export type ManagerConfig = {
     email: string
   }
   imapConfig?: ImapProviderConfig
+  icloud?: ICloudManagerConfig
 }
 
 export interface MailManager {

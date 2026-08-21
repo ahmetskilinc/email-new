@@ -13,6 +13,16 @@ import { assertValidMailEndpoints } from "../lib/transport/host-validation"
 import { logSecurityEvent } from "../lib/audit"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
+import { isIcloudWebServiceEnabled } from "../env"
+import { discoverWebServices } from "../lib/transport/icloud/bootstrap"
+import {
+  ICloudSessionInputError,
+  buildSession,
+  parseSessionInput,
+  redactSession,
+  serializeSession,
+} from "../lib/transport/icloud/session"
+import { ICloudReauthRequiredError } from "../lib/transport/icloud/errors"
 import { EProviders } from "../types"
 
 export async function listConnections() {
@@ -22,11 +32,22 @@ export async function listConnections() {
 
   const appPasswordProviders = ["icloud", "yahoo", "custom"]
   const disconnectedIds = connections
-    .filter(
-      (c) =>
-        !c.accessToken ||
-        (!appPasswordProviders.includes(c.providerId) && !c.refreshToken)
-    )
+    .filter((c) => {
+      // An iCloud connection authenticated by a web session has no access token
+      // to check; the encrypted session is its credential. A session Apple has
+      // invalidated counts as disconnected so the UI prompts for a reconnect.
+      const hasCredential = Boolean(c.accessToken || c.webSession)
+      if (!hasCredential) return true
+      if (
+        c.providerId === "icloud" &&
+        !c.accessToken &&
+        c.connectionState &&
+        c.connectionState !== "connected"
+      ) {
+        return true
+      }
+      return !appPasswordProviders.includes(c.providerId) && !c.refreshToken
+    })
     .map((c) => c.id)
 
   return {
@@ -37,6 +58,10 @@ export async function listConnections() {
       picture: connection.picture,
       createdAt: connection.createdAt,
       providerId: connection.providerId,
+      // Whether this connection reads through Apple's web service, and whether
+      // its credential still works. Never the credential itself.
+      usesWebService: Boolean(connection.webSession),
+      connectionState: connection.connectionState ?? "connected",
     })),
     disconnectedIds,
   }
@@ -275,6 +300,172 @@ export async function createCustomConnection(
     providerId: "custom",
     imapHost,
     smtpHost,
+  })
+
+  return { success: true }
+}
+
+/** Whether the experimental iCloud web-service flow may be offered in the UI. */
+export async function icloudWebServiceAvailable() {
+  return isIcloudWebServiceEnabled()
+}
+
+const ICLOUD_DOMAINS = ["icloud.com", "me.com", "mac.com"]
+
+function assertIcloudAddress(address: string) {
+  const domain = address.split("@")[1]?.toLowerCase()
+  if (!domain || !ICLOUD_DOMAINS.includes(domain)) {
+    throw new Error(
+      "That session does not belong to an iCloud Mail account (icloud.com, me.com, mac.com)."
+    )
+  }
+}
+
+/**
+ * Validates a captured iCloud.com session and turns it into a usable
+ * credential: Apple's bootstrap confirms the session works, tells us the
+ * account identifier, and names the account-specific `pXX-mailws` shard.
+ *
+ * Deliberately never sees the user's Apple Account password — the app has no
+ * business holding one, and Apple's 2FA belongs in Apple's own login UI.
+ */
+async function establishIcloudSession(rawSession: string) {
+  if (!isIcloudWebServiceEnabled()) {
+    throw new Error("The iCloud web service connection is disabled.")
+  }
+
+  const parsed = (() => {
+    try {
+      return parseSessionInput(rawSession)
+    } catch (error) {
+      if (error instanceof ICloudSessionInputError)
+        throw new Error(error.message)
+      throw error
+    }
+  })()
+
+  const candidate = buildSession(parsed)
+
+  const bootstrap = await discoverWebServices(candidate).catch((error) => {
+    if (error instanceof ICloudReauthRequiredError) {
+      throw new Error(
+        "iCloud rejected that session. Sign in at icloud.com again and copy a fresh session."
+      )
+    }
+    throw new Error(
+      error instanceof Error
+        ? error.message
+        : "Could not validate the iCloud session."
+    )
+  })
+
+  const address = bootstrap.primaryEmail
+  if (!address) {
+    throw new Error("iCloud did not report an email address for that session.")
+  }
+  assertIcloudAddress(address)
+
+  return {
+    session: {
+      ...candidate,
+      dsid: bootstrap.dsid,
+      mailServiceUrl: bootstrap.mailServiceUrl,
+      cookies: bootstrap.refreshedCookies ?? candidate.cookies,
+    },
+    address,
+    name: bootstrap.fullName || address.split("@")[0] || address,
+  }
+}
+
+/**
+ * Connects an iCloud account through Apple's Mail WebService using a captured
+ * iCloud.com session instead of an app-specific password.
+ *
+ * If the user already has this iCloud address connected over IMAP, the existing
+ * app-specific password is kept: the web service cannot send mail, and the
+ * router driver falls back to SMTP for that.
+ */
+export async function createIcloudWebSessionConnection(rawSession: string) {
+  const session = await requireSession()
+  const established = await establishIcloudSession(rawSession)
+
+  const db = await getzeitmailDB(session.user.id)
+  const existing = (await db.findManyConnections()).find(
+    (connection) =>
+      connection.email.toLowerCase() === established.address.toLowerCase()
+  )
+
+  // (userId, email) is unique, so an existing row for this address has to be
+  // reused rather than inserted alongside. Reusing one that belongs to another
+  // provider would silently convert that account, so refuse instead.
+  if (existing && existing.providerId !== EProviders.icloud) {
+    throw new Error(
+      `${established.address} is already connected as a ${existing.providerId} account. Remove it first.`
+    )
+  }
+
+  if (existing) {
+    await db.updateConnection(existing.id, {
+      providerId: EProviders.icloud,
+      name: existing.name || established.name,
+      webSession: encrypt(serializeSession(established.session)),
+      connectionState: "connected",
+      scope: "icloud",
+      expiresAt: new Date("2099-12-31"),
+    })
+  } else {
+    await db.createConnection(EProviders.icloud, established.address, {
+      name: established.name,
+      picture: "",
+      // No app-specific password on a session-only connection. `accessToken`
+      // stays empty and the router driver skips building an IMAP client.
+      accessToken: "",
+      refreshToken: null as string | null,
+      scope: "icloud",
+      webSession: encrypt(serializeSession(established.session)),
+      connectionState: "connected",
+      expiresAt: new Date("2099-12-31"),
+    })
+  }
+
+  await logSecurityEvent("connection_added", session.user.id, {
+    providerId: "icloud",
+    authMode: "webservice",
+    // Cookie *names*, never values — enough to debug an auth failure, useless
+    // to anyone who reads the audit log.
+    session: redactSession(established.session),
+  })
+
+  return { success: true, email: established.address }
+}
+
+/**
+ * Replaces the stored session on an existing iCloud connection after Apple
+ * expired it. Kept separate from the create path so the UI can offer
+ * "Reconnect" without the user losing folder state or signatures.
+ */
+export async function reconnectIcloudWebSession(
+  connectionId: string,
+  rawSession: string
+) {
+  const session = await requireSession()
+  const db = await getzeitmailDB(session.user.id)
+  const existing = await db.findUserConnection(connectionId)
+  if (!existing) throw new Error("Connection not found")
+  if (existing.providerId !== EProviders.icloud) {
+    throw new Error("That connection is not an iCloud account.")
+  }
+
+  const established = await establishIcloudSession(rawSession)
+  if (established.address.toLowerCase() !== existing.email.toLowerCase()) {
+    throw new Error(
+      `That session belongs to ${established.address}, not ${existing.email}.`
+    )
+  }
+
+  await db.updateConnection(connectionId, {
+    webSession: encrypt(serializeSession(established.session)),
+    connectionState: "connected",
   })
 
   return { success: true }
