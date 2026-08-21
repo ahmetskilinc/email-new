@@ -23,7 +23,7 @@ export default function RoutesLayout({
   return (
     <DualSidebarProvider>
       <AppSidebar />
-      <DualSidebarInset className="border border-bruv-neutral">
+      <DualSidebarInset className="border border-border">
         <SiteHeader />
         <ConnectionSyncer />
         <div className="relative flex h-[calc(100dvh-(3rem+32px))] w-full flex-1 overflow-hidden">

@@ -1,19 +1,20 @@
 "use client"
 
+import { Label } from "@workspace/ui/components/label"
 import {
-  Label,
-  Toggle,
-  Separator,
   Select,
-  SelectButton,
   SelectContent,
-  SelectOption,
-} from "bruv-ui"
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+import { Switch } from "@workspace/ui/components/switch"
+import { Separator } from "@workspace/ui/components/separator"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSettings } from "@/hooks/use-settings"
 import { saveSettings } from "@/server/actions/settings"
 import { useSession } from "@/lib/auth-client"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 import {
   defaultNotificationSettings,
   type NotificationSettings,
@@ -73,17 +74,14 @@ export function NotificationsTab() {
                 level: v as NotificationSettings["level"],
               })
             }
-            items={[
-              { value: "none", label: "None" },
-              { value: "important", label: "Important only" },
-              { value: "all", label: "All messages" },
-            ]}
           >
-            <SelectButton size="sm" className="w-40" />
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              <SelectOption value="none">None</SelectOption>
-              <SelectOption value="important">Important only</SelectOption>
-              <SelectOption value="all">All messages</SelectOption>
+              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="important">Important only</SelectItem>
+              <SelectItem value="all">All messages</SelectItem>
             </SelectContent>
           </Select>
         </SettingsRow>
@@ -97,7 +95,7 @@ export function NotificationsTab() {
             title="In-app notifications"
             description="Show a toast inside the app when new mail arrives."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={notifications.inApp}
             onCheckedChange={(checked) =>
@@ -111,7 +109,7 @@ export function NotificationsTab() {
             title="Desktop notifications"
             description="Show an OS-level notification while the app is open."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={notifications.desktop}
             onCheckedChange={handleDesktopToggle}
@@ -123,7 +121,7 @@ export function NotificationsTab() {
             title="Sound"
             description="Play a sound when a notification appears."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={notifications.sound}
             onCheckedChange={(checked) =>
@@ -141,7 +139,7 @@ export function NotificationsTab() {
             title="Marketing communications"
             description="Receive updates about new features."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={notifications.marketing}
             onCheckedChange={(checked) =>
@@ -174,7 +172,7 @@ function SettingsLabel({
   return (
     <div className="flex flex-col gap-0.5">
       <Label className="text-sm font-medium">{title}</Label>
-      <p className="text-xs text-bruv-tertiary">{description}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
     </div>
   )
 }

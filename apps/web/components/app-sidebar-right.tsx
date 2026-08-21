@@ -7,8 +7,10 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@workspace/ui/components/dual-sidebar"
-import { Button } from "bruv-ui"
-import { CalendarIcon, PlusIcon } from "@heroicons/react/16/solid"
+import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Calendar03Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { Add01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { MiniCalendar } from "./calendar/mini-calendar"
 import { EventList } from "./calendar/event-list"
 import { EventDialog } from "./calendar/event-dialog"
@@ -82,19 +84,19 @@ export function AppSidebarRight() {
       <SidebarHeader className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="size-4" />
+            <HugeiconsIcon icon={Calendar03Icon} className="size-4" />
             <span className="block text-sm font-semibold group-data-[state=collapsed]:hidden">
               Calendar
             </span>
           </div>
           <Button
-            variant="transparent"
-            size="xs"
+            variant="ghost"
+            size="icon-xs"
             className="group-data-[state=collapsed]:hidden"
-            aria-label="New event"
-            iconLeft={<PlusIcon />}
             onClick={() => openCreateDialog()}
-          />
+          >
+            <HugeiconsIcon icon={Add01Icon} className="size-3.5" />
+          </Button>
         </div>
       </SidebarHeader>
       {activeDate ? (

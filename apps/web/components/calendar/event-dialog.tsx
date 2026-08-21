@@ -1,7 +1,12 @@
 "use client"
 
 import * as React from "react"
-import { Dialog } from "bruv-ui"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { EventForm } from "./event-form"
 import { EventView } from "./event-view"
 import { RecurrenceScopeDialog } from "./recurrence-scope-dialog"
@@ -13,7 +18,7 @@ import {
 import type { CalendarEvent } from "@/server/lib/calendar/types"
 import type { RecurringEventScope } from "@/server/lib/calendar/types"
 import type { CreateEventData } from "@/server/lib/schemas"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 
 interface EventDialogProps {
   open: boolean
@@ -154,13 +159,13 @@ export function EventDialog({
 
   return (
     <>
-      <Dialog.Root open={open} onOpenChange={onOpenChange}>
-        <Dialog.Content className="flex w-[90vw] max-w-lg flex-col gap-4 p-4">
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-lg">
           {mode === "view" && event ? (
             <>
-              <Dialog.Title className="sr-only border-none p-0">
-                Event details
-              </Dialog.Title>
+              <DialogHeader>
+                <DialogTitle className="sr-only">Event details</DialogTitle>
+              </DialogHeader>
               <EventView
                 event={event}
                 onEdit={() => setMode("edit")}
@@ -170,9 +175,11 @@ export function EventDialog({
             </>
           ) : (
             <>
-              <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
-                {isExistingEvent ? "Edit event" : "New event"}
-              </Dialog.Title>
+              <DialogHeader>
+                <DialogTitle>
+                  {isExistingEvent ? "Edit event" : "New event"}
+                </DialogTitle>
+              </DialogHeader>
               <EventForm
                 event={event}
                 initialDate={initialDate}
@@ -183,8 +190,8 @@ export function EventDialog({
               />
             </>
           )}
-        </Dialog.Content>
-      </Dialog.Root>
+        </DialogContent>
+      </Dialog>
 
       <RecurrenceScopeDialog
         open={!!scopeAction}

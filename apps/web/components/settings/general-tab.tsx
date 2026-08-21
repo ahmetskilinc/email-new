@@ -3,38 +3,41 @@
 import * as React from "react"
 import { useTheme } from "next-themes"
 import { cn } from "@workspace/ui/lib/utils"
+import { Label } from "@workspace/ui/components/label"
+import { Switch } from "@workspace/ui/components/switch"
 import {
-  Label,
-  Toggle,
-  Separator,
   Select,
-  SelectButton,
   SelectContent,
-  SelectOption,
-} from "bruv-ui"
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+import { Separator } from "@workspace/ui/components/separator"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
-  ViewColumnsIcon,
-} from "@heroicons/react/16/solid"
+  Sun01Icon,
+  Moon01Icon,
+  MonitorStopIcon,
+  LayoutLeftIcon,
+  LayoutRightIcon,
+} from "@hugeicons-pro/core-stroke-rounded"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSettings } from "@/hooks/use-settings"
 import { saveSettings } from "@/server/actions/settings"
 import { useSession } from "@/lib/auth-client"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 import { setMailLayoutCookie } from "@/hooks/use-mail-layout"
 import type { UserSettings } from "@/server/lib/schemas"
 
 const layouts = [
-  { value: "split" as const, label: "Split", icon: ViewColumnsIcon },
-  { value: "centered" as const, label: "Centered", icon: ViewColumnsIcon },
+  { value: "split" as const, label: "Split", icon: LayoutLeftIcon },
+  { value: "centered" as const, label: "Centered", icon: LayoutRightIcon },
 ]
 
 const themes = [
-  { value: "light", label: "Light", icon: SunIcon },
-  { value: "dark", label: "Dark", icon: MoonIcon },
-  { value: "system", label: "System", icon: ComputerDesktopIcon },
+  { value: "light", label: "Light", icon: Sun01Icon },
+  { value: "dark", label: "Dark", icon: Moon01Icon },
+  { value: "system", label: "System", icon: MonitorStopIcon },
 ] as const
 
 export function GeneralTab() {
@@ -68,31 +71,28 @@ export function GeneralTab() {
           />
         </SettingsRow>
         <div className="flex gap-3">
-          {themes.map((t) => {
-            const ThemeIcon = t.icon
-            return (
-              <button
-                key={t.value}
-                type="button"
-                onClick={() => {
-                  setTheme(t.value)
-                  updateSetting(
-                    "colorTheme",
-                    t.value as "light" | "dark" | "system"
-                  )
-                }}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-2 rounded-bruv-lg border p-4 transition-colors",
-                  theme === t.value
-                    ? "border-bruv-accent bg-bruv-accent/5 text-bruv-primary"
-                    : "border-bruv-neutral text-bruv-tertiary hover:border-bruv-neutral-strong hover:bg-bruv-subtle/30"
-                )}
-              >
-                <ThemeIcon className="size-5" />
-                <span className="text-xs font-medium">{t.label}</span>
-              </button>
-            )
-          })}
+          {themes.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => {
+                setTheme(t.value)
+                updateSetting(
+                  "colorTheme",
+                  t.value as "light" | "dark" | "system"
+                )
+              }}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                theme === t.value
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted/30"
+              )}
+            >
+              <HugeiconsIcon icon={t.icon} className="size-5" />
+              <span className="text-xs font-medium">{t.label}</span>
+            </button>
+          ))}
         </div>
       </SettingsSection>
 
@@ -106,28 +106,25 @@ export function GeneralTab() {
           />
         </SettingsRow>
         <div className="flex gap-3">
-          {layouts.map((l) => {
-            const LayoutIcon = l.icon
-            return (
-              <button
-                key={l.value}
-                type="button"
-                onClick={() => {
-                  setMailLayoutCookie(l.value)
-                  updateSetting("mailListLayout", l.value)
-                }}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-2 rounded-bruv-lg border p-4 transition-colors",
-                  (settings?.mailListLayout ?? "split") === l.value
-                    ? "border-bruv-accent bg-bruv-accent/5 text-bruv-primary"
-                    : "border-bruv-neutral text-bruv-tertiary hover:border-bruv-neutral-strong hover:bg-bruv-subtle/30"
-                )}
-              >
-                <LayoutIcon className="size-5" />
-                <span className="text-xs font-medium">{l.label}</span>
-              </button>
-            )
-          })}
+          {layouts.map((l) => (
+            <button
+              key={l.value}
+              type="button"
+              onClick={() => {
+                setMailLayoutCookie(l.value)
+                updateSetting("mailListLayout", l.value)
+              }}
+              className={cn(
+                "flex flex-1 flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                (settings?.mailListLayout ?? "split") === l.value
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-muted-foreground/30 hover:bg-muted/30"
+              )}
+            >
+              <HugeiconsIcon icon={l.icon} className="size-5" />
+              <span className="text-xs font-medium">{l.label}</span>
+            </button>
+          ))}
         </div>
       </SettingsSection>
 
@@ -139,7 +136,7 @@ export function GeneralTab() {
             title="Auto-read"
             description="Automatically mark messages as read when you open them."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={settings?.autoRead ?? true}
             onCheckedChange={(checked) => updateSetting("autoRead", checked)}
@@ -151,7 +148,7 @@ export function GeneralTab() {
             title="External images"
             description="Load images from external sources in emails."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={settings?.externalImages ?? true}
             onCheckedChange={(checked) =>
@@ -165,7 +162,7 @@ export function GeneralTab() {
             title="Animations"
             description="Enable UI animations and transitions."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={settings?.animations ?? false}
             onCheckedChange={(checked) => updateSetting("animations", checked)}
@@ -190,17 +187,14 @@ export function GeneralTab() {
                 v as "low" | "medium" | "original"
               )
             }
-            items={[
-              { value: "low", label: "Low" },
-              { value: "medium", label: "Medium" },
-              { value: "original", label: "Original" },
-            ]}
           >
-            <SelectButton size="sm" className="w-40" />
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              <SelectOption value="low">Low</SelectOption>
-              <SelectOption value="medium">Medium</SelectOption>
-              <SelectOption value="original">Original</SelectOption>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="original">Original</SelectItem>
             </SelectContent>
           </Select>
         </SettingsRow>
@@ -210,7 +204,7 @@ export function GeneralTab() {
             title="Undo send"
             description="Briefly delay sending to allow you to undo."
           />
-          <Toggle
+          <Switch
             size="sm"
             checked={settings?.undoSendEnabled ?? false}
             onCheckedChange={(checked) =>
@@ -243,7 +237,7 @@ function SettingsLabel({
   return (
     <div className="flex flex-col gap-0.5">
       <Label className="text-sm font-medium">{title}</Label>
-      <p className="text-xs text-bruv-tertiary">{description}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
     </div>
   )
 }

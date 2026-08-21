@@ -72,11 +72,11 @@ export function MonthView({
   return (
     <div
       className={cn(
-        "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-bruv-lg border",
+        "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border",
         className
       )}
     >
-      <div className="grid shrink-0 grid-cols-7 border-b bg-bruv-subtle/30 text-center text-xs font-medium text-bruv-tertiary">
+      <div className="grid shrink-0 grid-cols-7 border-b bg-muted/30 text-center text-xs font-medium text-muted-foreground">
         {weekdayNames.map((name, i) => (
           <div key={i} className="border-r py-2 last:border-r-0">
             {name}
@@ -85,7 +85,7 @@ export function MonthView({
       </div>
       <div className="grid min-h-0 flex-1 auto-rows-fr">
         {isLoading ? (
-          <div className="col-span-full flex items-center justify-center p-8 text-sm text-bruv-tertiary">
+          <div className="col-span-full flex items-center justify-center p-8 text-sm text-muted-foreground">
             Loading events…
           </div>
         ) : (
@@ -115,8 +115,8 @@ export function MonthView({
                       }
                     }}
                     className={cn(
-                      "flex min-h-[104px] min-w-0 flex-col border-r p-1 outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-bruv-focus",
-                      outside && "bg-bruv-subtle/30"
+                      "flex min-h-[104px] min-w-0 flex-col border-r p-1 outline-none last:border-r-0 focus-visible:ring-2 focus-visible:ring-ring",
+                      outside && "bg-muted/30"
                     )}
                     onClick={() => {
                       onSelectDate(day)
@@ -126,16 +126,16 @@ export function MonthView({
                     <div className="mb-0.5 flex justify-end px-0.5">
                       <span
                         className={cn(
-                          "flex size-7 items-center justify-center rounded-bruv-md text-xs font-medium",
+                          "flex size-7 items-center justify-center rounded-md text-xs font-medium",
                           today &&
                             !isSelected &&
-                            "border border-bruv-accent bg-bruv-accent/10 text-bruv-accent",
-                          isSelected && "bg-bruv-accent text-bruv-accent-on",
+                            "border border-primary bg-primary/10 text-primary",
+                          isSelected && "bg-primary text-primary-foreground",
                           !today &&
                             !isSelected &&
                             (outside
-                              ? "text-bruv-tertiary/60"
-                              : "text-bruv-primary")
+                              ? "text-muted-foreground/60"
+                              : "text-foreground")
                         )}
                       >
                         {day.getDate()}
@@ -148,7 +148,7 @@ export function MonthView({
                           type="button"
                           className={cn(
                             "truncate rounded px-1 py-0.5 text-left text-[10px] leading-tight transition-colors",
-                            "bg-bruv-accent/15 hover:bg-bruv-accent/25"
+                            "bg-primary/15 hover:bg-primary/25"
                           )}
                           onClick={(e) => {
                             e.stopPropagation()
@@ -156,7 +156,7 @@ export function MonthView({
                             onEditEvent(ev)
                           }}
                         >
-                          <span className="font-medium text-bruv-primary">
+                          <span className="font-medium text-foreground">
                             {!ev.allDay
                               ? `${format(new Date(ev.start), "HH:mm")} `
                               : ""}
@@ -165,7 +165,7 @@ export function MonthView({
                         </button>
                       ))}
                       {overflow > 0 ? (
-                        <span className="px-1 text-[10px] text-bruv-tertiary">
+                        <span className="px-1 text-[10px] text-muted-foreground">
                           +{overflow} more
                         </span>
                       ) : null}

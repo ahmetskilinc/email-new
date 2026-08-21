@@ -28,7 +28,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@workspace/ui", "bruv-ui"],
+  transpilePackages: ["@workspace/ui"],
   // Stack traces and original sources should not ship to the browser in prod.
   productionBrowserSourceMaps: false,
   poweredByHeader: false,

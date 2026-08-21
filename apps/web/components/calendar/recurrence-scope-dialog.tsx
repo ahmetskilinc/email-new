@@ -1,7 +1,15 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, Button } from "bruv-ui"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
+import { Button } from "@workspace/ui/components/button"
 import type { RecurringEventScope } from "@/server/lib/calendar/types"
 
 interface RecurrenceScopeDialogProps {
@@ -25,14 +33,12 @@ export function RecurrenceScopeDialog({
       : "How would you like to delete this recurring event?"
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className="flex w-[90vw] max-w-xs flex-col gap-4 p-4">
-        <div className="flex flex-col gap-2">
-          <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
-            {title}
-          </Dialog.Title>
-          <p className="text-sm text-bruv-tertiary">{description}</p>
-        </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xs">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         <div className="flex flex-col gap-1.5">
           <Button
             variant="outline"
@@ -65,12 +71,12 @@ export function RecurrenceScopeDialog({
             All events in the series
           </Button>
         </div>
-        <div className="flex justify-end">
-          <Button variant="transparent" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-        </div>
-      </Dialog.Content>
-    </Dialog.Root>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

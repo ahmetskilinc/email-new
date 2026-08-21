@@ -4,9 +4,11 @@ import { useState } from "react"
 import { useContacts } from "@/hooks/use-contacts"
 import { ContactsTable } from "@/components/contacts/contacts-table"
 import { AddContactDialog } from "@/components/contacts/add-contact-dialog"
-import { Input, ScrollArea } from "bruv-ui"
-import { MagnifyingGlassIcon } from "@heroicons/react/16/solid"
-import { toast } from "bruv-ui"
+import { Input } from "@workspace/ui/components/input"
+import { ScrollArea } from "@workspace/ui/components/scroll-area"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Search01Icon } from "@hugeicons-pro/core-stroke-rounded"
+import { toast } from "sonner"
 
 export default function ContactsPage() {
   const [search, setSearch] = useState("")
@@ -34,7 +36,10 @@ export default function ContactsPage() {
 
       <div className="shrink-0 border-b px-4 py-2">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-bruv-tertiary" />
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             placeholder="Search contacts..."
             value={search}
@@ -47,7 +52,7 @@ export default function ContactsPage() {
       <ScrollArea className="min-h-0 flex-1">
         {isLoading ? (
           <div className="flex h-40 items-center justify-center">
-            <div className="size-5 animate-spin rounded-full border-2 border-bruv-neutral-strong border-t-transparent" />
+            <div className="size-5 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
           </div>
         ) : (
           <ContactsTable

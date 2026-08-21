@@ -4,7 +4,7 @@ import { normalizeThreadPreview } from "@/lib/thread-utils"
 import { useSelectedThreadIds, useSelectionActions } from "@/store/selection"
 import { toggleStar } from "@/server/actions/mail"
 import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 import { MailListRow } from "@/components/mail/mail-list-row"
 import { useThreads } from "@/hooks/use-threads"
 import { VList, type VListHandle } from "virtua"
@@ -14,7 +14,7 @@ import { useQueryState } from "nuqs"
 
 function MailListSpinner() {
   return (
-    <div className="h-4 w-4 animate-spin rounded-full border-2 border-bruv-neutral-strong border-t-transparent" />
+    <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-900 border-t-transparent dark:border-white dark:border-t-transparent" />
   )
 }
 
@@ -125,7 +125,7 @@ export function MailList({
   if (threads.length === 0) {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
-        <p className="text-sm text-bruv-tertiary">No messages found</p>
+        <p className="text-sm text-muted-foreground">No messages found</p>
       </div>
     )
   }

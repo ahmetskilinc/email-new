@@ -9,8 +9,9 @@ import { MailDisplay } from "@/components/mail/mail-display"
 import { MailList } from "@/components/mail/mail-list"
 import { BulkActionsToolbar } from "@/components/mail/bulk-actions-toolbar"
 import { Sheet, SheetContent, SheetClose } from "@workspace/ui/components/sheet"
-import { Button } from "bruv-ui"
-import { ArrowLeftIcon } from "@heroicons/react/16/solid"
+import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowLeft01Icon } from "@hugeicons-pro/core-stroke-rounded"
 
 export const dynamic = "force-dynamic"
 
@@ -69,7 +70,7 @@ export default function FolderPage() {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center">
         <h2 className="text-xl font-semibold">Folder not found</h2>
-        <p className="mt-2 text-bruv-tertiary">
+        <p className="mt-2 text-muted-foreground">
           The folder you&apos;re looking for doesn&apos;t exist. Redirecting to
           inbox...
         </p>
@@ -98,8 +99,12 @@ export default function FolderPage() {
             showCloseButton={false}
           >
             <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2 sm:hidden">
-              <SheetClose render={<Button variant="transparent" size="sm" />}>
-                <ArrowLeftIcon className="size-4" />
+              <SheetClose render={<Button variant="ghost" size="icon-sm" />}>
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  strokeWidth={2}
+                  className="size-4"
+                />
                 <span className="sr-only">Back</span>
               </SheetClose>
               <span className="truncate text-sm font-medium">

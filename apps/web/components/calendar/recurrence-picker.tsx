@@ -3,10 +3,11 @@
 import * as React from "react"
 import {
   Select,
-  SelectButton,
   SelectContent,
-  SelectOption,
-} from "bruv-ui"
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import { getRecurrencePresets, describeRRule } from "@/lib/recurrence"
 
 interface RecurrencePickerProps {
@@ -29,33 +30,22 @@ export function RecurrencePicker({
     return describeRRule(value)
   }, [value, presets])
 
-  const items = React.useMemo(() => {
-    const base = presets.map((p) => ({
-      value: p.value ?? "__none__",
-      label: p.label,
-    }))
-    const current = value ?? "__none__"
-    if (!base.some((i) => i.value === current)) {
-      base.push({ value: current, label: selectedLabel })
-    }
-    return base
-  }, [presets, value, selectedLabel])
-
   return (
     <Select
       value={value ?? "__none__"}
       onValueChange={(val) => onChange(val === "__none__" ? null : val)}
-      items={items}
     >
-      <SelectButton size="sm" className="w-full" />
+      <SelectTrigger className="w-full">
+        <SelectValue>{selectedLabel}</SelectValue>
+      </SelectTrigger>
       <SelectContent>
         {presets.map((preset) => (
-          <SelectOption
+          <SelectItem
             key={preset.value ?? "__none__"}
             value={preset.value ?? "__none__"}
           >
             {preset.label}
-          </SelectOption>
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>

@@ -1,14 +1,15 @@
 "use client"
 
-import { Button } from "bruv-ui"
+import { Button } from "@workspace/ui/components/button"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArchiveBoxIcon,
-  TrashIcon,
-  StarIcon,
-  EnvelopeIcon,
-  EnvelopeOpenIcon,
-  XMarkIcon,
-} from "@heroicons/react/16/solid"
+  ArchiveIcon,
+  Delete02Icon,
+  FavouriteIcon,
+  Mail01Icon,
+  MailOpen02Icon,
+  Cancel01Icon,
+} from "@hugeicons-pro/core-stroke-rounded"
 import {
   useSelectedThreadIds,
   useSelectedCount,
@@ -22,7 +23,7 @@ import {
   markAsUnread,
 } from "@/server/actions/mail"
 import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 
 export function BulkActionsToolbar() {
   const selectedIds = useSelectedThreadIds()
@@ -54,14 +55,14 @@ export function BulkActionsToolbar() {
   }
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b bg-bruv-subtle/30 px-3 py-1.5">
+    <div className="flex shrink-0 items-center gap-2 border-b bg-muted/30 px-3 py-1.5">
       <span className="text-xs font-medium">{count} selected</span>
       <div className="ml-auto flex items-center gap-1">
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2"
           aria-label="Archive selected"
-          iconLeft={<ArchiveBoxIcon />}
           onClick={() =>
             handleAction(bulkArchive, {
               loading: "Archiving...",
@@ -69,12 +70,14 @@ export function BulkActionsToolbar() {
               error: "Failed to archive",
             })
           }
-        />
+        >
+          <HugeiconsIcon icon={ArchiveIcon} className="size-3.5" />
+        </Button>
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2"
           aria-label="Delete selected"
-          iconLeft={<TrashIcon />}
           onClick={() =>
             handleAction(bulkDelete, {
               loading: "Deleting...",
@@ -82,12 +85,14 @@ export function BulkActionsToolbar() {
               error: "Failed to delete",
             })
           }
-        />
+        >
+          <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
+        </Button>
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2"
           aria-label="Star selected"
-          iconLeft={<StarIcon />}
           onClick={() =>
             handleAction(bulkStar, {
               loading: "Starring...",
@@ -95,12 +100,14 @@ export function BulkActionsToolbar() {
               error: "Failed to star",
             })
           }
-        />
+        >
+          <HugeiconsIcon icon={FavouriteIcon} className="size-3.5" />
+        </Button>
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2"
           aria-label="Mark as read"
-          iconLeft={<EnvelopeOpenIcon />}
           onClick={() =>
             handleAction(markAsRead, {
               loading: "Updating...",
@@ -108,12 +115,14 @@ export function BulkActionsToolbar() {
               error: "Failed to mark as read",
             })
           }
-        />
+        >
+          <HugeiconsIcon icon={MailOpen02Icon} className="size-3.5" />
+        </Button>
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
+          className="h-7 px-2"
           aria-label="Mark as unread"
-          iconLeft={<EnvelopeIcon />}
           onClick={() =>
             handleAction(markAsUnread, {
               loading: "Updating...",
@@ -121,15 +130,18 @@ export function BulkActionsToolbar() {
               error: "Failed to mark as unread",
             })
           }
-        />
+        >
+          <HugeiconsIcon icon={Mail01Icon} className="size-3.5" />
+        </Button>
         <Button
-          variant="transparent"
+          variant="ghost"
           size="sm"
-          className="text-bruv-tertiary"
+          className="h-7 px-2 text-muted-foreground"
           aria-label="Deselect all"
-          iconLeft={<XMarkIcon />}
           onClick={clearAll}
-        />
+        >
+          <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
+        </Button>
       </div>
     </div>
   )

@@ -6,7 +6,8 @@ import "@workspace/ui/globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { QueryProvider } from "@/providers/query-provider"
 import { cn } from "@workspace/ui/lib/utils"
-import { AppProviders } from "@/components/app-providers"
+import { TooltipProvider } from "@workspace/ui/components/tooltip"
+import { Toaster } from "@workspace/ui/components/sonner"
 import { Metadata } from "next"
 
 const fontSans = Geist({
@@ -31,23 +32,24 @@ export default function RootLayout({
       className={cn("antialiased", fontSans.variable, fontMono.variable)}
     >
       <body className="h-screen overflow-hidden">
-        <AppProviders>
+        <TooltipProvider>
           <NuqsAdapter>
             <ThemeProvider>
               <QueryProvider>
                 <Suspense
                   fallback={
                     <div className="flex h-screen items-center justify-center">
-                      <div className="size-6 animate-spin rounded-full border-2 border-bruv-neutral-strong border-t-transparent" />
+                      <div className="size-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
                     </div>
                   }
                 >
                   {children}
                 </Suspense>
+                <Toaster />
               </QueryProvider>
             </ThemeProvider>
           </NuqsAdapter>
-        </AppProviders>
+        </TooltipProvider>
       </body>
     </html>
   )
