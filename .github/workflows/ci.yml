@@ -25,6 +25,8 @@ jobs:
       # while the lockfile still resolved 16.2.3.
       - name: Install
         run: bun install --frozen-lockfile
+        env:
+          NPM_CONFIG_HUGEICONS_KEY: ${{ secrets.NPM_CONFIG_HUGEICONS_KEY }}
 
       - name: Typecheck
         run: bun run typecheck
@@ -54,6 +56,8 @@ jobs:
 
       - name: Install
         run: bun install --frozen-lockfile
+        env:
+          NPM_CONFIG_HUGEICONS_KEY: ${{ secrets.NPM_CONFIG_HUGEICONS_KEY }}
 
       # Advisory rather than blocking, and deliberately so: the current run
       # reports 25 high findings, essentially all transitive and most of them in

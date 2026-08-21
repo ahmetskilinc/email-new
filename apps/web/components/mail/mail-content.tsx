@@ -201,7 +201,7 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
   return (
     <>
       {blockedImagesNotice && !imagesEnabled && (
-        <div className="flex items-center justify-start bg-bruv-warn-subtle px-2 py-1 text-sm text-bruv-warn">
+        <div className="flex items-center justify-start bg-amber-600/20 px-2 py-1 text-sm text-amber-600">
           <p>Images are hidden by default for security reasons.</p>
           <button
             onClick={() => setTemporaryImagesEnabled(!temporaryImagesEnabled)}

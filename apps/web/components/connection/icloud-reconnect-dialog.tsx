@@ -1,7 +1,14 @@
 "use client"
 
-import { Dialog, toast } from "bruv-ui"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { reconnectIcloudWebSession } from "@/server/actions/connections"
 import { ICloudSessionInput } from "./icloud-session-input"
 
@@ -47,24 +54,22 @@ export function ICloudReconnectDialog({
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content className="flex w-[90vw] max-w-md flex-col gap-4 p-4">
-        <div className="flex flex-col gap-2">
-          <Dialog.Title className="border-none p-0 text-base font-medium leading-none">
-            Reconnect iCloud Mail
-          </Dialog.Title>
-          <p className="text-sm text-bruv-tertiary">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Reconnect iCloud Mail</DialogTitle>
+          <DialogDescription>
             Apple ended the stored session for{" "}
-            <span className="font-medium text-bruv-primary">{email}</span>. Sign
+            <span className="font-medium text-foreground">{email}</span>. Sign
             in at icloud.com again and paste a fresh session.
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
         <ICloudSessionInput
           submitLabel="Update session"
           pendingLabel="Updating..."
           onSubmit={handleSubmit}
         />
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   )
 }

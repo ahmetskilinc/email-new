@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 import { pollNewMessages } from "@/server/actions/mail"
 import { useActiveConnection } from "@/hooks/use-connections"
 import { useSettings } from "@/hooks/use-settings"

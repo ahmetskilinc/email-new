@@ -1,6 +1,12 @@
 "use client"
 
-import { Dialog, Input, ScrollArea } from "bruv-ui"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
+import { Input } from "@workspace/ui/components/input"
+import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { useCommandPalette } from "@/store/command-palette"
 import { useOpenCompose } from "@/store/compose"
 import { useOpenSettings } from "@/store/settings"
@@ -22,7 +28,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useTheme } from "next-themes"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { cn } from "@workspace/ui/lib/utils"
-import { toast } from "bruv-ui"
+import { toast } from "sonner"
 
 interface CommandEntry {
   id: string
@@ -392,11 +398,12 @@ export function CommandPalette() {
   let flatIndex = -1
 
   return (
-    <Dialog.Root open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
-      <Dialog.Content className="w-[90vw] max-w-lg overflow-hidden p-0">
-        <Dialog.Title className="sr-only border-none p-0">
-          Command Palette
-        </Dialog.Title>
+    <Dialog open={open} onOpenChange={(o) => (o ? setOpen(true) : close())}>
+      <DialogContent
+        className="overflow-hidden p-0 sm:max-w-lg"
+        showCloseButton={false}
+      >
+        <DialogTitle className="sr-only">Command Palette</DialogTitle>
         <div className="flex flex-col">
           <div className="border-b px-3 py-2">
             <Input
@@ -411,19 +418,19 @@ export function CommandPalette() {
 
           <ScrollArea className="max-h-80">
             {searching && (
-              <div className="px-3 py-2 text-xs text-bruv-tertiary">
+              <div className="px-3 py-2 text-xs text-muted-foreground">
                 Searching emails...
               </div>
             )}
             {filtered.length === 0 && !searching ? (
-              <div className="py-8 text-center text-sm text-bruv-tertiary">
+              <div className="py-8 text-center text-sm text-muted-foreground">
                 No results found
               </div>
             ) : (
               <div className="p-1">
                 {groups.map(([groupName, items]) => (
                   <div key={groupName}>
-                    <div className="px-2 py-1.5 text-xs font-medium text-bruv-tertiary">
+                    <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                       {groupName}
                     </div>
                     {items.map((entry) => {
@@ -436,22 +443,22 @@ export function CommandPalette() {
                           onClick={entry.onSelect}
                           onMouseEnter={() => setActiveIndex(idx)}
                           className={cn(
-                            "flex w-full items-center justify-between rounded-bruv-md px-2 py-1.5 text-left text-sm transition-colors",
+                            "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors",
                             idx === activeIndex
-                              ? "bg-bruv-subtle text-bruv-primary"
-                              : "text-bruv-primary/80 hover:bg-bruv-subtle/60"
+                              ? "bg-muted text-foreground"
+                              : "text-foreground/80 hover:bg-muted/60"
                           )}
                         >
                           <div className="flex min-w-0 flex-1 flex-col">
                             <span className="truncate">{entry.label}</span>
                             {entry.description && (
-                              <span className="truncate text-xs text-bruv-tertiary">
+                              <span className="truncate text-xs text-muted-foreground">
                                 {entry.description}
                               </span>
                             )}
                           </div>
                           {entry.shortcut && (
-                            <kbd className="ml-2 shrink-0 rounded border bg-bruv-subtle/50 px-1.5 py-0.5 text-[10px] font-medium text-bruv-tertiary">
+                            <kbd className="ml-2 shrink-0 rounded border bg-muted/50 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                               {entry.shortcut}
                             </kbd>
                           )}
@@ -464,7 +471,7 @@ export function CommandPalette() {
             )}
           </ScrollArea>
 
-          <div className="flex items-center justify-between border-t px-3 py-1.5 text-[10px] text-bruv-tertiary">
+          <div className="flex items-center justify-between border-t px-3 py-1.5 text-[10px] text-muted-foreground">
             <div className="flex gap-2">
               <span>
                 <kbd className="rounded border px-1 font-mono">↑↓</kbd> navigate
@@ -481,7 +488,7 @@ export function CommandPalette() {
             )}
           </div>
         </div>
-      </Dialog.Content>
-    </Dialog.Root>
+      </DialogContent>
+    </Dialog>
   )
 }

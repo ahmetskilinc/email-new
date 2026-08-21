@@ -53,7 +53,7 @@ const ExitLinkOnSpace = Extension.create({
 const tiptapLink = TiptapLink.configure({
   HTMLAttributes: {
     class: cx(
-      "text-bruv-tertiary underline underline-offset-[3px] hover:text-bruv-accent transition-colors cursor-pointer"
+      "text-muted-foreground underline underline-offset-[3px] hover:text-primary transition-colors cursor-pointer"
     ),
   },
   openOnClick: false,
@@ -66,20 +66,20 @@ const tiptapImage = TiptapImage.extend({
   addProseMirrorPlugins() {
     return [
       UploadImagesPlugin({
-        imageClass: cx("opacity-40 rounded-bruv-lg border border-bruv-neutral"),
+        imageClass: cx("opacity-40 rounded-lg border border-stone-200"),
       }),
     ]
   },
 }).configure({
   allowBase64: true,
   HTMLAttributes: {
-    class: cx("rounded-bruv-lg border border-bruv-neutral"),
+    class: cx("rounded-lg border border-muted"),
   },
 })
 
 const updatedImage = UpdatedImage.configure({
   HTMLAttributes: {
-    class: cx("rounded-bruv-lg border border-bruv-neutral"),
+    class: cx("rounded-lg border border-muted"),
   },
 })
 
@@ -98,7 +98,7 @@ const taskItem = TaskItem.configure({
 
 const horizontalRule = HorizontalRule.configure({
   HTMLAttributes: {
-    class: cx("mt-4 mb-6 border-t border-bruv-neutral"),
+    class: cx("mt-4 mb-6 border-t border-muted-foreground"),
   },
 })
 
@@ -120,25 +120,25 @@ const starterKit = StarterKit.configure({
   },
   blockquote: {
     HTMLAttributes: {
-      class: cx("border-l-2 border-bruv-accent"),
+      class: cx("border-l-2 border-primary"),
     },
   },
   heading: {
     levels: [1, 2, 3],
     HTMLAttributes: {
-      class: cx("text-bruv-accent"),
+      class: cx("text-primary"),
     },
   },
   codeBlock: {
     HTMLAttributes: {
       class: cx(
-        "rounded-bruv-md bg-bruv-subtle text-bruv-tertiary border p-5 font-mono font-medium"
+        "rounded-md bg-muted text-muted-foreground border p-5 font-mono font-medium"
       ),
     },
   },
   code: {
     HTMLAttributes: {
-      class: cx("rounded-bruv-md bg-bruv-subtle  px-1.5 py-1 font-mono font-medium"),
+      class: cx("rounded-md bg-muted  px-1.5 py-1 font-mono font-medium"),
       spellcheck: "false",
     },
   },

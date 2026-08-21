@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Button, Input } from "bruv-ui"
+import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
+import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  PencilIcon,
-  TrashIcon,
-  CheckIcon,
-  XMarkIcon,
-} from "@heroicons/react/16/solid"
-import { toast } from "bruv-ui"
+  PencilEdit01Icon,
+  Delete02Icon,
+  Tick01Icon,
+  Cancel01Icon,
+} from "@hugeicons-pro/core-stroke-rounded"
+import { toast } from "sonner"
 
 interface Contact {
   id: string
@@ -55,7 +57,7 @@ export function ContactsTable({
 
   if (!contacts.length) {
     return (
-      <div className="flex h-40 items-center justify-center text-sm text-bruv-tertiary">
+      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
         No contacts found
       </div>
     )
@@ -65,7 +67,7 @@ export function ContactsTable({
     <div className="divide-y">
       {contacts.map((contact) => (
         <div key={contact.id} className="flex items-center gap-4 px-4 py-3">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-bruv-subtle text-xs font-medium uppercase">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium uppercase">
             {contact.name?.[0] ?? contact.email[0]}
           </div>
 
@@ -89,7 +91,7 @@ export function ContactsTable({
                   {contact.name || contact.email}
                 </p>
                 {contact.name && (
-                  <p className="truncate text-xs text-bruv-tertiary">
+                  <p className="truncate text-xs text-muted-foreground">
                     {contact.email}
                   </p>
                 )}
@@ -97,7 +99,7 @@ export function ContactsTable({
             )}
           </div>
 
-          <span className="shrink-0 text-xs text-bruv-tertiary">
+          <span className="shrink-0 text-xs text-muted-foreground">
             {contact.frequency} {contact.frequency === 1 ? "email" : "emails"}
           </span>
 
@@ -105,40 +107,43 @@ export function ContactsTable({
             {editingId === contact.id ? (
               <>
                 <Button
-                  variant="transparent"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => void saveEdit(contact.id).catch(() => {})}
                   title="Save"
-                  aria-label="Save"
-                  iconLeft={<CheckIcon />}
-                />
+                >
+                  <HugeiconsIcon icon={Tick01Icon} className="size-4" />
+                </Button>
                 <Button
-                  variant="transparent"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={cancelEdit}
                   title="Cancel"
-                  aria-label="Cancel"
-                  iconLeft={<XMarkIcon />}
-                />
+                >
+                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+                </Button>
               </>
             ) : (
               <>
                 <Button
-                  variant="transparent"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => startEdit(contact)}
                   title="Edit name"
-                  aria-label="Edit name"
-                  iconLeft={<PencilIcon />}
-                />
+                >
+                  <HugeiconsIcon icon={PencilEdit01Icon} className="size-4" />
+                </Button>
                 <Button
-                  variant="transparent"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => void handleDelete(contact).catch(() => {})}
                   title="Delete"
-                  aria-label="Delete"
-                  iconLeft={<TrashIcon className="text-bruv-danger" />}
-                />
+                >
+                  <HugeiconsIcon
+                    icon={Delete02Icon}
+                    className="size-4 text-destructive"
+                  />
+                </Button>
               </>
             )}
           </div>

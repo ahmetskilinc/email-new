@@ -1,7 +1,15 @@
 "use client"
 
-import { Button, Collapsible, Label, Textarea } from "bruv-ui"
-import { ChevronDownIcon } from "@heroicons/react/16/solid"
+import { Button } from "@workspace/ui/components/button"
+import { Label } from "@workspace/ui/components/label"
+import { Textarea } from "@workspace/ui/components/textarea"
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@workspace/ui/components/collapsible"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { ArrowDown01Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { useState } from "react"
 
 interface ICloudSessionInputProps {
@@ -51,14 +59,14 @@ export function ICloudSessionInput({
           autoComplete="off"
           className="font-mono text-xs"
         />
-        <p className="text-xs text-bruv-tertiary">
+        <p className="text-xs text-muted-foreground">
           Paste the <span className="font-medium">Cookie</span> header from a
           signed-in icloud.com request, or a JSON cookie export.
         </p>
       </div>
 
-      <div className="rounded-bruv-lg border border-bruv-warn/40 bg-bruv-warn/5 p-3 text-xs text-bruv-tertiary">
-        <p className="font-medium text-bruv-primary">
+      <div className="rounded-lg border border-amber-600/40 bg-amber-600/10 p-3 text-xs text-muted-foreground">
+        <p className="font-medium text-amber-600">
           This session is a powerful credential.
         </p>
         <p className="mt-1">
@@ -69,7 +77,7 @@ export function ICloudSessionInput({
             href="https://appleid.apple.com/account/manage"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-bruv-accent underline underline-offset-2"
+            className="text-primary underline underline-offset-2"
           >
             appleid.apple.com
           </a>{" "}
@@ -78,20 +86,23 @@ export function ICloudSessionInput({
         </p>
       </div>
 
-      <Collapsible.Root>
-        <Collapsible.Trigger className="group flex w-full items-center gap-1.5 text-xs font-medium text-bruv-accent hover:underline">
-          <ChevronDownIcon className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
+      <Collapsible>
+        <CollapsibleTrigger className="group flex w-full items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            className="size-3.5 transition-transform group-data-[panel-open]:rotate-180"
+          />
           How to copy your iCloud session
-        </Collapsible.Trigger>
-        <Collapsible.Panel className="overflow-hidden">
-          <ol className="mt-2 flex flex-col gap-1.5 rounded-bruv-lg border bg-bruv-subtle/30 p-3 text-xs text-bruv-tertiary [&>li]:pl-1">
+        </CollapsibleTrigger>
+        <CollapsibleContent className="overflow-hidden data-[ending-style]:animate-accordion-up data-[starting-style]:animate-accordion-down">
+          <ol className="mt-2 flex flex-col gap-1.5 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground [&>li]:pl-1">
             <li>
               1. Sign in at{" "}
               <a
                 href="https://www.icloud.com/mail"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-bruv-accent underline underline-offset-2"
+                className="text-primary underline underline-offset-2"
               >
                 icloud.com/mail
               </a>{" "}
@@ -99,31 +110,28 @@ export function ICloudSessionInput({
             </li>
             <li>
               2. Open your browser&apos;s developer tools and select the{" "}
-              <span className="font-medium text-bruv-primary">Network</span>{" "}
-              tab.
+              <span className="font-medium text-foreground">Network</span> tab.
             </li>
             <li>
               3. Filter requests for{" "}
-              <span className="font-mono text-bruv-primary">mailws</span> and
+              <span className="font-mono text-foreground">mailws</span> and
               click any request that appears.
             </li>
             <li>
               4. Under{" "}
-              <span className="font-medium text-bruv-primary">
+              <span className="font-medium text-foreground">
                 Request Headers
               </span>
               , copy the full value of the{" "}
-              <span className="font-mono text-bruv-primary">Cookie</span>{" "}
-              header.
+              <span className="font-mono text-foreground">Cookie</span> header.
             </li>
             <li>5. Paste it above.</li>
           </ol>
-        </Collapsible.Panel>
-      </Collapsible.Root>
+        </CollapsibleContent>
+      </Collapsible>
 
       <Button
         type="submit"
-        variant="primary"
         className="w-full"
         disabled={isPending || !rawSession.trim()}
       >
