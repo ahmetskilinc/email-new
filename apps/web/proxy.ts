@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionCookie } from "better-auth/cookies"
+import { EMAIL_FRAME_BOOTSTRAP_HASH } from "@/lib/email-frame-bootstrap"
 
 const protectedPaths = ["/mail", "/settings", "/onboarding"]
 const authPaths = ["/login", "/signup"]
@@ -16,13 +17,19 @@ const isProd = process.env.NODE_ENV === "production"
  *
  * `strict-dynamic` plus a per-request nonce is what makes this meaningful —
  * Next.js reads the nonce out of the request-side CSP header and stamps it onto
- * its own bootstrap scripts, so production needs no 'unsafe-inline'.
+ * its own bootstrap scripts, so production needs no 'unsafe-inline'. That only
+ * works while every document is rendered per request, which is why the root
+ * layout opts the whole app into dynamic rendering: a page prerendered at build
+ * time has no nonce on its script tags, and this policy would blank it.
  */
 function buildCsp(nonce: string): string {
   return [
     `default-src 'self'`,
     // 'unsafe-eval' is required by the Turbopack dev runtime only.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? "" : " 'unsafe-eval'"}`,
+    // The message-frame bootstrap is hashed rather than nonced: a srcdoc
+    // document inherits this policy on top of its own, so the hash has to be
+    // allowed here too or the frame's only script never runs.
+    `script-src 'self' 'nonce-${nonce}' '${EMAIL_FRAME_BOOTSTRAP_HASH}' 'strict-dynamic'${isProd ? "" : " 'unsafe-eval'"}`,
     // Tailwind and next-themes inject inline style attributes and blocks.
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https:`,
@@ -47,7 +54,7 @@ function withSecurityHeaders(res: NextResponse, csp: string | null) {
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
   res.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    "camera=(), microphone=(), geolocation=(), browsing-topics=()"
   )
   res.headers.set("Cross-Origin-Opener-Policy", "same-origin")
   if (isProd) {
