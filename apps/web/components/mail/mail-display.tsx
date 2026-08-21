@@ -11,7 +11,6 @@ import { useOpenCompose } from "@/store/compose"
 import { formatDate, formatFileSize } from "@/lib/utils"
 import { cn } from "@workspace/ui/lib/utils"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Separator } from "@workspace/ui/components/separator"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -160,8 +159,11 @@ export function MailDisplay({ className }: { className?: string }) {
         </div>
       </div>
 
-      {/* Scrollable body — per-message blocks */}
-      <ScrollArea className="min-h-0 flex-1">
+      {/* Scrollable body — per-message blocks. A plain native scroller on
+          purpose: the styled ScrollArea's viewport repeatedly failed to scroll
+          in this height-constrained flex context, and native overflow has no
+          such failure mode. */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {data.messages.map((message) => {
           const isExpanded = !isMultiMessage || expandedIds.has(message.id)
 
@@ -253,7 +255,7 @@ export function MailDisplay({ className }: { className?: string }) {
             </div>
           )
         })}
-      </ScrollArea>
+      </div>
 
       {/* Pinned footer — action buttons */}
       <div className="flex shrink-0 items-center gap-2 border-t p-4">

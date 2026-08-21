@@ -126,8 +126,14 @@ export default function FolderPage() {
           <MailList />
         </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <MailDisplay />
+      {/* absolute inset-0 gives MailDisplay an unconditionally definite
+          height — h-full against a stretched flex item resolved as auto in
+          some browsers, leaving the viewer taller than the pane and its
+          scroller with nothing to scroll. */}
+      <div className="relative min-w-0 flex-1">
+        <div className="absolute inset-0">
+          <MailDisplay />
+        </div>
       </div>
     </div>
   )
