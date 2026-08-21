@@ -1,4 +1,4 @@
-import { and, desc, eq, lt } from "drizzle-orm"
+import { and, desc, eq, sql, type SQL } from "drizzle-orm"
 import { emailThread, syncState } from "../db/schema"
 import { getSharedDb } from "../db"
 
@@ -18,7 +18,12 @@ export type StoredThreadListItem = {
  * Returns a page of threads for a connection from the local sync store, in
  * the shape `driver.list({ folder: "inbox" })` returns — so callers can swap
  * between provider and local reads without touching downstream code. Cursor
- * is the `lastMessageAt` ISO timestamp of the last row from the prior page.
+ * is `<lastMessageAt ISO>|<row id>` of the last row from the prior page —
+ * a composite key, because `lastMessageAt` alone is nullable and non-unique
+ * and would skip or repeat rows at page boundaries. Null `lastMessageAt`
+ * coalesces to the epoch so those rows sort last and still paginate stably.
+ * Plain-ISO cursors from before the composite format still work (timestamp
+ * only, no tiebreak).
  */
 export async function listThreadsFromStore(params: {
   connectionId: string
@@ -35,16 +40,28 @@ export async function listThreadsFromStore(params: {
   // Shared pool — a per-call createDb() leaked a connection pool on every
   // thread-list read.
   const { db } = getSharedDb()
-  const cursorDate = cursor ? new Date(cursor) : null
+
+  const epoch = new Date(0)
+  const sortKey = sql`coalesce(${emailThread.lastMessageAt}, ${epoch})`
+
+  let cursorCond: SQL | null = null
+  if (cursor) {
+    const sep = cursor.indexOf("|")
+    const iso = sep === -1 ? cursor : cursor.slice(0, sep)
+    const cursorId = sep === -1 ? null : cursor.slice(sep + 1)
+    const cursorDate = new Date(iso)
+    if (!Number.isNaN(cursorDate.getTime())) {
+      cursorCond = cursorId
+        ? sql`(${sortKey} < ${cursorDate} or (${sortKey} = ${cursorDate} and ${emailThread.id} < ${cursorId}))`
+        : sql`${sortKey} < ${cursorDate}`
+    }
+  }
 
   const rows = await db.query.emailThread.findMany({
-    where: cursorDate
-      ? and(
-          eq(emailThread.connectionId, connectionId),
-          lt(emailThread.lastMessageAt, cursorDate)
-        )
+    where: cursorCond
+      ? and(eq(emailThread.connectionId, connectionId), cursorCond)
       : eq(emailThread.connectionId, connectionId),
-    orderBy: [desc(emailThread.lastMessageAt)],
+    orderBy: [desc(sortKey), desc(emailThread.id)],
     limit: maxResults + 1,
   })
 
@@ -70,7 +87,9 @@ export async function listThreadsFromStore(params: {
 
   const last = page.at(-1)
   const nextPageToken =
-    hasMore && last?.lastMessageAt ? last.lastMessageAt.toISOString() : null
+    hasMore && last
+      ? `${(last.lastMessageAt ?? epoch).toISOString()}|${last.id}`
+      : null
 
   return { threads, nextPageToken }
 }

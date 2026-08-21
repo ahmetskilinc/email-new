@@ -114,14 +114,6 @@ export function MailDisplay({ className }: { className?: string }) {
     })
   }
 
-  const stripHtml = (html: string) =>
-    html
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       {/* Pinned header — thread subject */}
@@ -200,9 +192,7 @@ export function MailDisplay({ className }: { className?: string }) {
                     {message.sender?.name || message.sender?.email}
                   </span>
                   {!isExpanded && message.decodedBody && (
-                    <span className="truncate text-xs text-muted-foreground">
-                      {stripHtml(message.decodedBody).slice(0, 100)}
-                    </span>
+                    <CollapsedPreview html={message.decodedBody} />
                   )}
                   {message.listUnsubscribe && isExpanded && (
                     <button
@@ -273,6 +263,29 @@ export function MailDisplay({ className }: { className?: string }) {
         </Button>
       </div>
     </div>
+  )
+}
+
+// Stripping tags over a full email body with regexes is O(body) per render;
+// bound the input to a few KB — plenty for a 100-char preview — and memoize
+// per body so collapsed rows don't re-strip on every parent render.
+const MAX_PREVIEW_SOURCE_CHARS = 4096
+
+const stripHtml = (html: string) =>
+  html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+
+function CollapsedPreview({ html }: { html: string }) {
+  const text = useMemo(
+    () => stripHtml(html.slice(0, MAX_PREVIEW_SOURCE_CHARS)).slice(0, 100),
+    [html]
+  )
+  return (
+    <span className="truncate text-xs text-muted-foreground">{text}</span>
   )
 }
 

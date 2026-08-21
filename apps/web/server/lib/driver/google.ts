@@ -18,6 +18,7 @@ import type { CreateDraftData } from "../schemas"
 import { createMimeMessage } from "mimetext"
 import { people } from "@googleapis/people"
 import { cleanSearchValue } from "../utils"
+import { mapWithConcurrency } from "../limits"
 import { env } from "../../env"
 import { Effect } from "effect"
 import hePkg from "he"
@@ -47,11 +48,22 @@ export class GoogleMailManager implements MailManager {
   ])
 
   constructor(public config: ManagerConfig) {
-    this.auth = new OAuth2Client(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET)
+    this.auth = new OAuth2Client({
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+      // The stored access token has no expiry on the config, so let the
+      // client refresh-and-retry when a request fails with 401/403 instead
+      // of exchanging the refresh token on every instantiation.
+      forceRefreshOnFailure: true,
+    })
 
     if (config.auth)
       this.auth.setCredentials({
         refresh_token: config.auth.refreshToken,
+        // Reuse the stored access token instead of minting a new one per
+        // driver instance. No expiry is stored on the config; a stale token
+        // is refreshed via forceRefreshOnFailure above.
+        access_token: config.auth.accessToken || undefined,
         scope: this.getScope(),
       })
 
@@ -75,19 +87,44 @@ export class GoogleMailManager implements MailManager {
   }
   public async listHistory<T>(
     historyId: string
-  ): Promise<{ history: T[]; historyId: string }> {
+  ): Promise<{ history: T[]; historyId: string; historyExpired?: boolean }> {
     return this.withErrorHandler(
       "listHistory",
       async () => {
-        const response = await this.gmail.users.history.list({
-          userId: "me",
-          startHistoryId: historyId,
-        })
+        const history: T[] = []
+        let nextHistoryId = historyId
+        let pageToken: string | undefined = undefined
 
-        const history = response.data.history || []
-        const nextHistoryId = response.data.historyId || historyId
+        try {
+          do {
+            const response: { data: gmail_v1.Schema$ListHistoryResponse } =
+              await this.gmail.users.history.list({
+                userId: "me",
+                startHistoryId: historyId,
+                pageToken,
+              })
 
-        return { history: history as T[], historyId: nextHistoryId }
+            history.push(...((response.data.history || []) as T[]))
+            // history.list reports the mailbox's current historyId; use it as
+            // the next cursor rather than re-deriving from the last record.
+            nextHistoryId = response.data.historyId || nextHistoryId
+            pageToken = response.data.nextPageToken || undefined
+          } while (pageToken)
+        } catch (error: any) {
+          // A 404 means the startHistoryId is too old and the delta is gone.
+          // Signal it so the caller can fall back to a full refresh instead
+          // of treating it as a hard failure.
+          if (Number(error?.code ?? error?.response?.status) === 404) {
+            return {
+              history: [] as T[],
+              historyId,
+              historyExpired: true,
+            }
+          }
+          throw error
+        }
+
+        return { history, historyId: nextHistoryId }
       },
       { historyId }
     )
@@ -197,20 +234,12 @@ export class GoogleMailManager implements MailManager {
     return this.withErrorHandler(
       "markAsRead",
       async () => {
-        const finalIds = (
-          await Promise.all(
-            threadIds.map(async (id) => {
-              const threadMetadata = await this.getThreadMetadata(id)
-              return threadMetadata.messages
-                .filter(
-                  (msg) => msg.labelIds && msg.labelIds.includes("UNREAD")
-                )
-                .map((msg) => msg.id)
-            })
-          ).then((idArrays) => [...new Set(idArrays.flat())])
-        ).filter((id): id is string => id !== undefined)
-
-        await this.modifyThreadLabels(finalIds, { removeLabelIds: ["UNREAD"] })
+        const messageIds = await this.collectMessageIds(threadIds, (msg) =>
+          Boolean(msg.labelIds?.includes("UNREAD"))
+        )
+        await this.batchModifyMessages(messageIds, {
+          removeLabelIds: ["UNREAD"],
+        })
       },
       { threadIds }
     )
@@ -219,22 +248,57 @@ export class GoogleMailManager implements MailManager {
     return this.withErrorHandler(
       "markAsUnread",
       async () => {
-        const finalIds = (
-          await Promise.all(
-            threadIds.map(async (id) => {
-              const threadMetadata = await this.getThreadMetadata(id)
-              return threadMetadata.messages
-                .filter(
-                  (msg) => msg.labelIds && !msg.labelIds.includes("UNREAD")
-                )
-                .map((msg) => msg.id)
-            })
-          ).then((idArrays) => [...new Set(idArrays.flat())])
-        ).filter((id): id is string => id !== undefined)
-        await this.modifyThreadLabels(finalIds, { addLabelIds: ["UNREAD"] })
+        const messageIds = await this.collectMessageIds(
+          threadIds,
+          (msg) => !msg.labelIds?.includes("UNREAD")
+        )
+        await this.batchModifyMessages(messageIds, { addLabelIds: ["UNREAD"] })
       },
       { threadIds }
     )
+  }
+  /** Resolves thread ids into the ids of member messages matching `predicate`. */
+  private async collectMessageIds(
+    threadIds: string[],
+    predicate: (msg: { id?: string | null; labelIds?: string[] | null }) => boolean
+  ): Promise<string[]> {
+    const results = await mapWithConcurrency(threadIds, 10, async (id) => {
+      const threadMetadata = await this.getThreadMetadata(id)
+      return threadMetadata.messages
+        .filter(predicate)
+        .map((msg) => msg.id)
+        .filter((msgId): msgId is string => typeof msgId === "string")
+    })
+    const ids = new Set<string>()
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        result.value.forEach((msgId) => ids.add(msgId))
+      } else {
+        throw result.reason
+      }
+    }
+    return [...ids]
+  }
+  /**
+   * Applies label changes to MESSAGE ids in bulk. messages.batchModify takes
+   * up to 1000 ids per call, replacing the previous per-id threads.modify
+   * fan-out (which was also the wrong id space for message ids).
+   */
+  private async batchModifyMessages(
+    messageIds: string[],
+    requestBody: { addLabelIds?: string[]; removeLabelIds?: string[] }
+  ) {
+    if (messageIds.length === 0) return
+    const chunkSize = 1000
+    for (let i = 0; i < messageIds.length; i += chunkSize) {
+      await this.gmail.users.messages.batchModify({
+        userId: "me",
+        requestBody: {
+          ids: messageIds.slice(i, i + chunkSize),
+          ...requestBody,
+        },
+      })
+    }
   }
   public getUserInfo() {
     return this.withErrorHandler(
@@ -341,7 +405,7 @@ export class GoogleMailManager implements MailManager {
           // Process all labels concurrently
           const labelEffects = labels.map(processLabelEffect)
           const labelResults = yield* Effect.all(labelEffects, {
-            concurrency: "unbounded",
+            concurrency: 10,
           })
 
           // Filter and collect results
@@ -402,73 +466,80 @@ export class GoogleMailManager implements MailManager {
           quotaUser: this.getQuotaUser(),
         })
 
-        const threads = res.data.threads ?? []
-
-        const enriched = await Promise.all(
-          threads
-            .filter((thread) => typeof thread.id === "string")
-            .map(async (thread) => {
-              try {
-                const meta = await this.gmail.users.threads.get({
-                  userId: "me",
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  id: thread.id!,
-                  format: "metadata",
-                  metadataHeaders: ["From", "Subject", "Date"],
-                  quotaUser: this.getQuotaUser(),
-                })
-
-                const messages = meta.data.messages ?? []
-                const latest =
-                  messages.findLast((m) => !m.labelIds?.includes("DRAFT")) ??
-                  messages[messages.length - 1]
-                const headers = latest?.payload?.headers ?? []
-                const fromHeader = headers.find(
-                  (h) => h.name?.toLowerCase() === "from"
-                )?.value
-                const subjectHeader = headers.find(
-                  (h) => h.name?.toLowerCase() === "subject"
-                )?.value
-                const dateHeader = headers.find(
-                  (h) => h.name?.toLowerCase() === "date"
-                )?.value
-
-                const hasUnread = messages.some((m) =>
-                  m.labelIds?.includes("UNREAD")
-                )
-                const hasStarred = messages.some((m) =>
-                  m.labelIds?.includes("STARRED")
-                )
-
-                let receivedOn = ""
-                if (dateHeader) {
-                  const d = new Date(dateHeader)
-                  if (!Number.isNaN(d.getTime())) receivedOn = d.toISOString()
-                }
-
-                return {
-                  id: thread.id!,
-                  historyId: thread.historyId ?? null,
-                  $raw: {
-                    ...thread,
-                    sender: fromHeader ? parseFrom(fromHeader) : { email: "" },
-                    subject: subjectHeader
-                      ? subjectHeader.replace(/"/g, "").trim()
-                      : "(no subject)",
-                    receivedOn,
-                    unread: hasUnread,
-                    starred: hasStarred,
-                  },
-                }
-              } catch {
-                return {
-                  id: thread.id!,
-                  historyId: thread.historyId ?? null,
-                  $raw: thread,
-                }
-              }
-            })
+        const threads = (res.data.threads ?? []).filter(
+          (thread) => typeof thread.id === "string"
         )
+
+        const settled = await mapWithConcurrency(
+          threads,
+          10,
+          async (thread) => {
+            const meta = await this.withBackoff(() =>
+              this.gmail.users.threads.get({
+                userId: "me",
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                id: thread.id!,
+                format: "metadata",
+                metadataHeaders: ["From", "Subject", "Date"],
+                quotaUser: this.getQuotaUser(),
+              })
+            )
+
+            const messages = meta.data.messages ?? []
+            const latest =
+              messages.findLast((m) => !m.labelIds?.includes("DRAFT")) ??
+              messages[messages.length - 1]
+            const headers = latest?.payload?.headers ?? []
+            const fromHeader = headers.find(
+              (h) => h.name?.toLowerCase() === "from"
+            )?.value
+            const subjectHeader = headers.find(
+              (h) => h.name?.toLowerCase() === "subject"
+            )?.value
+            const dateHeader = headers.find(
+              (h) => h.name?.toLowerCase() === "date"
+            )?.value
+
+            const hasUnread = messages.some((m) =>
+              m.labelIds?.includes("UNREAD")
+            )
+            const hasStarred = messages.some((m) =>
+              m.labelIds?.includes("STARRED")
+            )
+
+            let receivedOn = ""
+            if (dateHeader) {
+              const d = new Date(dateHeader)
+              if (!Number.isNaN(d.getTime())) receivedOn = d.toISOString()
+            }
+
+            return {
+              id: thread.id!,
+              historyId: thread.historyId ?? null,
+              $raw: {
+                ...thread,
+                sender: fromHeader ? parseFrom(fromHeader) : { email: "" },
+                subject: subjectHeader
+                  ? subjectHeader.replace(/"/g, "").trim()
+                  : "(no subject)",
+                receivedOn,
+                unread: hasUnread,
+                starred: hasStarred,
+              },
+            }
+          }
+        )
+
+        // After retries, log and skip failed threads rather than returning
+        // them as silently-empty entries.
+        const enriched = settled.flatMap((result, index) => {
+          if (result.status === "fulfilled") return [result.value]
+          console.error(
+            `[Gmail Driver] list: failed to enrich thread ${threads[index]?.id} after retries:`,
+            result.reason
+          )
+          return []
+        })
 
         return {
           threads: enriched,
@@ -644,8 +715,9 @@ export class GoogleMailManager implements MailManager {
     return this.withErrorHandler(
       "delete",
       async () => {
-        const res = await this.gmail.users.messages.delete({ userId: "me", id })
-        return res.data
+        // Callers pass thread ids here; trash the whole thread rather than
+        // hard-deleting in the message id space.
+        await this.gmail.users.threads.trash({ userId: "me", id })
       },
       { id }
     )
@@ -1003,28 +1075,36 @@ export class GoogleMailManager implements MailManager {
       async () => {
         let totalDeleted = 0
         let hasMoreSpam = true
-        let pageToken: string | number | null | undefined = undefined
+        let pageToken: string | undefined = undefined
 
         while (hasMoreSpam) {
-          const spamThreads = await this.list({
-            folder: "spam",
-            maxResults: 500,
-            pageToken: pageToken as string | undefined,
-          })
+          // Only ids are needed here — hit threads.list directly instead of
+          // going through list()'s per-thread metadata enrichment.
+          const res: { data: gmail_v1.Schema$ListThreadsResponse } =
+            await this.gmail.users.threads.list({
+              userId: "me",
+              labelIds: ["SPAM"],
+              maxResults: 500,
+              pageToken,
+              quotaUser: this.getQuotaUser(),
+            })
 
-          if (!spamThreads.threads || spamThreads.threads.length === 0) {
+          const threadIds = (res.data.threads ?? [])
+            .map((thread) => thread.id)
+            .filter((id): id is string => typeof id === "string")
+
+          if (threadIds.length === 0) {
             hasMoreSpam = false
             break
           }
 
-          const threadIds = spamThreads.threads.map((thread) => thread.id)
           await this.modifyLabels(threadIds, {
             addLabels: ["TRASH"],
             removeLabels: ["SPAM", "INBOX"],
           })
 
           totalDeleted += threadIds.length
-          pageToken = spamThreads.nextPageToken
+          pageToken = res.data.nextPageToken ?? undefined
 
           if (!pageToken) {
             hasMoreSpam = false
@@ -1287,7 +1367,7 @@ export class GoogleMailManager implements MailManager {
     const defaultFromEmail = this.config.auth?.email || "nobody@example.com"
     const senderEmail = fromEmail || defaultFromEmail
 
-    msg.setSender(`${fromEmail}`)
+    msg.setSender(`${senderEmail}`)
 
     const uniqueRecipients = new Set<string>()
 
@@ -1541,6 +1621,40 @@ export class GoogleMailManager implements MailManager {
     }
   }
 
+  /**
+   * Retries `fn` on Gmail rate-limit responses (429, or 403 with a
+   * rateLimitExceeded reason) with exponential backoff + jitter, honoring
+   * Retry-After when present. Non-rate-limit errors are rethrown immediately.
+   */
+  private async withBackoff<T>(
+    fn: () => Promise<T>,
+    attempts = 3
+  ): Promise<T> {
+    let lastError: unknown
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        return await fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        lastError = error
+        const status = Number(error?.code ?? error?.response?.status)
+        const reason: string = error?.errors?.[0]?.reason ?? ""
+        const isRateLimited =
+          status === 429 ||
+          (status === 403 && /ratelimitexceeded/i.test(reason))
+        if (!isRateLimited || attempt === attempts - 1) throw error
+
+        const retryAfter = Number(error?.response?.headers?.["retry-after"])
+        const delayMs =
+          Number.isFinite(retryAfter) && retryAfter > 0
+            ? Math.min(retryAfter, 30) * 1000
+            : 500 * 2 ** attempt + Math.random() * 250
+        await new Promise((resolve) => setTimeout(resolve, delayMs))
+      }
+    }
+    throw lastError
+  }
+
   private async withErrorHandler<T>(
     operation: string,
     fn: () => Promise<T> | T,
@@ -1561,7 +1675,11 @@ export class GoogleMailManager implements MailManager {
           isFatal,
         }
       )
-      if (isFatal) await deleteActiveConnection()
+      if (isFatal)
+        await deleteActiveConnection(
+          this.config.auth?.userId,
+          this.config.auth?.email
+        )
       throw new StandardizedError(error, operation, context)
     }
   }
@@ -1582,7 +1700,11 @@ export class GoogleMailManager implements MailManager {
         stack: error.stack,
         isFatal,
       })
-      if (isFatal) void deleteActiveConnection()
+      if (isFatal)
+        void deleteActiveConnection(
+          this.config.auth?.userId,
+          this.config.auth?.email
+        )
       throw new StandardizedError(error, operation, context)
     }
   }

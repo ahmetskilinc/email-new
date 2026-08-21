@@ -5,13 +5,6 @@ import { useTheme } from "next-themes"
 import { cn } from "@workspace/ui/lib/utils"
 import { Label } from "@workspace/ui/components/label"
 import { Switch } from "@workspace/ui/components/switch"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { Separator } from "@workspace/ui/components/separator"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -173,32 +166,6 @@ export function GeneralTab() {
       <Separator />
 
       <SettingsSection>
-        <SettingsRow>
-          <SettingsLabel
-            title="Image compression"
-            description="Compression level for image attachments."
-          />
-          <Select
-            value={settings?.imageCompression ?? "medium"}
-            onValueChange={(v) =>
-              v &&
-              updateSetting(
-                "imageCompression",
-                v as "low" | "medium" | "original"
-              )
-            }
-          >
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="low">Low</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="original">Original</SelectItem>
-            </SelectContent>
-          </Select>
-        </SettingsRow>
-
         <SettingsRow>
           <SettingsLabel
             title="Undo send"

@@ -218,10 +218,24 @@ function applyEmailPreferences(
   // it black-on-black. Only emails that leave colors entirely to the client
   // are safe to theme — everything else keeps the light surface in dark mode,
   // the way most mail clients render HTML email.
+  //
+  // This used to test the raw HTML, so a color token inside an HTML comment
+  // (MSO conditionals, boilerplate) or <title> disabled dark theming for
+  // nearly every real email. Only count declarations that can actually paint:
+  // <style> blocks, inline style="" attributes, and bgcolor= attributes —
+  // with comments stripped first. Detection only; the HTML fed to cheerio
+  // below is untouched.
+  const htmlSansComments = preprocessedHtml.replace(/<!--[\s\S]*?-->/g, "")
+  const colorDeclaration =
+    /(?:^|[;{"'\s])(?:color|background|background-color)\s*:/i
+  const styleBlocks =
+    htmlSansComments.match(/<style[^>]*>[\s\S]*?<\/style>/gi) ?? []
+  const styleAttrs =
+    htmlSansComments.match(/\bstyle\s*=\s*(?:"[^"]*"|'[^']*')/gi) ?? []
   const declaresOwnColors =
-    /(?:^|[;{"'\s])(?:color|background|background-color)\s*:|bgcolor\s*=/i.test(
-      preprocessedHtml
-    )
+    styleBlocks.some((block) => colorDeclaration.test(block)) ||
+    styleAttrs.some((attr) => colorDeclaration.test(attr)) ||
+    /<[a-z][^>]*\sbgcolor\s*=/i.test(htmlSansComments)
   const isDarkTheme = theme === "dark" && !declaresOwnColors
 
   const $ = cheerio.load(preprocessedHtml)

@@ -8,6 +8,9 @@ export interface ImapProviderConfig {
   smtpPort: number
   smtpSecure: boolean
   smtpRequireTLS: boolean
+  /** The provider's SMTP servers auto-save outgoing mail to Sent, so the
+   * transport must not APPEND its own copy (it would duplicate). */
+  smtpSavesSent?: boolean
   folders: {
     inbox: string
     sent: string
@@ -27,6 +30,7 @@ export const YAHOO_CONFIG: ImapProviderConfig = {
   smtpPort: 587,
   smtpSecure: false,
   smtpRequireTLS: true,
+  smtpSavesSent: true,
   folders: {
     inbox: "INBOX",
     sent: "Sent",
@@ -89,6 +93,11 @@ export async function autoDiscoverFolders(
     secure: true,
     auth: { user: email, pass: password },
     logger: false,
+    // Same values as IMAP_TIMEOUTS in ./imap (inlined: imap.ts imports from
+    // this module, so importing back would create a cycle).
+    greetingTimeout: 10_000,
+    connectionTimeout: 15_000,
+    socketTimeout: 60_000,
   })
 
   try {

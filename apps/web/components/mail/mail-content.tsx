@@ -106,7 +106,10 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
     },
     // Settings decide whether remote images load. Running before they resolve
     // would render the message under the wrong policy and cache that result.
-    enabled: settings !== undefined,
+    // Same for the theme: before next-themes hydrates, resolvedTheme is
+    // undefined and the "light" fallback would sanitize (and cache) a result
+    // that gets thrown away once the real theme resolves.
+    enabled: settings !== undefined && resolvedTheme !== undefined,
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,

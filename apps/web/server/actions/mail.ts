@@ -17,6 +17,7 @@ import {
   mapWithConcurrency,
 } from "../lib/limits"
 import { getListUnsubscribeAction } from "../lib/email-utils"
+import { assertPublicHost } from "../lib/transport/host-validation"
 import { defaultPageSize, FOLDERS } from "../lib/utils"
 import { toAttachmentFiles } from "../lib/attachments"
 import { listThreadsFromStore, storeIsReady } from "../lib/email-store"
@@ -172,9 +173,10 @@ export async function markAsRead(ids: string[], connectionId?: string) {
   if (connectionId && connectionId !== connection.id) {
     const db = await getzeitmailDB(session.user.id)
     const specificConn = await db.findUserConnection(connectionId)
-    if (specificConn) {
-      activeDriver = connectionToDriver(specificConn)
+    if (!specificConn) {
+      throw new Error("Connection not found or access denied")
     }
+    activeDriver = connectionToDriver(specificConn)
   }
 
   return activeDriver.markAsRead(assertBulkIds(ids, "messages"))
@@ -187,9 +189,10 @@ export async function markAsUnread(ids: string[], connectionId?: string) {
   if (connectionId && connectionId !== connection.id) {
     const db = await getzeitmailDB(session.user.id)
     const specificConn = await db.findUserConnection(connectionId)
-    if (specificConn) {
-      activeDriver = connectionToDriver(specificConn)
+    if (!specificConn) {
+      throw new Error("Connection not found or access denied")
     }
+    activeDriver = connectionToDriver(specificConn)
   }
 
   return activeDriver.markAsUnread(assertBulkIds(ids, "messages"))
@@ -208,46 +211,62 @@ export async function modifyLabels(
   return { success: true }
 }
 
-export async function toggleStar(ids: string[]) {
+export async function toggleStar(ids: string[], starred?: boolean) {
   const { driver } = await requireActiveDriver()
   const safeIds = assertBulkIds(ids, "threads")
   if (!safeIds.length) return { success: false }
 
-  // Bounded: this used to issue one provider round-trip per id, unbounded and
-  // fully concurrent, from a caller-supplied array.
-  const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
-  const anyStarred = threads.some(
-    (r) =>
-      r.status === "fulfilled" &&
-      r.value.messages.some((m) =>
-        m.tags?.some((t) => t.name.toLowerCase().startsWith("starred"))
-      )
-  )
+  // When the caller already knows the desired state, skip the per-id reads
+  // entirely. Callers that don't pass it keep the old read-then-toggle
+  // behavior.
+  let shouldStar: boolean
+  if (typeof starred === "boolean") {
+    shouldStar = starred
+  } else {
+    // Bounded: this used to issue one provider round-trip per id, unbounded and
+    // fully concurrent, from a caller-supplied array.
+    const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
+    const anyStarred = threads.some(
+      (r) =>
+        r.status === "fulfilled" &&
+        r.value.messages.some((m) =>
+          m.tags?.some((t) => t.name.toLowerCase().startsWith("starred"))
+        )
+    )
+    shouldStar = !anyStarred
+  }
 
   await driver.modifyLabels(safeIds, {
-    addLabels: anyStarred ? [] : ["STARRED"],
-    removeLabels: anyStarred ? ["STARRED"] : [],
+    addLabels: shouldStar ? ["STARRED"] : [],
+    removeLabels: shouldStar ? [] : ["STARRED"],
   })
   return { success: true }
 }
 
-export async function toggleImportant(ids: string[]) {
+export async function toggleImportant(ids: string[], important?: boolean) {
   const { driver } = await requireActiveDriver()
   const safeIds = assertBulkIds(ids, "threads")
   if (!safeIds.length) return { success: false }
 
-  const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
-  const anyImportant = threads.some(
-    (r) =>
-      r.status === "fulfilled" &&
-      r.value.messages.some((m) =>
-        m.tags?.some((t) => t.name.toLowerCase().startsWith("important"))
-      )
-  )
+  // Same shape as toggleStar: an explicit desired state avoids the reads.
+  let shouldMark: boolean
+  if (typeof important === "boolean") {
+    shouldMark = important
+  } else {
+    const threads = await mapWithConcurrency(safeIds, 5, (id) => driver.get(id))
+    const anyImportant = threads.some(
+      (r) =>
+        r.status === "fulfilled" &&
+        r.value.messages.some((m) =>
+          m.tags?.some((t) => t.name.toLowerCase().startsWith("important"))
+        )
+    )
+    shouldMark = !anyImportant
+  }
 
   await driver.modifyLabels(safeIds, {
-    addLabels: anyImportant ? [] : ["IMPORTANT"],
-    removeLabels: anyImportant ? ["IMPORTANT"] : [],
+    addLabels: shouldMark ? ["IMPORTANT"] : [],
+    removeLabels: shouldMark ? [] : ["IMPORTANT"],
   })
   return { success: true }
 }
@@ -314,6 +333,62 @@ export async function deleteAllSpam(): Promise<DeleteAllSpamResponse> {
   }
 }
 
+// Per-user send throttle. better-auth's rateLimit table only backs its own
+// auth endpoints (no reusable helper is exposed for arbitrary server actions),
+// so this is a minimal in-memory sliding window instead: per-process, resets
+// on deploy, which is acceptable for a soft abuse ceiling on outbound mail.
+const SEND_WINDOW_MS = 10 * 60 * 1000
+const SEND_MAX_PER_WINDOW = 30
+const sendTimestampsByUser = new Map<string, number[]>()
+
+function assertSendAllowed(userId: string) {
+  const now = Date.now()
+  const recent = (sendTimestampsByUser.get(userId) ?? []).filter(
+    (t) => now - t < SEND_WINDOW_MS
+  )
+  if (recent.length >= SEND_MAX_PER_WINDOW) {
+    throw new LimitExceededError(
+      "Sending limit reached. Please wait a few minutes and try again."
+    )
+  }
+  recent.push(now)
+  sendTimestampsByUser.set(userId, recent)
+}
+
+// Deliberately loose: providers are the authority on deliverability, this only
+// rejects values that cannot be an address at all (and anything embedding
+// whitespace or CR/LF, which could smuggle extra headers).
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function assertValidRecipients(recipients: Sender[]) {
+  for (const r of recipients) {
+    if (typeof r?.email !== "string" || !EMAIL_PATTERN.test(r.email)) {
+      throw new Error("One or more recipient email addresses are invalid.")
+    }
+  }
+}
+
+// Client-supplied headers pass straight through to the drivers, so only the
+// threading headers a reply legitimately needs survive; everything else
+// (From, Bcc, Content-Type, transport-relevant headers, …) is dropped.
+const ALLOWED_CLIENT_HEADERS = new Set(["in-reply-to", "references"])
+
+function sanitizeClientHeaders(
+  headers: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (!headers) return undefined
+  const filtered: Record<string, string> = {}
+  for (const [key, value] of Object.entries(headers)) {
+    if (
+      ALLOWED_CLIENT_HEADERS.has(key.toLowerCase()) &&
+      typeof value === "string"
+    ) {
+      filtered[key] = value.replace(/[\r\n]/g, "")
+    }
+  }
+  return filtered
+}
+
 export async function sendMail(input: {
   to: Sender[]
   subject: string
@@ -337,6 +412,19 @@ export async function sendMail(input: {
 }) {
   const { session, connection, driver } = await requireActiveDriver()
   const { draftId, attachments = [], signatureId, ...mail } = input
+
+  assertSendAllowed(session.user.id)
+
+  assertValidRecipients([
+    ...(input.to ?? []),
+    ...(input.cc ?? []),
+    ...(input.bcc ?? []),
+  ])
+
+  mail.headers = sanitizeClientHeaders(mail.headers)
+  // CR/LF in the subject would let a caller inject additional headers into the
+  // outgoing message.
+  mail.subject = (mail.subject ?? "").replace(/[\r\n]/g, " ")
 
   // Unbounded recipients and attachments meant one call could fan out to
   // arbitrarily many addresses and queue an upsert per recipient against the
@@ -388,10 +476,12 @@ export async function sendMail(input: {
     attachments: processedAttachments,
   } as any
 
+  let messageId: string | null = null
   if (draftId) {
     await driver.sendDraft(draftId, outgoing)
   } else {
-    await driver.create(outgoing)
+    const created = await driver.create(outgoing)
+    messageId = created?.id ?? null
   }
 
   // Track recipients for autocomplete
@@ -410,7 +500,7 @@ export async function sendMail(input: {
     attachmentCount: attachments.length,
   })
 
-  return { success: true }
+  return { success: true, messageId }
 }
 
 export async function deleteThread(id: string) {
@@ -532,35 +622,46 @@ export async function unsubscribeFromList(input: {
   if (!action) throw new Error("No unsubscribe action available")
 
   if (action.type === "get" || action.type === "post") {
-    const url = new URL(action.url)
-    if (!url.protocol.startsWith("http")) {
+    // The unsubscribe URL comes straight out of an email header, so it is
+    // attacker-controlled. assertPublicHost resolves the hostname and rejects
+    // loopback/private/link-local/CGNAT ranges, IP literals, and hostnames
+    // that resolve to internal addresses — the hand-rolled prefix blocklist
+    // this replaces missed most of those. Redirects are followed manually so
+    // every hop's host gets the same check; a public host must not be able to
+    // bounce the request onto the internal network.
+    const MAX_REDIRECTS = 3
+    let url = new URL(action.url)
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error("Invalid unsubscribe URL")
     }
-    // Block requests to private/internal networks
-    const hostname = url.hostname.toLowerCase()
-    if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "0.0.0.0" ||
-      hostname.startsWith("10.") ||
-      hostname.startsWith("192.168.") ||
-      hostname.startsWith("172.") ||
-      hostname === "metadata.google.internal" ||
-      hostname === "[::1]" ||
-      hostname.endsWith(".local")
-    ) {
-      throw new Error("Invalid unsubscribe URL")
-    }
+    await assertPublicHost(url.hostname, "Unsubscribe")
 
-    const res = await fetch(action.url, {
-      method: action.type === "post" ? "POST" : "GET",
-      headers:
-        action.type === "post"
-          ? { "Content-Type": "application/x-www-form-urlencoded" }
-          : undefined,
-      body: action.type === "post" ? action.body : undefined,
-      redirect: "follow",
-    })
+    let res: Response
+    for (let hop = 0; ; hop++) {
+      res = await fetch(url, {
+        method: action.type === "post" ? "POST" : "GET",
+        headers:
+          action.type === "post"
+            ? { "Content-Type": "application/x-www-form-urlencoded" }
+            : undefined,
+        body: action.type === "post" ? action.body : undefined,
+        redirect: "manual",
+        signal: AbortSignal.timeout(10_000),
+      })
+
+      if (res.status < 300 || res.status >= 400) break
+
+      const location = res.headers.get("location")
+      if (!location) break
+      if (hop >= MAX_REDIRECTS) {
+        throw new Error("Unsubscribe request failed (too many redirects)")
+      }
+      url = new URL(location, url)
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        throw new Error("Invalid unsubscribe URL")
+      }
+      await assertPublicHost(url.hostname, "Unsubscribe")
+    }
 
     if (!res.ok) {
       throw new Error(`Unsubscribe request failed (${res.status})`)

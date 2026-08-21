@@ -38,8 +38,9 @@ export async function syncConnectionNow(connectionId?: string) {
 
 /**
  * Starts the durable scheduler loop for a connection. Safe to call more than
- * once — if a previous scheduler is still running, the new one will contend
- * for the sync lock and no-op. Call on connect and on first login.
+ * once — scheduler ownership lives in syncState (schedulerRunId + heartbeat),
+ * so a duplicate start exits immediately while the live loop keeps running.
+ * Call on connect and on first login.
  */
 export async function startSyncSchedulerForConnection(connectionId: string) {
   const session = await requireSession()

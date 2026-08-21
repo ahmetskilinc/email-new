@@ -15,43 +15,22 @@ import {
   useSelectedCount,
   useSelectionActions,
 } from "@/store/selection"
-import {
-  bulkArchive,
-  bulkDelete,
-  bulkStar,
-  markAsRead,
-  markAsUnread,
-} from "@/server/actions/mail"
-import { useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
+import { useThreadActions } from "@/hooks/use-thread-actions"
 
 export function BulkActionsToolbar() {
   const selectedIds = useSelectedThreadIds()
   const count = useSelectedCount()
   const { clearAll } = useSelectionActions()
-  const queryClient = useQueryClient()
+  const { archive, deleteThreads, toggleStar, markRead, markUnread } =
+    useThreadActions()
 
   if (count === 0) return null
 
   const ids = Array.from(selectedIds)
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["threads"] })
-    queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
-    queryClient.invalidateQueries({ queryKey: ["thread"] })
-  }
-
-  const handleAction = (
-    action: (ids: string[]) => Promise<unknown>,
-    messages: { loading: string; success: string; error: string }
-  ) => {
-    toast.promise(
-      action(ids).then(() => {
-        invalidate()
-        clearAll()
-      }),
-      messages
-    )
+  const run = (action: (ids: string[]) => void) => {
+    action(ids)
+    clearAll()
   }
 
   return (
@@ -63,13 +42,7 @@ export function BulkActionsToolbar() {
           size="sm"
           className="h-7 px-2"
           aria-label="Archive selected"
-          onClick={() =>
-            handleAction(bulkArchive, {
-              loading: "Archiving...",
-              success: "Archived",
-              error: "Failed to archive",
-            })
-          }
+          onClick={() => run(archive)}
         >
           <HugeiconsIcon icon={ArchiveIcon} className="size-3.5" />
         </Button>
@@ -78,13 +51,7 @@ export function BulkActionsToolbar() {
           size="sm"
           className="h-7 px-2"
           aria-label="Delete selected"
-          onClick={() =>
-            handleAction(bulkDelete, {
-              loading: "Deleting...",
-              success: "Deleted",
-              error: "Failed to delete",
-            })
-          }
+          onClick={() => run(deleteThreads)}
         >
           <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
         </Button>
@@ -93,13 +60,7 @@ export function BulkActionsToolbar() {
           size="sm"
           className="h-7 px-2"
           aria-label="Star selected"
-          onClick={() =>
-            handleAction(bulkStar, {
-              loading: "Starring...",
-              success: "Starred",
-              error: "Failed to star",
-            })
-          }
+          onClick={() => run((ids) => toggleStar(ids, true))}
         >
           <HugeiconsIcon icon={FavouriteIcon} className="size-3.5" />
         </Button>
@@ -108,13 +69,7 @@ export function BulkActionsToolbar() {
           size="sm"
           className="h-7 px-2"
           aria-label="Mark as read"
-          onClick={() =>
-            handleAction(markAsRead, {
-              loading: "Updating...",
-              success: "Marked as read",
-              error: "Failed to mark as read",
-            })
-          }
+          onClick={() => run(markRead)}
         >
           <HugeiconsIcon icon={MailOpen02Icon} className="size-3.5" />
         </Button>
@@ -123,13 +78,7 @@ export function BulkActionsToolbar() {
           size="sm"
           className="h-7 px-2"
           aria-label="Mark as unread"
-          onClick={() =>
-            handleAction(markAsUnread, {
-              loading: "Updating...",
-              success: "Marked as unread",
-              error: "Failed to mark as unread",
-            })
-          }
+          onClick={() => run(markUnread)}
         >
           <HugeiconsIcon icon={Mail01Icon} className="size-3.5" />
         </Button>

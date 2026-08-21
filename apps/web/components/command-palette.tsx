@@ -14,13 +14,7 @@ import { useConnections, useActiveConnection } from "@/hooks/use-connections"
 import { navigationConfig, navigationConfigTopNav } from "@/config/navigation"
 import { listThreads } from "@/server/actions/mail"
 import { setDefaultConnection } from "@/server/actions/connections"
-import {
-  bulkArchive,
-  bulkDelete,
-  toggleStar,
-  markAsRead,
-  markAsUnread,
-} from "@/server/actions/mail"
+import { useThreadActions } from "@/hooks/use-thread-actions"
 import { normalizeThreadPreview } from "@/lib/thread-utils"
 import { useRouter } from "next/navigation"
 import { useQueryState } from "nuqs"
@@ -56,6 +50,8 @@ export function CommandPalette() {
   const { data: connectionsData } = useConnections()
   const { data: activeConnection } = useActiveConnection()
   const connections = connectionsData?.connections ?? []
+  const { archive, deleteThreads, toggleStar, markRead, markUnread } =
+    useThreadActions()
 
   const close = useCallback(() => {
     setOpen(false)
@@ -63,12 +59,6 @@ export function CommandPalette() {
     setActiveIndex(0)
     setSearchResults([])
   }, [setOpen])
-
-  const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["threads"] })
-    queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
-    queryClient.invalidateQueries({ queryKey: ["thread"] })
-  }, [queryClient])
 
   // Search threads when query is 3+ chars
   useEffect(() => {
@@ -125,13 +115,8 @@ export function CommandPalette() {
           group: "Current Thread",
           shortcut: "e",
           onSelect: () => {
-            toast.promise(
-              bulkArchive([threadId]).then(() => {
-                invalidate()
-                void setThreadId(null)
-              }),
-              { loading: "Archiving...", success: "Archived", error: "Failed" }
-            )
+            archive([threadId])
+            void setThreadId(null)
             close()
           },
         },
@@ -141,13 +126,8 @@ export function CommandPalette() {
           group: "Current Thread",
           shortcut: "#",
           onSelect: () => {
-            toast.promise(
-              bulkDelete([threadId]).then(() => {
-                invalidate()
-                void setThreadId(null)
-              }),
-              { loading: "Deleting...", success: "Deleted", error: "Failed" }
-            )
+            deleteThreads([threadId])
+            void setThreadId(null)
             close()
           },
         },
@@ -157,14 +137,7 @@ export function CommandPalette() {
           group: "Current Thread",
           shortcut: "s",
           onSelect: () => {
-            toast.promise(
-              toggleStar([threadId]).then(() => invalidate()),
-              {
-                loading: "Updating...",
-                success: "Star toggled",
-                error: "Failed",
-              }
-            )
+            toggleStar([threadId])
             close()
           },
         },
@@ -174,14 +147,7 @@ export function CommandPalette() {
           group: "Current Thread",
           shortcut: "u",
           onSelect: () => {
-            toast.promise(
-              markAsRead([threadId]).then(() => invalidate()),
-              {
-                loading: "Updating...",
-                success: "Marked as read",
-                error: "Failed",
-              }
-            )
+            markRead([threadId])
             close()
           },
         },
@@ -190,14 +156,7 @@ export function CommandPalette() {
           label: "Mark as unread",
           group: "Current Thread",
           onSelect: () => {
-            toast.promise(
-              markAsUnread([threadId]).then(() => invalidate()),
-              {
-                loading: "Updating...",
-                success: "Marked as unread",
-                error: "Failed",
-              }
-            )
+            markUnread([threadId])
             close()
           },
         }
@@ -341,7 +300,11 @@ export function CommandPalette() {
     openSettings,
     setTheme,
     setThreadId,
-    invalidate,
+    archive,
+    deleteThreads,
+    toggleStar,
+    markRead,
+    markUnread,
     queryClient,
     close,
   ])

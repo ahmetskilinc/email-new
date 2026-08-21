@@ -4,13 +4,28 @@ import type { gmail_v1 } from "@googleapis/gmail"
 import { toByteArray } from "base64-js"
 export const FatalErrors = ["invalid_grant"]
 
-export const deleteActiveConnection = async (userId?: string) => {
+/**
+ * Deletes the connection that hit a fatal auth error. The driver config does
+ * not carry the connection id, so `email` identifies the specific connection:
+ * without it (or if it doesn't match) we refuse to delete, rather than tearing
+ * down whichever connection happens to be "active" for the user.
+ */
+export const deleteActiveConnection = async (
+  userId?: string,
+  email?: string
+) => {
   if (!userId) {
     console.warn("deleteActiveConnection called without userId, skipping")
     return
   }
   const activeConnection = await getActiveConnection(userId)
   if (!activeConnection) return console.log("No connection ID found")
+  if (email && activeConnection.email !== email) {
+    console.warn(
+      "deleteActiveConnection: active connection does not match the failing connection's email, skipping"
+    )
+    return
+  }
   try {
     const db = await getzeitmailDB(userId)
     await db.deleteConnection(activeConnection.id)
@@ -20,8 +35,14 @@ export const deleteActiveConnection = async (userId?: string) => {
   }
 }
 
-export const fromBase64Url = (str: string) =>
-  str.replace(/-/g, "+").replace(/_/g, "/")
+export const fromBase64Url = (str: string) => {
+  const base64 = str.replace(/-/g, "+").replace(/_/g, "/")
+  // Gmail strips base64 padding; re-add it so standard decoders accept it.
+  return base64.padEnd(
+    base64.length + ((4 - (base64.length % 4)) % 4),
+    "="
+  )
+}
 
 export const fromBinary = (str: string) =>
   new TextDecoder().decode(

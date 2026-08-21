@@ -9,6 +9,9 @@ import { useSettings } from "@/hooks/use-settings"
 import { useServiceWorker } from "@/hooks/use-service-worker"
 
 const POLL_INTERVAL_MS = 30_000
+// Hidden tabs still learn about new mail (for desktop notifications), but at
+// a fraction of the request volume.
+const POLL_INTERVAL_HIDDEN_MS = 5 * 60_000
 
 export function useNewMailNotifier() {
   const { data: activeConnection } = useActiveConnection()
@@ -70,13 +73,20 @@ export function useNewMailNotifier() {
         }
       }
 
-      queryClient.invalidateQueries({ queryKey: ["threads"] })
+      // New mail only lands in the inbox: refresh just the inbox views
+      // instead of nuking every ["threads", ...] cache (drafts, archive,
+      // search results, other folders).
+      queryClient.invalidateQueries({ queryKey: ["threads", "inbox"] })
       queryClient.invalidateQueries({ queryKey: ["allInboxes"] })
 
       return res
     },
     enabled,
-    refetchInterval: POLL_INTERVAL_MS,
+    refetchInterval: () =>
+      typeof document !== "undefined" &&
+      document.visibilityState === "hidden"
+        ? POLL_INTERVAL_HIDDEN_MS
+        : POLL_INTERVAL_MS,
     refetchIntervalInBackground: true,
     staleTime: 0,
     gcTime: 0,

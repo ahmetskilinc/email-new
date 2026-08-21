@@ -13,6 +13,7 @@ import type {
 } from "./types"
 import type { CreateDraftData } from "../schemas"
 import {
+  IMAP_TIMEOUTS,
   countUnread,
   deleteAllSpam,
   deleteMessages,
@@ -256,10 +257,17 @@ export class YahooMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
-    await client.mailboxCreate(label.name)
-    await client.logout().catch(() => {})
+    // If the mailbox op throws we'd walk away from a live, authenticated IMAP
+    // socket that nothing is listening to — imapflow eventually emits 'error'
+    // on it and, unhandled, that takes the whole process down. Always log out.
+    try {
+      await client.mailboxCreate(label.name)
+    } finally {
+      await client.logout().catch(() => {})
+    }
   }
 
   public async updateLabel(
@@ -276,10 +284,15 @@ export class YahooMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
-    await client.mailboxRename(id, label.name)
-    await client.logout().catch(() => {})
+    // Same reason as createLabel: never leave an authenticated client dangling.
+    try {
+      await client.mailboxRename(id, label.name)
+    } finally {
+      await client.logout().catch(() => {})
+    }
   }
 
   public async deleteLabel(id: string) {
@@ -290,10 +303,15 @@ export class YahooMailManager implements MailManager {
       secure: true,
       auth: { user: this.creds.email, pass: this.creds.password },
       logger: false,
+      ...IMAP_TIMEOUTS,
     })
     await client.connect()
-    await client.mailboxDelete(id)
-    await client.logout().catch(() => {})
+    // Same reason as createLabel: never leave an authenticated client dangling.
+    try {
+      await client.mailboxDelete(id)
+    } finally {
+      await client.logout().catch(() => {})
+    }
   }
 
   public async getEmailAliases() {

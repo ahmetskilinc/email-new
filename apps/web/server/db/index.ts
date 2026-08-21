@@ -19,7 +19,15 @@ const sslOption = (url: string) => {
 
 export const createDb = (url: string) => {
   const ssl = sslOption(url)
-  const conn = postgres(url, ssl === undefined ? {} : { ssl })
+  const conn = postgres(url, {
+    // Modest pool: this app's queries are short-lived, and serverless invokes
+    // can stack up — keep the footprint per process small and let idle
+    // connections drain instead of pinning Postgres slots forever.
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    ...(ssl === undefined ? {} : { ssl }),
+  })
   const db = createDrizzle(conn)
   return { db, conn }
 }
