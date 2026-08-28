@@ -10,7 +10,9 @@
     "./sync": "./src/sync-schema.ts",
     "./ids": "./src/ids.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@ahmetskilinc/sync-core": "^0.4.0"
+  },
   "devDependencies": {
     "@workspace/typescript-config": "workspace:*",
     "typescript": "^6.0.2"

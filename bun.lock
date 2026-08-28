@@ -18,6 +18,10 @@
       "name": "web",
       "version": "0.0.1",
       "dependencies": {
+        "@ahmetskilinc/sync-client": "^0.4.0",
+        "@ahmetskilinc/sync-core": "^0.4.0",
+        "@ahmetskilinc/sync-react": "^0.4.0",
+        "@ahmetskilinc/sync-server": "^0.4.0",
         "@barkleapp/css-sanitizer": "^1.0.0",
         "@googleapis/calendar": "^14.2.0",
         "@googleapis/gmail": "^16.1.1",
@@ -100,6 +104,9 @@
     "packages/core": {
       "name": "@workspace/core",
       "version": "0.0.0",
+      "dependencies": {
+        "@ahmetskilinc/sync-core": "^0.4.0",
+      },
       "devDependencies": {
         "@workspace/typescript-config": "workspace:*",
         "typescript": "^6.0.2",
@@ -163,6 +170,14 @@
     },
   },
   "packages": {
+    "@ahmetskilinc/sync-client": ["@ahmetskilinc/sync-client@0.4.0", "", { "dependencies": { "@ahmetskilinc/sync-core": "^0.4.0" } }, "sha512-O40juQ4pJ7r5GocuXapmbaHLCM8kRT8lWzKwyZyfJclmJXw8lU9pKQ3oLTOFfQWia73hEjnUFgUYUxzYuzMoIw=="],
+
+    "@ahmetskilinc/sync-core": ["@ahmetskilinc/sync-core@0.4.0", "", {}, "sha512-GhDxGLA/Cx+MZhd0T3ltoRHUGJSAq+5x+XyrO77sbA1eSS8hnIjmzgg8PKbs7ccHuMlCv/YiefL9NOvl7D2jsw=="],
+
+    "@ahmetskilinc/sync-react": ["@ahmetskilinc/sync-react@0.4.0", "", { "dependencies": { "@ahmetskilinc/sync-client": "^0.4.0", "@ahmetskilinc/sync-core": "^0.4.0" }, "peerDependencies": { "react": ">=18" } }, "sha512-KQDKkQVpe9Y/6HHmzh8pGT/hdY9GifC3u2fTCZdNoNPCJ6Z3l209EGV8IE3cD1XtmeShau/AsCZNwh8WjVnh5A=="],
+
+    "@ahmetskilinc/sync-server": ["@ahmetskilinc/sync-server@0.4.0", "", { "dependencies": { "@ahmetskilinc/sync-core": "^0.4.0" } }, "sha512-1UVUot+f9MCLWIIiHAmneGwhY+q6vRpULepn8lmUXChIDk3798klBjaJBjiC+aktJP8WwtFfGAEOnLJiGgT1ag=="],
+
     "@alloc/quick-lru": ["@alloc/quick-lru@5.2.0", "", {}, "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="],
 
     "@aws-crypto/crc32": ["@aws-crypto/crc32@5.2.0", "", { "dependencies": { "@aws-crypto/util": "^5.2.0", "@aws-sdk/types": "^3.222.0", "tslib": "^2.6.2" } }, "sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg=="],
