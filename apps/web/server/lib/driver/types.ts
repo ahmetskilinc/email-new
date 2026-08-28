@@ -45,6 +45,9 @@ export type ManagerConfig = {
     accessToken: string
     refreshToken: string
     email: string
+    // When present, refreshed tokens are persisted back to this connection
+    // row instead of living (and dying) on the driver instance.
+    connectionId?: string
   }
   imapConfig?: ImapProviderConfig
 }

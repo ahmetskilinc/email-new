@@ -1,35 +1,27 @@
 "use client"
 
 import { useConnections } from "@/hooks/use-connections"
-import { useSession } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
+/**
+ * Session validation is server-side in the proxy; the calendar shell renders
+ * immediately and only a confirmed-empty connections list redirects.
+ */
 export default function CalendarLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { data: session, isPending: sessionPending } = useSession()
-  const { data: connectionsData, isPending: connectionsPending } =
-    useConnections()
+  const { data: connectionsData, isFetched, isSuccess } = useConnections()
 
   useEffect(() => {
-    if (sessionPending || connectionsPending) return
-
-    if (!session?.user) {
-      router.push("/login")
-      return
+    if (!isFetched || !isSuccess) return
+    if ((connectionsData?.connections?.length ?? 0) === 0) {
+      router.replace("/onboarding")
     }
-
-    if (!connectionsData?.connections?.length) {
-      router.push("/onboarding")
-    }
-  }, [session, sessionPending, connectionsData, connectionsPending, router])
-
-  if (sessionPending || connectionsPending) return null
-  if (!session?.user || !connectionsData?.connections?.length) return null
+  }, [isFetched, isSuccess, connectionsData, router])
 
   return children
 }

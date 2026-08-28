@@ -4,16 +4,23 @@ import { nextCookies } from "better-auth/next-js"
 import * as schema from "../db/schema"
 import { getSocialProviders } from "./auth-providers"
 import { defaultUserSettings } from "./schemas"
-import { getzeitmailDB, resolveRefreshToken } from "./server-utils"
 import { logSecurityEvent } from "./audit"
 import { type EProviders } from "../types"
-import { createDriver } from "./driver"
 import { createDb } from "../db"
 import { env } from "../env"
 
 const connectionHandlerHook = async (account: Account) => {
   try {
     if (!account.accessToken) return
+
+    // Imported lazily: this module is loaded from the proxy (middleware) for
+    // the getSession fallback, and `server-utils`/`driver` pull the entire
+    // provider SDK graph (googleapis, Graph client, imapflow) — none of which
+    // the hot auth path needs.
+    const { getzeitmailDB, resolveRefreshToken } = await import(
+      "./server-utils"
+    )
+    const { createDriver } = await import("./driver")
 
     let refreshToken = account.refreshToken
     if (!refreshToken) {
@@ -58,6 +65,14 @@ const connectionHandlerHook = async (account: Account) => {
     if (result?.id && !userData?.defaultConnectionId) {
       await db.updateUser({ defaultConnectionId: result.id })
     }
+
+    // Kick off the durable sync for the freshly (re-)linked account: the
+    // scheduler loop, one immediate cycle, and a shell-model refresh — this
+    // also clears a reauth_required banner after a successful re-consent.
+    if (result?.id) {
+      const { activateConnectionSync } = await import("../sync/prime")
+      await activateConnectionSync(account.userId, result.id)
+    }
   } catch (error) {
     console.error("[connectionHandlerHook] error:", error)
   }
@@ -97,6 +112,10 @@ const createAuthConfig = () => {
         "/sign-up/email": { window: 3600, max: 5 },
         "/forget-password": { window: 3600, max: 5 },
         "/reset-password": { window: 3600, max: 5 },
+        // Session reads are validated by cookie signature and now happen in
+        // the background only; with database-backed rate limiting each hit
+        // was a SELECT+UPDATE on zeitmail_rateLimit for no protection gain.
+        "/get-session": false,
       },
     },
     session: {
@@ -165,6 +184,7 @@ const createAuthConfig = () => {
         create: {
           after: async (user) => {
             try {
+              const { getzeitmailDB } = await import("./server-utils")
               const db = await getzeitmailDB(user.id)
               const existingSettings = await db.findUserSettings()
               if (!existingSettings) {

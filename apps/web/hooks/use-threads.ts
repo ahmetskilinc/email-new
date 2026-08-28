@@ -19,12 +19,17 @@ import {
 } from "@/server/actions/mail"
 import { extractThreadDate } from "@/lib/thread-utils"
 import { patchThreadPreviews } from "@/hooks/use-thread-actions"
+import {
+  useInboxPreviewRows,
+  useSyncThreadActions,
+} from "@/hooks/use-thread-previews"
 import { useAtomValue, useSetAtom } from "jotai"
-import { useSession } from "@/lib/auth-client"
 import { useSettings } from "./use-settings"
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "next-themes"
 import { useQueryState } from "nuqs"
+
+const STORE_PAGE_SIZE = 50
 
 export const useThreads = () => {
   const { folder } = useParams<{ folder: string }>()
@@ -35,41 +40,68 @@ export const useThreads = () => {
   const { data: activeConnection } = useActiveConnection()
   const setThreadConnection = useSetAtom(threadConnectionAtom)
 
+  // Local-first read path: the inbox list comes straight out of the synced
+  // store — zero network on the paint path — whenever the store can serve
+  // this view. Searches, other folders, and a still-backfilling store fall
+  // through to the legacy live-fetch queries below.
+  const [visibleCount, setVisibleCount] = useState(STORE_PAGE_SIZE)
+  const storeEligible =
+    !searchValue.value && (isAllInboxes || folder === "inbox")
+  const storeRows = useInboxPreviewRows(
+    isAllInboxes ? null : (activeConnection?.id ?? null),
+    storeEligible ? visibleCount : 0
+  )
+  const usingStore = storeEligible && storeRows !== null
+
   const threadsQuery = useInfiniteQuery({
     queryKey: ["threads", folder, searchValue.value, activeConnection?.id],
     queryFn: ({ pageParam }) =>
       listThreads(folder, searchValue.value, undefined, pageParam ?? ""),
-    enabled: !isAllInboxes && !!activeConnection,
+    enabled: !isAllInboxes && !!activeConnection && !usingStore,
     initialPageParam: "",
     getNextPageParam: (lastPage) => lastPage?.nextPageToken ?? null,
+    // Restored-from-IndexedDB pages are older than staleTime, so mounting
+    // triggers one quiet background refetch — no explicit refetchOnMount and
+    // no visible invalidation needed.
     staleTime: 60 * 1000,
-    refetchOnMount: true,
   })
 
   const allInboxesQuery = useInfiniteQuery({
     queryKey: ["allInboxes"],
     queryFn: ({ pageParam }) => listAllInboxes(undefined, pageParam ?? ""),
-    enabled: isAllInboxes,
+    enabled: isAllInboxes && !usingStore,
     initialPageParam: "",
     getNextPageParam: (lastPage) => lastPage?.nextPageToken ?? null,
     staleTime: 60 * 1000,
-    refetchOnMount: true,
   })
 
   useEffect(() => {
-    if (!isAllInboxes || !allInboxesQuery.data) return
+    if (!isAllInboxes) return
+    // The open-thread view resolves its connection through this map for
+    // all-inboxes rows — feed it from whichever path is serving.
     const map: Record<string, string> = {}
-    allInboxesQuery.data.pages
-      .flatMap((p) => p.threads)
-      .forEach((t: any) => {
-        if (t.connectionId) map[t.id] = t.connectionId
-      })
-    setThreadConnection((prev) => ({ ...prev, ...map }))
-  }, [isAllInboxes, allInboxesQuery.data, setThreadConnection])
+    if (usingStore && storeRows) {
+      for (const t of storeRows) map[t.id] = t.connectionId
+    } else if (allInboxesQuery.data) {
+      allInboxesQuery.data.pages
+        .flatMap((p) => p.threads)
+        .forEach((t: any) => {
+          if (t.connectionId) map[t.id] = t.connectionId
+        })
+    }
+    if (Object.keys(map).length > 0) {
+      setThreadConnection((prev) => ({ ...prev, ...map }))
+    }
+  }, [isAllInboxes, usingStore, storeRows, allInboxesQuery.data, setThreadConnection])
 
   const activeQuery = isAllInboxes ? allInboxesQuery : threadsQuery
 
   const threads = useMemo(() => {
+    if (usingStore && storeRows) {
+      // Already newest-first from the store index; the background-queue
+      // filter still applies so removals vanish on the very next frame.
+      return storeRows.filter((t) => !isInQueue(`thread:${t.id}`))
+    }
     if (!activeQuery.data) return []
     const filtered = activeQuery.data.pages
       .flatMap((e) => e.threads)
@@ -78,9 +110,13 @@ export const useThreads = () => {
     return filtered.sort(
       (a, b) => extractThreadDate(b.$raw) - extractThreadDate(a.$raw)
     )
-  }, [activeQuery.data, isInQueue])
+  }, [usingStore, storeRows, activeQuery.data, isInQueue])
 
   const loadMore = async () => {
+    if (usingStore) {
+      setVisibleCount((count) => count + STORE_PAGE_SIZE)
+      return
+    }
     if (activeQuery.isLoading || activeQuery.isFetchingNextPage) return
     await activeQuery.fetchNextPage()
   }
@@ -92,7 +128,6 @@ export const useThread = (
   threadId: string | null,
   options?: { enabled?: boolean }
 ) => {
-  const { data: session } = useSession()
   const { data: activeConnection } = useActiveConnection()
   const [queryThreadId] = useQueryState("threadId")
   const id = threadId ?? queryThreadId
@@ -101,11 +136,9 @@ export const useThread = (
   const threadConnectionMap = useAtomValue(threadConnectionAtom)
   const connectionId = id ? threadConnectionMap[id] : undefined
 
-  const isEnabled =
-    (options?.enabled ?? true) &&
-    !!id &&
-    !!session?.user.id &&
-    !!activeConnection
+  // Identity is proxy-validated before this tree renders; the only data gate
+  // left is the active connection the query is keyed on.
+  const isEnabled = (options?.enabled ?? true) && !!id && !!activeConnection
 
   const threadQuery = useQuery({
     queryKey: ["thread", id, connectionId],
@@ -196,6 +229,7 @@ export const useThread = (
   })
 
   const queryClient = useQueryClient()
+  const syncActions = useSyncThreadActions()
   const markedReadRef = useRef<string | null>(null)
 
   // Auto mark-as-read on open, honoring the user's autoRead setting. Waits
@@ -216,6 +250,9 @@ export const useThread = (
       (old: typeof threadQuery.data) =>
         old ? { ...old, hasUnread: false } : old
     )
+    // Local-first path: an optimistic store transaction + durable MailOp;
+    // otherwise the legacy direct server action.
+    if (syncActions?.markRead([id])) return
     markAsRead([id], connectionId).catch(() => {
       markedReadRef.current = null
       patchThreadPreviews(queryClient, [id], { unread: true })
@@ -227,6 +264,7 @@ export const useThread = (
     queryClient,
     settings,
     autoRead,
+    syncActions,
   ])
 
   return { ...threadQuery, data: finalData, isGroupThread, latestDraft }

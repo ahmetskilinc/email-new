@@ -1,11 +1,12 @@
 // @ts-nocheck
 import {
-  deleteActiveConnection,
+  markActiveConnectionReauthRequired,
   FatalErrors,
   fromBase64Url,
   sanitizeContext,
   StandardizedError,
 } from "./utils"
+import { persistRefreshedTokens } from "../token-store"
 import type {
   OutlookCategory as Category,
   MailFolder,
@@ -129,6 +130,25 @@ export class OutlookMailManager implements MailManager {
         this.cachedToken = {
           token: data.access_token,
           expiresAt: Date.now() + Number(data.expires_in ?? 3600) * 1000,
+        }
+
+        // Microsoft ROTATES refresh tokens: the response carries a new one
+        // that replaces the stored token. Dropping it (the old behavior)
+        // left the row holding a dead credential — the root cause of
+        // Microsoft connections dying over time. Use the rotated token for
+        // this instance and persist both tokens back to the row.
+        if (data.refresh_token && this.config.auth) {
+          this.config.auth.refreshToken = data.refresh_token
+        }
+        const connectionId = this.config.auth?.connectionId
+        if (connectionId) {
+          void persistRefreshedTokens(this.config.auth.userId, connectionId, {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token ?? undefined,
+            expiresAt: new Date(this.cachedToken.expiresAt),
+          }).catch((error) =>
+            console.error("[Outlook Driver] token persist failed:", error)
+          )
         }
         return this.cachedToken.token
       } finally {
@@ -1546,7 +1566,7 @@ export class OutlookMailManager implements MailManager {
         }
       )
       if (isFatal)
-        await deleteActiveConnection(
+        await markActiveConnectionReauthRequired(
           this.config.auth?.userId,
           this.config.auth?.email
         )
@@ -1576,7 +1596,7 @@ export class OutlookMailManager implements MailManager {
         isFatal,
       })
       if (isFatal)
-        void deleteActiveConnection(
+        void markActiveConnectionReauthRequired(
           this.config.auth?.userId,
           this.config.auth?.email
         )

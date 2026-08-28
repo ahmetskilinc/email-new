@@ -1,62 +1,34 @@
-"use client"
-
-import { ConnectionSyncer } from "@/components/connection/connection-syncer"
-import { SiteHeader } from "@/components/site-header"
-import { AppSidebar } from "@/components/app-sidebar"
+import { headers } from "next/headers"
+import { redirect } from "next/navigation"
 import {
-  DualSidebarInset,
-  DualSidebarProvider,
-} from "@workspace/ui/components/dual-sidebar"
-import { AppSidebarRight } from "@/components/app-sidebar-right"
-// Static: the shortcuts hook imports this module for its open atom anyway,
-// so a dynamic() wrapper would not split anything out.
-import { ShortcutsHelp } from "@/components/shortcuts-help"
-import { usePathname } from "next/navigation"
-import dynamic from "next/dynamic"
+  AUTH_SNAPSHOT_HEADER,
+  decodeAuthSnapshot,
+} from "@/lib/auth-snapshot"
+import { SessionProvider } from "@/providers/session-provider"
+import { RoutesLayoutClient } from "@/components/layout/routes-layout-client"
 
-// Loaded lazily so the TipTap/novel/emoji editor stack and the settings/
-// palette trees stay out of the initial bundle. The wrappers stay mounted —
-// each component renders its dialog conditioned on its own store state, so
-// open-state keeps working; only the code download is deferred.
-const ComposeDialog = dynamic(
-  () =>
-    import("@/components/create/compose-dialog").then((m) => m.ComposeDialog),
-  { ssr: false }
-)
-const SettingsDialog = dynamic(
-  () =>
-    import("@/components/settings/settings-dialog").then(
-      (m) => m.SettingsDialog
-    ),
-  { ssr: false }
-)
-const CommandPalette = dynamic(
-  () => import("@/components/command-palette").then((m) => m.CommandPalette),
-  { ssr: false }
-)
-
-export default function RoutesLayout({
+/**
+ * Server shell for every authenticated route. The proxy has already validated
+ * the session cookie for this request and forwarded a snapshot header, so the
+ * whole client tree renders with identity known on frame one — no client-side
+ * session fetch gates the first paint anymore.
+ */
+export default async function RoutesLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const calendarRoute = usePathname().startsWith("/calendar")
+  const snapshot = decodeAuthSnapshot(
+    (await headers()).get(AUTH_SNAPSHOT_HEADER)
+  )
+
+  // The proxy redirects unauthenticated requests before they get here; this
+  // only fires if a route under (routes) is missing from its protectedPaths.
+  if (!snapshot) redirect("/login")
 
   return (
-    <DualSidebarProvider>
-      <AppSidebar />
-      <DualSidebarInset className="border border-border">
-        <SiteHeader />
-        <ConnectionSyncer />
-        <div className="relative flex h-[calc(100dvh-(3rem+32px))] w-full flex-1 overflow-hidden">
-          {children}
-        </div>
-      </DualSidebarInset>
-      {!calendarRoute && <AppSidebarRight />}
-      <ComposeDialog />
-      <SettingsDialog />
-      <CommandPalette />
-      <ShortcutsHelp />
-    </DualSidebarProvider>
+    <SessionProvider initialSession={snapshot}>
+      <RoutesLayoutClient>{children}</RoutesLayoutClient>
+    </SessionProvider>
   )
 }

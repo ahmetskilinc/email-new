@@ -28,15 +28,50 @@ export async function clearPersistedQueryCache() {
   await del(QUERY_CACHE_KEY).catch(() => {})
 }
 
+/**
+ * Who owns this browser's local caches, as stamped by the proxy: a plain
+ * user-id cookie (deliberately not HttpOnly — it authorizes nothing). Read
+ * synchronously so the ownership check can run inside the restore itself.
+ */
+function readCacheOwner(): string {
+  if (typeof document === "undefined") return "anon"
+  const match = document.cookie.match(/(?:^|;\s*)zm-uid=([^;]+)/)
+  return match?.[1] ?? "anon"
+}
+
+type OwnedPersistedClient = {
+  owner: string
+  client: PersistedClient
+}
+
 function createIDBPersister(
   idbValidKey: IDBValidKey = QUERY_CACHE_KEY
 ): Persister {
   return {
     persistClient: async (client: PersistedClient) => {
-      await set(idbValidKey, client)
+      await set(idbValidKey, {
+        owner: readCacheOwner(),
+        client,
+      } satisfies OwnedPersistedClient)
     },
     restoreClient: async () => {
-      return await get<PersistedClient>(idbValidKey)
+      const stored = await get<OwnedPersistedClient | PersistedClient>(
+        idbValidKey
+      )
+      if (!stored) return undefined
+      // Legacy un-owned blobs (pre owner-tagging) are discarded outright.
+      if (!("owner" in stored) || !("client" in stored)) {
+        await del(idbValidKey).catch(() => {})
+        return undefined
+      }
+      // A blob persisted under a different user must never rehydrate into
+      // this session — this is the race-free half of user-switch protection
+      // (the sign-out purge is the other half).
+      if (stored.owner !== readCacheOwner()) {
+        await del(idbValidKey).catch(() => {})
+        return undefined
+      }
+      return stored.client
     },
     removeClient: async () => {
       await del(idbValidKey)
@@ -90,6 +125,11 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         maxAge: 1000 * 60 * 60 * 24,
       }}
       onSuccess={() => {
+        // Trim restored infinite queries to their first pages so a long
+        // scroll session doesn't rehydrate hundreds of pages. No invalidate:
+        // restored data is older than staleTime, so mounting queries refetch
+        // quietly in the background on their own — invalidating here forced
+        // a visible refetch of exactly the data that was just restored.
         const threadQueryKey = ["threads"]
         queryClient.setQueriesData(
           { queryKey: threadQueryKey },
@@ -101,7 +141,6 @@ export function QueryProvider({ children }: { children: ReactNode }) {
             }
           }
         )
-        queryClient.invalidateQueries({ queryKey: threadQueryKey })
       }}
     >
       {children}

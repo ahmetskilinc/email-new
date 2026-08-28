@@ -16,7 +16,8 @@
     "db:generate": "dotenv -- bun run --cwd apps/web db:generate",
     "db:migrate": "dotenv -- bun run --cwd apps/web db:migrate",
     "db:push": "dotenv -- bun run --cwd apps/web db:push",
-    "db:studio": "dotenv -- bun run --cwd apps/web db:studio"
+    "db:studio": "dotenv -- bun run --cwd apps/web db:studio",
+    "postinstall": "node scripts/link-sync-engine.mjs"
   },
   "devDependencies": {
     "@workspace/eslint-config": "workspace:*",

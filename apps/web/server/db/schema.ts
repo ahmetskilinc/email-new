@@ -1,5 +1,7 @@
 import {
   pgTableCreator,
+  pgSequence,
+  primaryKey,
   text,
   timestamp,
   boolean,
@@ -117,6 +119,12 @@ export const connection = createTable(
       .notNull(),
     imapConfig: jsonb("imap_config"),
     expiresAt: timestamp("expires_at").notNull(),
+    // A dead refresh token used to hard-delete the row (losing the account
+    // silently); it now flips this flag so the UI can offer a reconnect.
+    status: text("status")
+      .$type<"active" | "reauth_required">()
+      .notNull()
+      .default("active"),
     createdAt: timestamp("created_at").notNull(),
     updatedAt: timestamp("updated_at").notNull(),
   },
@@ -197,6 +205,7 @@ export const emailThread = createTable(
     labels: jsonb("labels").$type<string[]>(),
     messageCount: integer("message_count").notNull().default(0),
     hasUnread: boolean("has_unread").notNull().default(false),
+    hasStarred: boolean("has_starred").notNull().default(false),
     lastMessageAt: timestamp("last_message_at"),
     historyId: text("history_id"),
     syncedAt: timestamp("synced_at").notNull(),
@@ -302,3 +311,48 @@ export const securityEvent = createTable(
     index("security_event_type_created_idx").on(t.type, t.createdAt),
   ]
 )
+
+/**
+ * Sync-engine storage (the distributed-mode "shared Postgres"):
+ * - syncRecord: current state of every synced record, jsonb — round-trips 1:1
+ *   with the engine's read-modify-write transaction planning.
+ * - syncAction: the global ordered action log; `userId` is the partition key
+ *   the per-user pollers and catch-up queries scope on.
+ * - syncMeta: epoch + per-partition generation markers.
+ * - zeitmail_sync_id_seq: the global monotonic sync-ID sequence.
+ * The emailThread/emailMessage tables above stay the provider-sync working
+ * set; the bridge (server/sync/bridge.ts) is the single writer keeping the
+ * two in step inside one transaction.
+ */
+export const syncRecord = createTable(
+  "sync_record",
+  {
+    model: text("model").notNull(),
+    id: text("id").notNull(),
+    userId: text("user_id").notNull(),
+    data: jsonb("data").notNull().$type<Record<string, unknown>>(),
+    updatedAt: timestamp("updated_at").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.model, t.id] }),
+    index("sync_record_user_model_idx").on(t.userId, t.model),
+  ]
+)
+
+export const syncAction = createTable(
+  "sync_action",
+  {
+    syncId: bigint("sync_id", { mode: "number" }).primaryKey(),
+    userId: text("user_id").notNull(),
+    action: jsonb("action").notNull().$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at").notNull(),
+  },
+  (t) => [index("sync_action_user_sync_idx").on(t.userId, t.syncId)]
+)
+
+export const syncMeta = createTable("sync_meta", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+})
+
+export const syncIdSeq = pgSequence("zeitmail_sync_id_seq")

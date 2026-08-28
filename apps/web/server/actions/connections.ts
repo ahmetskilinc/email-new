@@ -11,6 +11,11 @@ import {
 import { autoDiscoverFolders } from "../lib/transport/provider-config"
 import { assertValidMailEndpoints } from "../lib/transport/host-validation"
 import { logSecurityEvent } from "../lib/audit"
+import {
+  activateConnectionSync,
+  primeUserSyncRecords,
+  removeConnectionSyncRecords,
+} from "../sync/prime"
 import { createDriver } from "../lib/driver"
 import { encrypt } from "../lib/encryption"
 import { EProviders } from "../types"
@@ -24,6 +29,7 @@ export async function listConnections() {
   const disconnectedIds = connections
     .filter(
       (c) =>
+        c.status === "reauth_required" ||
         !c.accessToken ||
         (!appPasswordProviders.includes(c.providerId) && !c.refreshToken)
     )
@@ -37,6 +43,7 @@ export async function listConnections() {
       picture: connection.picture,
       createdAt: connection.createdAt,
       providerId: connection.providerId,
+      status: connection.status,
     })),
     disconnectedIds,
   }
@@ -48,6 +55,9 @@ export async function setDefaultConnection(connectionId: string) {
   const foundConnection = await db.findUserConnection(connectionId)
   if (!foundConnection) throw new Error("Connection not found")
   await db.updateUser({ defaultConnectionId: connectionId })
+  // Push the new default to every connected client (and the proxy snapshot
+  // picks it up on the next session-cookie refresh).
+  await primeUserSyncRecords(session.user.id).catch(() => undefined)
 }
 
 export async function deleteConnection(connectionId: string) {
@@ -95,6 +105,12 @@ export async function deleteConnection(connectionId: string) {
     )[0]
     await db.updateUser({ defaultConnectionId: next?.id ?? null })
   }
+
+  // Every client converges on the removal: the connection's threads, labels
+  // and status leave the sync store, and the shell models refresh.
+  await removeConnectionSyncRecords(session.user.id, connectionId).catch(
+    () => undefined
+  )
 }
 
 export async function getDefaultConnection() {
@@ -146,7 +162,7 @@ export async function createIcloudConnection(email: string, password: string) {
   })
 
   const db = await getzeitmailDB(session.user.id)
-  await db.createConnection(EProviders.icloud, userInfo.address, {
+  const [createdConnection] = await db.createConnection(EProviders.icloud, userInfo.address, {
     name: userInfo.name || normalizedEmail.split("@")[0],
     picture: "",
     accessToken: encrypt(normalizedPassword),
@@ -158,6 +174,10 @@ export async function createIcloudConnection(email: string, password: string) {
   await logSecurityEvent("connection_added", session.user.id, {
     providerId: "icloud",
   })
+
+  if (createdConnection) {
+    await activateConnectionSync(session.user.id, createdConnection.id)
+  }
 
   return { success: true }
 }
@@ -203,7 +223,7 @@ export async function createYahooConnection(email: string, password: string) {
   })
 
   const db = await getzeitmailDB(session.user.id)
-  await db.createConnection(EProviders.yahoo, userInfo.address, {
+  const [createdConnection] = await db.createConnection(EProviders.yahoo, userInfo.address, {
     name: userInfo.name || email.split("@")[0],
     picture: "",
     accessToken: encrypt(password),
@@ -215,6 +235,10 @@ export async function createYahooConnection(email: string, password: string) {
   await logSecurityEvent("connection_added", session.user.id, {
     providerId: "yahoo",
   })
+
+  if (createdConnection) {
+    await activateConnectionSync(session.user.id, createdConnection.id)
+  }
 
   return { success: true }
 }
@@ -271,7 +295,7 @@ export async function createCustomConnection(
   })
 
   const db = await getzeitmailDB(session.user.id)
-  await db.createConnection(EProviders.custom, userInfo.address, {
+  const [createdConnection] = await db.createConnection(EProviders.custom, userInfo.address, {
     name: userInfo.name || email.split("@")[0],
     picture: "",
     accessToken: encrypt(password),
@@ -286,6 +310,10 @@ export async function createCustomConnection(
     imapHost,
     smtpHost,
   })
+
+  if (createdConnection) {
+    await activateConnectionSync(session.user.id, createdConnection.id)
+  }
 
   return { success: true }
 }

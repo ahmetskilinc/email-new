@@ -1,5 +1,5 @@
 import {
-  deleteActiveConnection,
+  markActiveConnectionReauthRequired,
   FatalErrors,
   findHtmlBody,
   fromBase64Url,
@@ -8,6 +8,7 @@ import {
   sanitizeContext,
   StandardizedError,
 } from "./utils"
+import { persistRefreshedTokens } from "../token-store"
 import { parseAddressList, parseFrom, wasSentWithTLS } from "../email-utils"
 import type { IOutgoingMessage, Label, ParsedMessage } from "../../types"
 import { sanitizeTipTapHtml } from "../sanitize-tip-tap-html"
@@ -66,6 +67,23 @@ export class GoogleMailManager implements MailManager {
         access_token: config.auth.accessToken || undefined,
         scope: this.getScope(),
       })
+
+    // google-auth-library emits this on every refresh (including the
+    // forceRefreshOnFailure retries). Persisting the result means the next
+    // request — from any instance — starts with a live token instead of
+    // re-paying the 401→refresh→retry dance. Fire-and-forget: persistence
+    // failing must not fail the mail operation that triggered the refresh.
+    this.auth.on("tokens", (tokens) => {
+      const connectionId = this.config.auth?.connectionId
+      if (!connectionId || !tokens.access_token) return
+      void persistRefreshedTokens(this.config.auth.userId, connectionId, {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token ?? undefined,
+        expiresAt: new Date(tokens.expiry_date ?? Date.now() + 3600 * 1000),
+      }).catch((error) =>
+        console.error("[Gmail Driver] token persist failed:", error)
+      )
+    })
 
     // Each @googleapis/* package bundles its own copy of google-auth-library's
     // types; when the tree resolves more than one version of it the OAuth2Client
@@ -1676,7 +1694,7 @@ export class GoogleMailManager implements MailManager {
         }
       )
       if (isFatal)
-        await deleteActiveConnection(
+        await markActiveConnectionReauthRequired(
           this.config.auth?.userId,
           this.config.auth?.email
         )
@@ -1701,7 +1719,7 @@ export class GoogleMailManager implements MailManager {
         isFatal,
       })
       if (isFatal)
-        void deleteActiveConnection(
+        void markActiveConnectionReauthRequired(
           this.config.auth?.userId,
           this.config.auth?.email
         )

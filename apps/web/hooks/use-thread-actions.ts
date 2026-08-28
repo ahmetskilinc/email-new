@@ -21,6 +21,7 @@ import {
   modifyLabels,
 } from "@/server/actions/mail"
 import { normalizeThreadPreview } from "@/lib/thread-utils"
+import { useSyncThreadActions } from "@/hooks/use-thread-previews"
 
 type ThreadListItem = { id: string; $raw?: unknown }
 type ThreadListPage = {
@@ -138,6 +139,12 @@ export function useThreadActions() {
   const pathname = usePathname()
   const isAllInboxes = pathname === "/mail/all-inboxes"
   const setBackgroundQueue = useSetAtom(backgroundQueueAtom)
+  // Local-first path: when the sync store holds the touched threads, the
+  // action is an optimistic local transaction + a durable MailOp — the
+  // provider call happens in the background worker and failures reconcile
+  // through sync. Threads the store doesn't hold (search results, other
+  // folders, engine off) keep the legacy server-action flow below.
+  const syncActions = useSyncThreadActions()
 
   const folder = params?.folder ?? "inbox"
   const activeListKey = useMemo<QueryKey>(
@@ -294,17 +301,19 @@ export function useThreadActions() {
   const archive = useCallback(
     (threadIds: string[]) => {
       if (!threadIds.length) return
+      if (syncActions?.archive(threadIds)) return
       mutateRemoval({ ids: threadIds, action: "archive" })
     },
-    [mutateRemoval]
+    [mutateRemoval, syncActions]
   )
 
   const deleteThreads = useCallback(
     (threadIds: string[]) => {
       if (!threadIds.length) return
+      if (syncActions?.deleteThreads(threadIds)) return
       mutateRemoval({ ids: threadIds, action: "delete" })
     },
-    [mutateRemoval]
+    [mutateRemoval, syncActions]
   )
 
   /**
@@ -315,6 +324,7 @@ export function useThreadActions() {
   const toggleStar = useCallback(
     (threadIds: string[], starred?: boolean) => {
       if (!threadIds.length) return
+      if (syncActions?.toggleStar(threadIds, starred)) return
       let value = starred
       if (value === undefined) {
         const anyStarred = anyStarredInCache(queryClient, threadIds)
@@ -322,23 +332,25 @@ export function useThreadActions() {
       }
       mutateFlag({ ids: threadIds, kind: "star", value })
     },
-    [mutateFlag, queryClient]
+    [mutateFlag, queryClient, syncActions]
   )
 
   const markRead = useCallback(
     (threadIds: string[]) => {
       if (!threadIds.length) return
+      if (syncActions?.markRead(threadIds)) return
       mutateFlag({ ids: threadIds, kind: "read", value: false })
     },
-    [mutateFlag]
+    [mutateFlag, syncActions]
   )
 
   const markUnread = useCallback(
     (threadIds: string[]) => {
       if (!threadIds.length) return
+      if (syncActions?.markUnread(threadIds)) return
       mutateFlag({ ids: threadIds, kind: "read", value: true })
     },
-    [mutateFlag]
+    [mutateFlag, syncActions]
   )
 
   return { archive, deleteThreads, toggleStar, markRead, markUnread }
