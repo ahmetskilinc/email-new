@@ -9,7 +9,23 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": [
+        "DATABASE_URL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL",
+        "BETTER_AUTH_TRUSTED_ORIGINS",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "MICROSOFT_CLIENT_ID",
+        "MICROSOFT_CLIENT_SECRET",
+        "ENCRYPTION_KEY",
+        "EMAIL_SYNC_READ_FROM_DB",
+        "SYNC_ALLOWED_ORIGINS",
+        "RUN_MIGRATIONS",
+        "VERCEL_ENV",
+        "NPM_CONFIG_HUGEICONS_KEY"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"]
