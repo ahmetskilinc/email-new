@@ -46,5 +46,9 @@ export async function saveSettings(input: Partial<UserSettings>) {
     })
   }
 
+  // Settings ride the sync store too — other tabs/devices pick this up live.
+  const { primeUserSyncRecords } = await import("../sync/prime")
+  await primeUserSyncRecords(session.user.id).catch(() => undefined)
+
   return { success: true }
 }

@@ -34,7 +34,6 @@ import {
 } from "@workspace/ui/components/avatar"
 import { emailProviders } from "@/lib/constants"
 import { Button } from "@workspace/ui/components/button"
-import { useSession } from "@/lib/auth-client"
 import { signOut } from "@/lib/auth-client"
 import { useTheme } from "next-themes"
 import { cn } from "@workspace/ui/lib/utils"
@@ -45,6 +44,7 @@ import { Settings04Icon, Link04Icon } from "@hugeicons-pro/core-stroke-rounded"
 import { useOpenSettings } from "@/store/settings"
 import { AddConnectionDialog } from "./settings/add-connection-dialog"
 import { clearPersistedQueryCache } from "@/providers/query-provider"
+import { useSyncLogoutPurge } from "@/providers/sync-provider"
 
 const themeOptions = [
   {
@@ -72,10 +72,8 @@ export function NavUser() {
   const { isMobile } = useDualSidebar()
   const { theme, setTheme } = useTheme()
   const activeTheme = theme ?? "system"
-  const { data: sesionData } = useSession()
   const { data: activeConnection } = useActiveConnection()
   const { data: connectionsData } = useConnections()
-  const user = sesionData?.user
   const connections = connectionsData?.connections
 
   useEffect(() => setMounted(true), [])
@@ -93,11 +91,16 @@ export function NavUser() {
       setSwitchTarget(connection)
     }
 
+  const purgeSyncStore = useSyncLogoutPurge()
+
   const handleLogout = async () => {
     // Tear the cached mail down with the session. The persisted query cache
-    // keeps message bodies in IndexedDB, so without this the previous user's
-    // mail is still sitting there for whoever signs in next on this machine.
-    const signOutAndClear = signOut().finally(() => clearPersistedQueryCache())
+    // and the sync store both keep mail in IndexedDB, so without this the
+    // previous user's mail is still sitting there for whoever signs in next
+    // on this machine.
+    const signOutAndClear = signOut().finally(() =>
+      Promise.all([clearPersistedQueryCache(), purgeSyncStore()])
+    )
     toast.promise(signOutAndClear, {
       loading: "Signing out...",
       success: () => "Signed out successfully!",

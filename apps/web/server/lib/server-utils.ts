@@ -94,6 +94,8 @@ export const getzeitmailDB = async (userId: string) => {
             expiresAt: info.expiresAt,
             name: info.name || null,
             picture: info.picture || null,
+            // Fresh credentials from a (re-)link clear any reauth flag.
+            status: "active",
             updatedAt: now,
           },
         })
@@ -371,6 +373,7 @@ export const connectionToDriver = (
       accessToken: resolveAccessToken(activeConnection),
       refreshToken: resolveRefreshToken(activeConnection),
       email: activeConnection.email,
+      connectionId: activeConnection.id,
     },
     ...(activeConnection.imapConfig != null
       ? {

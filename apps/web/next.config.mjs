@@ -28,7 +28,7 @@ const securityHeaders = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@workspace/ui"],
+  transpilePackages: ["@workspace/ui", "@workspace/core"],
   experimental: {
     serverActions: {
       // The compose flow ships attachments through server actions as base64

@@ -1,18 +1,19 @@
 "use client"
 
 import { CustomImapForm } from "@/components/connection/custom-imap-form"
-import { authClient, useSession } from "@/lib/auth-client"
+import { authClient } from "@/lib/auth-client"
 import { ICloudForm } from "@/components/connection/icloud-form"
 import { YahooForm } from "@/components/connection/yahoo-form"
 import { useConnections } from "@/hooks/use-connections"
 import { emailProviders } from "@/lib/constants"
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
+// The proxy guarantees a validated session on /onboarding, so there is no
+// client-side session gate here anymore.
 export default function OnboardingPage() {
   const router = useRouter()
-  const { data: session, isPending } = useSession()
   const { data: connectionsData, refetch: refetchConnections } =
     useConnections()
   const [appPasswordProvider, setAppPasswordProvider] = useState<string | null>(
@@ -20,12 +21,6 @@ export default function OnboardingPage() {
   )
 
   const hasConnections = (connectionsData?.connections?.length ?? 0) > 0
-
-  useEffect(() => {
-    if (!isPending && !session?.user) {
-      router.push("/login")
-    }
-  }, [session, isPending, router])
 
   const handleProviderClick = async (providerId: string) => {
     if (
@@ -46,8 +41,6 @@ export default function OnboardingPage() {
     setAppPasswordProvider(null)
     await refetchConnections()
   }
-
-  if (isPending) return null
 
   return (
     <div className="flex min-h-dvh w-full flex-col items-center justify-center px-4">
@@ -107,7 +100,7 @@ export default function OnboardingPage() {
           <Button
             className="w-full"
             onClick={() => {
-              window.location.href = "/mail/inbox"
+              router.push("/mail/inbox")
             }}
           >
             Go to Inbox

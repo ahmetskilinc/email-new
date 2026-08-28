@@ -3,38 +3,35 @@
 import { useConnections } from "@/hooks/use-connections"
 import { useNewMailNotifier } from "@/hooks/use-new-mail-notifier"
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts"
-import { useSession } from "@/lib/auth-client"
+import { useMailOpFailureToasts } from "@/hooks/use-thread-previews"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
+/**
+ * Session validation happens server-side in the proxy before this tree ever
+ * renders, so the mail shell paints immediately — no blocking session or
+ * connections fetch. The only client-side gate left is onboarding: a user
+ * with a *confirmed* empty connections list is moved there after paint.
+ * Cached or in-flight data never triggers the redirect.
+ */
 export default function MailLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const { data: session, isPending: sessionPending } = useSession()
-  const { data: connectionsData, isPending: connectionsPending } =
-    useConnections()
+  const { data: connectionsData, isFetched, isSuccess } = useConnections()
 
   useNewMailNotifier()
   useKeyboardShortcuts()
+  useMailOpFailureToasts()
 
   useEffect(() => {
-    if (sessionPending || connectionsPending) return
-
-    if (!session?.user) {
-      router.push("/login")
-      return
+    if (!isFetched || !isSuccess) return
+    if ((connectionsData?.connections?.length ?? 0) === 0) {
+      router.replace("/onboarding")
     }
-
-    if (!connectionsData?.connections?.length) {
-      router.push("/onboarding")
-    }
-  }, [session, sessionPending, connectionsData, connectionsPending, router])
-
-  if (sessionPending || connectionsPending) return null
-  if (!session?.user || !connectionsData?.connections?.length) return null
+  }, [isFetched, isSuccess, connectionsData, router])
 
   return children
 }

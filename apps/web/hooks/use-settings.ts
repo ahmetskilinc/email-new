@@ -2,15 +2,14 @@
 
 import { getSettings } from "@/server/actions/settings"
 import { useQuery } from "@tanstack/react-query"
-import { useSession } from "@/lib/auth-client"
+import { useSessionSnapshot } from "@/providers/session-provider"
 
 export function useSettings() {
-  const { data: session } = useSession()
+  const { uid } = useSessionSnapshot()
 
   return useQuery({
-    queryKey: ["settings", session?.user?.id],
+    queryKey: ["settings", uid],
     queryFn: () => getSettings(),
-    enabled: !!session?.user?.id,
     staleTime: Infinity,
   })
 }

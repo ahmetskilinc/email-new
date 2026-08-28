@@ -18,6 +18,7 @@ export type SecurityEventType =
   | "password_changed"
   | "connection_added"
   | "connection_removed"
+  | "connection_reauth_required"
   | "mail_sent"
   | "account_deleted"
 

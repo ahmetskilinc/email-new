@@ -1,37 +1,31 @@
-import { getActiveConnection, getzeitmailDB } from "../server-utils"
+import { markConnectionReauthRequired } from "../token-store"
 import type { gmail_v1 } from "@googleapis/gmail"
 
 import { toByteArray } from "base64-js"
 export const FatalErrors = ["invalid_grant"]
 
 /**
- * Deletes the connection that hit a fatal auth error. The driver config does
- * not carry the connection id, so `email` identifies the specific connection:
- * without it (or if it doesn't match) we refuse to delete, rather than tearing
- * down whichever connection happens to be "active" for the user.
+ * Flags the connection that hit a fatal auth error as needing re-consent.
+ * This used to DELETE the row, silently losing the account (and bouncing the
+ * user to onboarding); the row and its encrypted tokens now survive so the
+ * reconnect banner can re-link in place. `email` identifies the specific
+ * connection — without it we refuse to act rather than flagging whichever
+ * connection happens to be "active" for the user.
  */
-export const deleteActiveConnection = async (
+export const markActiveConnectionReauthRequired = async (
   userId?: string,
   email?: string
 ) => {
-  if (!userId) {
-    console.warn("deleteActiveConnection called without userId, skipping")
-    return
-  }
-  const activeConnection = await getActiveConnection(userId)
-  if (!activeConnection) return console.log("No connection ID found")
-  if (email && activeConnection.email !== email) {
+  if (!userId || !email) {
     console.warn(
-      "deleteActiveConnection: active connection does not match the failing connection's email, skipping"
+      "markActiveConnectionReauthRequired called without userId/email, skipping"
     )
     return
   }
   try {
-    const db = await getzeitmailDB(userId)
-    await db.deleteConnection(activeConnection.id)
+    await markConnectionReauthRequired(userId, email)
   } catch (error) {
-    console.error("Server: Error deleting connection:", error)
-    throw error
+    console.error("Server: Error flagging connection for reauth:", error)
   }
 }
 

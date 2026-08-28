@@ -5,10 +5,12 @@ import { Input } from "@workspace/ui/components/input"
 import { Label } from "@workspace/ui/components/label"
 import { useState } from "react"
 import { signIn } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -22,7 +24,10 @@ export default function LoginPage() {
         password,
         fetchOptions: {
           onSuccess: () => {
-            window.location.href = "/mail/inbox"
+            // Client navigation, not a document reload: the sign-in response
+            // already set the session cookies, so the proxy validates the very
+            // next RSC request and the inbox paints from the persisted cache.
+            router.push("/mail/inbox")
           },
           onError: (ctx) => {
             toast.error(ctx.error.message ?? "Invalid email or password")
